@@ -1,3 +1,6 @@
+/* resources/css/app.css */
+
+/* --- 1. LARAVEL'S DEFAULT TAILWIND ENGINE --- */
 @import 'tailwindcss';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -9,3 +12,149 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* --- 2. OUR CUSTOM SMART FORUM WORKSPACE STYLES --- */
+:root {
+    --bg-sidebar: #1e2127;
+    --bg-nav: #282b30;
+    --bg-main: #36393f;
+    --border-color: #202225;
+    --text-primary: #dcddde;
+    --text-muted: #8e9297;
+    --accent-green: #3fb56e;
+    --accent-blue: #007aff;
+    --hover-bg: #32353b;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    /* We will keep our font fallback but Tailwind's font will also work nicely */
+    font-family: 'Segoe UI', system-ui, sans-serif; 
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    overflow: hidden;
+}
+
+.workspace-split {
+    display: flex;
+    flex: 1;
+    height: calc(100vh - 30px);
+}
+
+.app-sidebar {
+    width: 65px;
+    background-color: var(--bg-sidebar);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 15px;
+    border-right: 1px solid var(--border-color);
+}
+
+.app-icon {
+    font-size: 24px;
+    color: var(--text-muted);
+    margin-bottom: 25px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.app-icon:hover { color: white; }
+
+.navigation-container {
+    width: 280px;
+    background-color: var(--bg-nav);
+    border-right: 2px solid var(--border-color);
+    position: relative;
+}
+
+.nav-card {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.card-hidden {
+    transform: translateX(100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.nav-header {
+    padding: 15px 15px 10px 15px;
+    font-weight: bold;
+    font-size: 14px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.nav-header-topics {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    color: var(--accent-blue);
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.nav-list {
+    list-style: none;
+    overflow-y: auto;
+}
+
+.nav-list li {
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    border-left: 3px solid transparent;
+}
+
+.nav-list li:hover {
+    background-color: var(--hover-bg);
+    border-left: 3px solid var(--text-muted);
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--bg-main);
+}
+
+.placeholder {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 15px;
+}
+
+.status-bar {
+    height: 30px;
+    background-color: var(--bg-sidebar);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    font-size: 12px;
+    gap: 15px;
+}
+
+.status-online { color: var(--accent-green); }
+.status-db { color: var(--text-muted); }
