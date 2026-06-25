@@ -17,7 +17,7 @@
 
     <header class="h-10 bg-white border-b border-[#E5E5E5] flex items-center justify-between px-6 z-10 flex-shrink-0">
         <div class="text-sm font-bold tracking-tight">
-            Smart Discussion Forum-Desktop Workspace
+            Smart Discussion Forum-Web Workspace
         </div>
         <div class="flex items-center space-x-4 text-sm">
             <button class="hover:opacity-60">🔍</button>
