@@ -49,7 +49,7 @@
 
                 <div class="flex justify-end pt-2">
                     <button type="button" class="bg-white border-2 border-black px-6 py-2.5 text-xs font-bold uppercase tracking-widest hover:bg-[#F5F5F5] transition-colors">
-                        Accept and Enter Channel
+                        Accept and Enter Group
                     </button>
                 </div>
             </div>
