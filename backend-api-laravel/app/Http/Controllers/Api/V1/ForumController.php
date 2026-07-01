@@ -52,26 +52,106 @@ class ForumController extends Controller
      * Endpoint 3: Create/Publish a new interactive response post.
      * Implements strict incoming request data verification.
      */
+
     public function createPost(Request $request)
     {
-        // LEARNING POINT: Data Validation
-        // Never trust data coming over the network! $request->validate() ensures 
-        // that required fields exist and conform to exact database rules before running SQL.
         $validatedData = $request->validate([
             'topic_id' => 'required|exists:topics,id',
             'user_id' => 'required|exists:users,id',
             'content' => 'required|string|min:3',
-            'is_private' => 'required|boolean'
+            'is_private' => 'required|boolean',
+            'excluded_user_ids' => 'nullable|array', // List of user IDs to exclude
+            'excluded_user_ids.*' => 'exists:users,id', // Validate each ID
         ]);
 
-        // Insert row directly into the posts table via Eloquent mass assignment
-        $post = Post::create($validatedData);
+        // Create the post
+        $post = Post::create([
+            'topic_id' => $validatedData['topic_id'],
+            'user_id' => $validatedData['user_id'],
+            'content' => $validatedData['content'],
+            'is_private' => $validatedData['is_private'],
+        ]);
+
+        // If private, attach exclusions
+        if ($validatedData['is_private'] && !empty($validatedData['excluded_user_ids'])) {
+            $post->excludedUsers()->attach($validatedData['excluded_user_ids']);
+        }
+
+        // Update the user's last_communicated_at timestamp (for inactivity tracking)
+        $user = User::find($validatedData['user_id']);
+        $user->last_communicated_at = now();
+        $user->save();
 
         return response()->json([
             'status' => 'created',
-            'message' => 'Post successfully recorded in database tracking registers.',
-            'data' => $post
-        ], 201); // 201 Created HTTP Status Code
+            'message' => 'Post successfully recorded.',
+            'data' => $post->load('excludedUsers'), // Load exclusions to return to client
+        ], 201);
+    }
+
+    public function getPostsByTopic($topicId, Request $request)
+    {
+        $topic = Topic::with('group')->findOrFail($topicId);
+        $userId = $request->user()->id; // Get the authenticated user's ID
+
+        $posts = Post::where('topic_id', $topicId)
+                    ->visibleToUser($userId) // <-- Applying our Privacy Filter!
+                    ->with('author:id,name,email,role')
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'topic' => $topic,
+            'data' => $posts,
+        ]);
+    }
+
+    public function createTopic(Request $request)
+    {
+        $validated = $request->validate([
+            'group_id' => 'required|exists:groups,id',
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        $topic = Topic::create([
+            'group_id' => $validated['group_id'],
+            'title' => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'creator_id' => $request->user()->id,
+            'ml_category' => null, // Dev 5 will fill this via a background job later
+        ]);
+
+        // Update user communication timestamp
+        $request->user()->update(['last_communicated_at' => now()]);
+
+        return response()->json([
+            'status' => 'created',
+            'message' => 'Topic created successfully.',
+            'data' => $topic,
+        ], 201);
+    }
+
+        // Stub for Upload
+    public function syncUpload(Request $request)
+    {
+        // In Sprint 3, you will loop through $request->input('posts') and save them.
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Sync upload endpoint ready (Sprint 3 implementation pending).'
+        ]);
+    }
+
+    // Stub for Download
+    public function syncDownload(Request $request)
+    {
+        $since = $request->input('since', now()->subDays(30));
+        // In Sprint 3, you will query posts created after $since.
+        return response()->json([
+            'status' => 'success',
+            'data' => [] // Return empty array for now
+        ]);
     }
 }
 
