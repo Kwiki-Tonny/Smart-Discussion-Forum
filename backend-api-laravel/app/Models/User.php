@@ -15,10 +15,10 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role', // 'admin', 'lecturer', 'student'
-        'status', // 'active', 'warned_once', 'warned_twice', 'blacklisted'
-        'last_communicated_at',
-        'blacklist_expires_at',
+        'role',
+        'status',
+        'last_communicated_at',   
+        'blacklist_expires_at',   
     ];
 
     protected $hidden = [
@@ -26,15 +26,14 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password' => 'hashed',
-        'last_communicated_at' => 'datetime',
-        'blacklist_expires_at' => 'datetime',
-        // Cast enums to string for easy access
-        'role' => 'string',
-        'status' => 'string',
-    ];
+        protected $casts = [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'last_communicated_at' => 'datetime',
+            'blacklist_expires_at' => 'datetime',
+            'role' => 'string',
+            'status' => 'string',
+        ];
 
     // --- Relationships ---
     public function groups()
