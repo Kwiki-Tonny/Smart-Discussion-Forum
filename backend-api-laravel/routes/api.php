@@ -2,25 +2,16 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\V1\ForumController; // Explicitly imports your new controller class
+use App\Http\Controllers\Api\V1\ForumController;
+use App\Http\Controllers\Api\V1\AuthController; // <-- NEW: Imported for Authentication
 
 /*
 |--------------------------------------------------------------------------
-| Default Laravel Boilerplate Route
-|--------------------------------------------------------------------------
-*/
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
-
-
-/*
-|--------------------------------------------------------------------------
-| Sprint 1 Academic Forum Custom Endpoints (API Version 1)
+| Public Endpoints (No Authentication Required)
 |--------------------------------------------------------------------------
 */
 
-// Public Health Check Endpoint (Verifies the server engine is up and running)
+// 1. Health Check (For Java Desktop Ping)
 Route::get('/v1/health-check', function () {
     return response()->json([
         'status' => 'online',
@@ -29,14 +20,48 @@ Route::get('/v1/health-check', function () {
     ], 200);
 });
 
-// Grouped routes for our application resources
+// 2. Public Authentication Routes (Register & Login)
 Route::prefix('v1')->group(function () {
-    
-    // Read operations to populate the dashboards for Web & Java clients
-    Route::get('/groups', [ForumController::class, 'getGroups']);
-    Route::get('/groups/{id}/topics', [ForumController::class, 'getTopicsByGroup']);
-    
-    // Write operations to publish interactive response posts
-    Route::post('/posts/publish', [ForumController::class, 'createPost']);
-    
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Protected Endpoints (Requires Valid Sanctum Token)
+|--------------------------------------------------------------------------
+*/
+Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
+
+    // --- User & Auth Management ---
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/user', [AuthController::class, 'user']);
+
+    // --- Academic Forum Core (Requires Role: Student, Lecturer, or Admin) ---
+    Route::middleware(['role:admin,lecturer,student'])->group(function () {
+        
+        // -------------------- READ OPERATIONS --------------------
+        // Fetch all groups
+        Route::get('/groups', [ForumController::class, 'getGroups']);
+        
+        // Fetch topics inside a specific group
+        Route::get('/groups/{id}/topics', [ForumController::class, 'getTopicsByGroup']);
+        
+        // **NEW** Fetch posts for a specific topic with Privacy Filter applied
+        Route::get('/topics/{id}/posts', [ForumController::class, 'getPostsByTopic']);
+
+        // -------------------- WRITE OPERATIONS --------------------
+        // **ENHANCED** Create a new post (handles is_private & exclusions)
+        Route::post('/posts/publish', [ForumController::class, 'createPost']);
+        
+        // **NEW** Create a new discussion topic
+        Route::post('/topics', [ForumController::class, 'createTopic']);
+
+        // -------------------- SYNC ENDPOINTS (Stubbed for Sprint 3) --------------------
+        // Upload pending offline posts from Java desktop
+        Route::post('/sync/upload', [ForumController::class, 'syncUpload']);
+        
+        // Download new posts since a given timestamp
+        Route::get('/sync/download', [ForumController::class, 'syncDownload']);
+    });
 });
