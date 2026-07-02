@@ -32,4 +32,22 @@ class Post extends Model
         return $this->belongsToMany(User::class, 'post_exclusions', 'post_id', 'excluded_user_id')
                     ->withTimestamps();
     }
+
+    /**
+     * Scope a query to only include posts visible to a specific user.
+     * Implements SDD Module 3: Content Security & Exclusion Filtering.
+     */
+    public function scopeVisibleToUser($query, $userId)
+    {
+        return $query->where(function ($q) use ($userId) {
+            // 1. Public posts (is_private = false)
+            $q->where('is_private', false)
+            // 2. OR posts authored by the user themselves
+            ->orWhere('user_id', $userId);
+        })
+        // 3. AND exclude posts where the user is specifically excluded
+        ->whereDoesntHave('excludedUsers', function ($q) use ($userId) {
+            $q->where('excluded_user_id', $userId);
+        });
+    }
 }
