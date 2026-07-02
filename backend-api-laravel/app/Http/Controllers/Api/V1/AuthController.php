@@ -15,28 +15,28 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
         ]);
 
         $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => 'student', // Default role
-            'status' => 'active', // Default status
+            'name'                 => $validated['name'],
+            'email'                => $validated['email'],
+            'password'             => Hash::make($validated['password']),
+            'role'                 => 'student',
+            'status'               => 'active',
             'last_communicated_at' => now(),
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'status' => 'success',
-            'message' => 'User registered successfully',
-            'user' => $user,
+            'status'       => 'success',
+            'message'      => 'User registered successfully',
+            'user'         => $user,
             'access_token' => $token,
-            'token_type' => 'Bearer',
+            'token_type'   => 'Bearer',
         ], 201);
     }
 
@@ -44,52 +44,64 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+            'email'    => 'required|email',
+            'password' => 'required|string',
         ]);
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Invalid email or password.',
+            ], 401);
         }
 
-        $user = User::where('email', $request->email)->firstOrFail();
-
-        // **Sprint 1 Critical Check:** Is the user blacklisted?
+        // BLACKLIST CHECK — block login if user is blacklisted
         if ($user->status === 'blacklisted') {
-            // Check if the ban has expired
-            if ($user->blacklist_expires_at && now()->lessThan($user->blacklist_expires_at)) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Your account is blacklisted due to inactivity. Access denied.',
-                ], 403);
+            if ($user->blacklist_expires_at && now()->greaterThan($user->blacklist_expires_at)) {
+                // Ban has expired — reactivate automatically
+                $user->status = 'active';
+                $user->blacklist_expires_at = null;
+                $user->last_communicated_at = now();
+                $user->save();
             } else {
-                // If expired, reactivate the account automatically
-                $user->update(['status' => 'active', 'blacklist_expires_at' => null]);
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Your account has been blacklisted due to inactivity. Access is blocked until '
+                        . $user->blacklist_expires_at->toDateTimeString(),
+                ], 403);
             }
         }
 
+        // Revoke old tokens and issue a fresh one
+        $user->tokens()->delete();
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'status' => 'success',
-            'message' => 'Login successful',
-            'user' => $user,
+            'status'       => 'success',
+            'message'      => 'Login successful.',
             'access_token' => $token,
-            'token_type' => 'Bearer',
-        ]);
+            'token_type'   => 'Bearer',
+            'user'         => [
+                'id'     => $user->id,
+                'name'   => $user->name,
+                'email'  => $user->email,
+                'role'   => $user->role,
+                'status' => $user->status,
+            ],
+        ], 200);
     }
 
     // POST /api/v1/logout
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $request->user()->tokens()->delete();
 
         return response()->json([
-            'status' => 'success',
-            'message' => 'Logged out successfully',
-        ]);
+            'status'  => 'success',
+            'message' => 'Logged out successfully.',
+        ], 200);
     }
 
     // GET /api/v1/user
