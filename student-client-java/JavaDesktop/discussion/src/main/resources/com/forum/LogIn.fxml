@@ -3,32 +3,32 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.shape.Circle?>
 <?import javafx.scene.text.Font?>
 
-
-<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="687.0" prefWidth="600.0" style="-fx-background-radius: 100; -fx-background-color: grey;" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1">
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="687.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1">
    <children>
-      <Label layoutX="79.0" layoutY="42.0" text="SMART DISCUSSION FORUM">
+      <Label layoutX="79.0" layoutY="42.0" text="SMART DISCUSSION FORUM" textFill="#13d93a">
          <font>
             <Font name="System Bold" size="36.0" />
          </font>
       </Label>
-      <Label layoutX="184.0" layoutY="124.0" text="Welcomes You !">
+      <Label layoutX="184.0" layoutY="124.0" text="Welcomes You !" textFill="#4fe457">
          <font>
             <Font name="Arial Black" size="24.0" />
          </font>
       </Label>
-      <Label layoutX="79.0" layoutY="245.0" text="Email">
+      <TextField layoutX="150.0" layoutY="216.0" prefHeight="54.0" prefWidth="322.0" promptText="Email" style="-fx-background-color: light green;">
          <font>
             <Font size="18.0" />
-         </font>
-      </Label>
-      <TextField layoutX="149.0" layoutY="245.0" prefHeight="27.0" prefWidth="300.0" />
-      <Label layoutX="63.0" layoutY="330.0" text="Password">
+         </font></TextField>
+      <TextField layoutX="150.0" layoutY="335.0" prefHeight="54.0" prefWidth="322.0" promptText="Password" style="-fx-background-color: llight green;">
          <font>
             <Font size="18.0" />
-         </font>
-      </Label>
-      <TextField layoutX="146.0" layoutY="330.0" prefHeight="27.0" prefWidth="300.0" />
+         </font></TextField>
+      <Circle fill="#0b5b42" layoutX="14.0" layoutY="262.0" radius="100.0" stroke="BLACK" strokeType="INSIDE" />
+      <Circle fill="#277e40" layoutX="14.0" layoutY="449.0" radius="39.0" stroke="BLACK" strokeType="INSIDE" />
+      <Circle fill="#075123" layoutX="14.0" layoutY="593.0" radius="95.0" stroke="BLACK" strokeType="INSIDE" />
+      <AnchorPane layoutX="117.0" layoutY="88.0" prefHeight="6.0" prefWidth="387.0" style="-fx-background-color: green;" />
    </children>
 </AnchorPane>
