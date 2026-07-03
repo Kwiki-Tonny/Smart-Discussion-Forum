@@ -36,7 +36,7 @@ public static synchronized void setOnline(boolean status){
 // One person inside at a time. No collisions. Always accurate
 
 public static boolean isOnline(){
-    return isOnline();
+    return isOnline;
 }
 
 

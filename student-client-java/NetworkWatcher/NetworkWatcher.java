@@ -2,8 +2,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class NetworkWatcher implements Runnable {
-
-    private static final String SERVER_PING_URL = "http://your-laravel-server/api/ping";
+    // Uses Laravel's health-check endpoint (adjust port if needed)
+    private static final String SERVER_PING_URL = "http://localhost:8000/api/v1/health-check";
     private static final int CHECK_INTERVAL_MS = 10000;
     private static final int CONNECTION_TIMEOUT_MS = 3000;
 
@@ -11,11 +11,11 @@ public class NetworkWatcher implements Runnable {
     public void run() {
         System.out.println("[NetworkWatcher] Heartbeat started.");
         System.out.println("[NetworkWatcher] Checking server every 10 seconds...");
+        System.out.println("[NetworkWatcher] Target: " + SERVER_PING_URL);
         System.out.println("------------------------------------------------");
 
         while (true) {
             checkConnection();
-
             try {
                 Thread.sleep(CHECK_INTERVAL_MS);
             } catch (InterruptedException e) {
@@ -27,7 +27,6 @@ public class NetworkWatcher implements Runnable {
 
     private void checkConnection() {
         HttpURLConnection connection = null;
-
         try {
             URL url = new URL(SERVER_PING_URL);
             connection = (HttpURLConnection) url.openConnection();
@@ -44,11 +43,9 @@ public class NetworkWatcher implements Runnable {
                 GlobalState.setOnline(false);
                 System.out.println("[NetworkWatcher] Status: OFFLINE (Server returned: " + responseCode + ")");
             }
-
         } catch (Exception e) {
             GlobalState.setOnline(false);
             System.out.println("[NetworkWatcher] Status: OFFLINE (" + e.getMessage() + ")");
-
         } finally {
             if (connection != null) {
                 connection.disconnect();
@@ -56,5 +53,3 @@ public class NetworkWatcher implements Runnable {
         }
     }
 }
- 
-
