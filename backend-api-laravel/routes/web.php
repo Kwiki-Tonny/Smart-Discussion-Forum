@@ -53,6 +53,9 @@ Route::middleware(['auth'])->group(function () {
 
     // ---------- Quiz ----------
     Route::get('/quiz/{id}/performance-report', [StudentController::class, 'performanceReport'])->name('quiz.report');
+
+    //----------guidelines----------
+    Route::post('/groups/{group}/decline', [StudentController::class, 'declineRules'])->name('groups.decline');
 });
 
 
