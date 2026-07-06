@@ -84,6 +84,15 @@ class StudentController extends Controller
         ));
     }
 
+        /**
+     * Clear user's affinity cache (useful after interactions)
+     */
+    public function clearAffinityCache()
+    {
+        app(\App\Services\AffinityCalculator::class)->clearCache(Auth::id());
+        return redirect()->back()->with('success', 'Recommendations refreshed.');
+    }
+
     /**
      * List All Groups (Index) - Shows ALL groups with membership status
      */
