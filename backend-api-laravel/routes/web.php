@@ -36,6 +36,9 @@ Route::middleware(['auth'])->group(function () {
     // ---------- Student Dashboard ----------
     Route::get('/dashboard', [StudentController::class, 'index'])->name('dashboard');
 
+    // ---------- Profile ----------
+    Route::get('/profile', [StudentController::class, 'profile'])->name('profile');
+
     // ---------- Groups ----------
     Route::get('/groups', [StudentController::class, 'groups'])->name('groups.index');
     Route::get('/groups/{group}/topics', [StudentController::class, 'topics'])->name('groups.topics');
