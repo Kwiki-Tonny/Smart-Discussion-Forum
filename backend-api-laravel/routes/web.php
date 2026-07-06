@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\StudentController;
+use App\Http\Controllers\Web\LecturerController;
+use App\Http\Controllers\Api\PollController;
 
 /*
 |--------------------------------------------------------------------------
