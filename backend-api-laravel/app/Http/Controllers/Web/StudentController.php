@@ -107,6 +107,126 @@ class StudentController extends Controller
         
         return view('student.recommendations', compact('recommendations', 'affinityScores'));
     }
+
+    /**
+     * Show student profile page
+     */
+    public function profile()
+    {
+        $user = Auth::user();
+
+        // Basic stats
+        $totalTopics = Topic::where('creator_id', $user->id)->count();
+        $totalPosts = Post::where('user_id', $user->id)->count();
+        $totalLikes = PostLike::where('user_id', $user->id)->count();
+        $totalQuizzesTaken = QuizSubmission::where('user_id', $user->id)->count();
+
+        // Recent activity (topics, posts, likes)
+        $recentActivity = collect();
+
+        // Get recent topics
+        $topics = Topic::where('creator_id', $user->id)
+            ->with(['group'])
+            ->latest()
+            ->limit(5)
+            ->get()
+            ->map(function($item) {
+                return (object) [
+                    'type' => 'topic',
+                    'title' => $item->title,
+                    'topic_id' => $item->id,
+                    'group_id' => $item->group_id,
+                    'content' => null,
+                    'post_id' => null,
+                    'created_at' => $item->created_at,
+                ];
+            });
+
+        // Get recent posts
+        $posts = Post::where('user_id', $user->id)
+            ->with(['topic.group'])
+            ->latest()
+            ->limit(5)
+            ->get()
+            ->map(function($item) {
+                return (object) [
+                    'type' => 'post',
+                    'title' => $item->topic->title ?? 'Deleted Topic',
+                    'topic_id' => $item->topic_id,
+                    'group_id' => $item->topic->group_id ?? null,
+                    'content' => $item->content,
+                    'post_id' => $item->id,
+                    'created_at' => $item->created_at,
+                ];
+            });
+
+        // Get recent likes
+        $likes = PostLike::where('user_id', $user->id)
+            ->with(['post.topic.group'])
+            ->latest()
+            ->limit(5)
+            ->get()
+            ->map(function($item) {
+                return (object) [
+                    'type' => 'like',
+                    'title' => $item->post->topic->title ?? 'Deleted Topic',
+                    'topic_id' => $item->post->topic_id ?? null,
+                    'group_id' => $item->post->topic->group_id ?? null,
+                    'content' => $item->post->content ?? 'Deleted Post',
+                    'post_id' => $item->post_id,
+                    'created_at' => $item->created_at,
+                ];
+            });
+
+        // Merge and sort
+        $recentActivity = $topics->concat($posts)->concat($likes)
+            ->sortByDesc('created_at')
+            ->take(10);
+
+        // Quiz submissions
+        $quizSubmissions = QuizSubmission::where('user_id', $user->id)
+            ->with(['quiz.group'])
+            ->latest()
+            ->get();
+
+        // Warning logs
+        $warningLogs = BlacklistLog::where('user_id', $user->id)
+            ->latest()
+            ->get();
+
+        // ML Affinity & Recommendations
+        $affinityCalculator = app(\App\Services\AffinityCalculator::class);
+        $affinityScores = $affinityCalculator->getAffinity($user->id);
+        $recommendations = $affinityCalculator->getRecommendations($user->id, 5);
+
+        // Interaction counts
+        $interactionCounts = \App\Models\UserInteraction::where('user_id', $user->id)
+            ->select('action_type', \DB::raw('count(*) as count'))
+            ->groupBy('action_type')
+            ->pluck('count', 'action_type')
+            ->toArray();
+
+        // Ensure all keys exist
+        $interactionCounts = array_merge([
+            'views' => 0,
+            'likes' => 0,
+            'comments' => 0,
+            'downloads' => 0,
+        ], $interactionCounts);
+
+        return view('student.profile', compact(
+            'totalTopics',
+            'totalPosts',
+            'totalLikes',
+            'totalQuizzesTaken',
+            'recentActivity',
+            'quizSubmissions',
+            'warningLogs',
+            'affinityScores',
+            'recommendations',
+            'interactionCounts'
+        ));
+    }
     /**
      * List All Groups (Index) - Shows ALL groups with membership status
      */
