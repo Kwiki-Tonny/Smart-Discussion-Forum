@@ -85,181 +85,112 @@
     </div>
 @endsection
 
-<!-- @push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Toggle reply forms for nested replies
-    document.querySelectorAll('.reply-toggle').forEach(button => {
-        button.addEventListener('click', function() {
-            const postId = this.dataset.postId;
-            const form = document.getElementById('reply-form-' + postId);
-            if (form) {
-                form.classList.toggle('hidden');
-            }
-        });
-    });
-});
-
-// Share function - copies the current URL to clipboard
-function copyLink() {
-    const url = window.location.href;
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(url).then(() => {
-            alert('Link copied to clipboard!');
-        }).catch(() => {
-            // Fallback
-            prompt('Copy this link:', url);
-        });
-    } else {
-        // Fallback for older browsers
-        prompt('Copy this link:', url);
-    }
-}
-</script>
-@endpush -->
-
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // ============================================================
-    // 1. TOGGLE REPLY FORMS
+    // 1. BIND REPLY TOGGLES
     // ============================================================
-    document.querySelectorAll('.reply-toggle').forEach(button => {
-        button.addEventListener('click', function() {
-            const postId = this.dataset.postId;
-            const form = document.getElementById('reply-form-' + postId);
-            if (form) {
-                form.classList.toggle('hidden');
-            }
+    function bindReplyToggles() {
+        document.querySelectorAll('.reply-toggle').forEach(button => {
+            // Remove existing listener to avoid duplicates
+            button.removeEventListener('click', replyToggleHandler);
+            button.addEventListener('click', replyToggleHandler);
         });
-    });
+    }
+
+    function replyToggleHandler(e) {
+        const postId = this.dataset.postId;
+        const form = document.getElementById('reply-form-' + postId);
+        if (form) {
+            form.classList.toggle('hidden');
+        }
+    }
 
     // ============================================================
-    // 2. HANDLE LIKES (AJAX)
+    // 2. BIND REPLY FORMS (AJAX)
     // ============================================================
-    document.querySelectorAll('.like-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const postId = this.dataset.postId;
-            const likeIcon = this.querySelector('.like-icon');
-            const likeCount = this.querySelector('.like-count');
+    function bindReplyForms() {
+        document.querySelectorAll('.reply-form-ajax').forEach(form => {
+            // Remove existing listener to avoid duplicates
+            form.removeEventListener('submit', replyFormHandler);
+            form.addEventListener('submit', replyFormHandler);
+        });
+    }
 
-            // Disable button to prevent double-click
-            this.disabled = true;
+    function replyFormHandler(e) {
+        e.preventDefault();
 
-            fetch('{{ url("/posts") }}/' + postId + '/like', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify({})
+        const parentId = this.dataset.parentId;
+        const topicId = this.dataset.topicId;
+        const content = this.querySelector('textarea[name="content"]').value.trim();
+        const isPrivate = this.querySelector('input[name="is_private"]')?.checked ? 1 : 0;
+        const submitBtn = this.querySelector('.reply-submit-btn');
+        const originalText = submitBtn.textContent;
+
+        if (!content) {
+            alert('Please enter a reply.');
+            return;
+        }
+
+        submitBtn.textContent = 'Posting...';
+        submitBtn.disabled = true;
+
+        fetch('{{ route("posts.reply") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                topic_id: topicId,
+                parent_id: parentId,
+                content: content,
+                is_private: isPrivate
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Update like icon
-                    likeIcon.textContent = data.liked ? '❤️' : '🤍';
-                    // Update like count
-                    likeCount.textContent = data.count;
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const newPost = createPostHTML(data.post);
+                const parentPost = document.getElementById('post-' + parentId);
+                let childrenContainer = parentPost.querySelector('.children-container');
+                if (!childrenContainer) {
+                    childrenContainer = document.createElement('div');
+                    childrenContainer.className = 'ml-6 mt-3 space-y-3 border-l-2 border-[#E5E5E5] pl-4 children-container';
+                    parentPost.appendChild(childrenContainer);
                 }
-            })
-            .catch(error => {
-                console.error('Error toggling like:', error);
-            })
-            .finally(() => {
-                this.disabled = false;
-            });
-        });
-    });
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = newPost;
+                childrenContainer.appendChild(tempDiv.firstElementChild);
 
-    // ============================================================
-    // 3. HANDLE THREADED REPLIES (AJAX)
-    // ============================================================
-    document.querySelectorAll('.reply-form-ajax').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
+                // Clear form
+                this.querySelector('textarea[name="content"]').value = '';
+                this.closest('.reply-form').classList.add('hidden');
 
-            const parentId = this.dataset.parentId;
-            const topicId = this.dataset.topicId;
-            const content = this.querySelector('textarea[name="content"]').value.trim();
-            const isPrivate = this.querySelector('input[name="is_private"]')?.checked ? 1 : 0;
-            const submitBtn = this.querySelector('.reply-submit-btn');
-            const originalText = submitBtn.textContent;
-
-            if (!content) {
-                alert('Please enter a reply.');
-                return;
+                // Re-bind events on new elements
+                bindLikeEvents();
+                bindReplyToggles();
+                bindReplyForms();
             }
-
-            // Show loading
-            submitBtn.textContent = 'Posting...';
-            submitBtn.disabled = true;
-
-            fetch('{{ route("posts.reply") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify({
-                    topic_id: topicId,
-                    parent_id: parentId,
-                    content: content,
-                    is_private: isPrivate
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Build the new post HTML
-                    const newPost = createPostHTML(data.post);
-                    
-                    // Find the parent post container
-                    const parentPost = document.getElementById('post-' + parentId);
-                    
-                    // Find or create children container
-                    let childrenContainer = parentPost.querySelector('.children-container');
-                    if (!childrenContainer) {
-                        // Create children container
-                        childrenContainer = document.createElement('div');
-                        childrenContainer.className = 'ml-6 mt-3 space-y-3 border-l-2 border-[#E5E5E5] pl-4 children-container';
-                        parentPost.appendChild(childrenContainer);
-                    }
-                    
-                    // Insert new post at the end of children
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = newPost;
-                    childrenContainer.appendChild(tempDiv.firstElementChild);
-                    
-                    // Clear the textarea
-                    this.querySelector('textarea[name="content"]').value = '';
-                    
-                    // Hide the reply form
-                    this.closest('.reply-form').classList.add('hidden');
-
-                    // Re-bind like events to new post
-                    bindLikeEvents();
-                }
-            })
-            .catch(error => {
-                console.error('Error posting reply:', error);
-                alert('Failed to post reply. Please try again.');
-            })
-            .finally(() => {
-                submitBtn.textContent = originalText;
-                submitBtn.disabled = false;
-            });
+        })
+        .catch(error => {
+            console.error('Error posting reply:', error);
+            alert('Failed to post reply. Please try again.');
+        })
+        .finally(() => {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
         });
-    });
+    }
 
     // ============================================================
-    // 4. HANDLE MAIN POST FORM (AJAX)
+    // 3. BIND MAIN POST FORM (AJAX)
     // ============================================================
     const mainForm = document.getElementById('main-reply-form')?.querySelector('form');
     if (mainForm) {
         mainForm.addEventListener('submit', function(e) {
             e.preventDefault();
-
             const formData = new FormData(this);
             const submitBtn = this.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
@@ -277,26 +208,17 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Create new post HTML
                     const newPost = createPostHTML(data.post);
-                    
-                    // Find the posts container
                     const postsContainer = document.getElementById('posts-container');
-                    
-                    // Insert before the main reply form
                     const mainReplyForm = document.getElementById('main-reply-form');
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = newPost;
                     postsContainer.insertBefore(tempDiv.firstElementChild, mainReplyForm);
-                    
-                    // Clear the textarea
                     this.querySelector('textarea[name="content"]').value = '';
-                    
-                    // Update reply count in sidebar
                     updateReplyCount();
-                    
-                    // Re-bind like events
                     bindLikeEvents();
+                    bindReplyToggles();
+                    bindReplyForms();
                 }
             })
             .catch(error => {
@@ -311,7 +233,48 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // HELPER: Create Post HTML
+    // 4. BIND LIKE EVENTS
+    // ============================================================
+    function bindLikeEvents() {
+        document.querySelectorAll('.like-btn').forEach(button => {
+            button.removeEventListener('click', likeHandler);
+            button.addEventListener('click', likeHandler);
+        });
+    }
+
+    function likeHandler(e) {
+        const button = e.currentTarget;
+        const postId = button.dataset.postId;
+        const likeIcon = button.querySelector('.like-icon');
+        const likeCount = button.querySelector('.like-count');
+
+        button.disabled = true;
+
+        fetch('{{ url("/posts") }}/' + postId + '/like', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                likeIcon.textContent = data.liked ? '❤️' : '🤍';
+                likeCount.textContent = data.count;
+            }
+        })
+        .catch(error => {
+            console.error('Error toggling like:', error);
+        })
+        .finally(() => {
+            button.disabled = false;
+        });
+    }
+
+    // ============================================================
+    // 5. HELPERS
     // ============================================================
     function createPostHTML(post) {
         const isLiked = post.is_liked ? '❤️' : '🤍';
@@ -358,59 +321,21 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
-    // ============================================================
-    // HELPER: Re-bind Like Events
-    // ============================================================
-    function bindLikeEvents() {
-        document.querySelectorAll('.like-btn').forEach(button => {
-            // Remove existing listeners to avoid duplicates
-            button.removeEventListener('click', likeHandler);
-            button.addEventListener('click', likeHandler);
-        });
-    }
-
-    function likeHandler(e) {
-        const button = e.currentTarget;
-        const postId = button.dataset.postId;
-        const likeIcon = button.querySelector('.like-icon');
-        const likeCount = button.querySelector('.like-count');
-
-        button.disabled = true;
-
-        fetch('{{ url("/posts") }}/' + postId + '/like', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                likeIcon.textContent = data.liked ? '❤️' : '🤍';
-                likeCount.textContent = data.count;
-            }
-        })
-        .catch(error => {
-            console.error('Error toggling like:', error);
-        })
-        .finally(() => {
-            button.disabled = false;
-        });
-    }
-
-    // ============================================================
-    // HELPER: Update Reply Count in Sidebar
-    // ============================================================
     function updateReplyCount() {
         const posts = document.querySelectorAll('#posts-container > .bg-white.border');
-        const count = posts.length - 1; // Subtract main reply form
+        const count = posts.length - 1; // subtract main reply form
         const replySpan = document.querySelector('.context_panel .p-2.text-xs.font-bold');
         if (replySpan) {
             replySpan.textContent = `• ${count} replies`;
         }
     }
+
+    // ============================================================
+    // 6. INITIAL BINDING
+    // ============================================================
+    bindReplyToggles();
+    bindReplyForms();
+    bindLikeEvents();
 });
 </script>
 @endpush
