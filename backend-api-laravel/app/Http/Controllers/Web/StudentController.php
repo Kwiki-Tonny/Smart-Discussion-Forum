@@ -9,6 +9,8 @@ use App\Models\Quiz;
 use App\Models\Post;
 use App\Models\PostLike;
 use App\Models\QuizSubmission;
+use App\Models\BlacklistLog;    
+use App\Models\UserInteraction;  
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
