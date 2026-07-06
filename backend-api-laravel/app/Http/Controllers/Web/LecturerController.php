@@ -9,6 +9,7 @@ use App\Models\Post;
 use App\Models\User;
 use App\Models\Quiz;
 use App\Models\QuizSubmission;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -154,7 +155,7 @@ class LecturerController extends Controller
         return view('lecturer.quiz-create', compact('groups', 'allowedCategories'));
     }
 
-    /**
+     /**
      * Store Quiz
      */
     public function storeQuiz(Request $request)
@@ -167,13 +168,18 @@ class LecturerController extends Controller
             'starts_at' => 'required|date|after:now',
         ]);
 
+        // ✅ Cast duration to integer
+        $duration = (int) $validated['duration'];
+        $startsAt = \Carbon\Carbon::parse($validated['starts_at']);
+        $endsAt = $startsAt->copy()->addMinutes($duration);
+
         $quiz = Quiz::create([
             'title' => $validated['title'],
             'group_id' => $validated['group_id'],
-            'duration' => $validated['duration'],
+            'duration' => $duration,
             'allowed_categories' => $validated['allowed_categories'] ?? ['active'],
-            'starts_at' => $validated['starts_at'],
-            'ends_at' => now()->addMinutes($validated['duration']),
+            'starts_at' => $startsAt,
+            'ends_at' => $endsAt,
         ]);
 
         return redirect()->route('lecturer.quizzes')
