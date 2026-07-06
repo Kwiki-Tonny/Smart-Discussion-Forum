@@ -453,209 +453,215 @@ class StudentController extends Controller
         return view('topics.show', compact('topic', 'posts'));
     }
 
-/**
- * Store a new post (AJAX)
- */
-public function storePost(Request $request)
-{
-    $validated = $request->validate([
-        'topic_id' => 'required|exists:topics,id',
-        'content' => 'required|string|min:3',
-        'is_private' => 'boolean',
-        'excluded_user_ids' => 'nullable|array',
-    ]);
+    /**
+     * Store a new post (AJAX)
+     */
+    public function storePost(Request $request)
+    {
+        $validated = $request->validate([
+            'topic_id' => 'required|exists:topics,id',
+            'content' => 'required|string|min:3',
+            'is_private' => 'boolean',
+            'excluded_user_ids' => 'nullable|array',
+        ]);
 
-    $post = Post::create([
-        'topic_id' => $validated['topic_id'],
-        'user_id' => Auth::id(),
-        'content' => $validated['content'],
-        'is_private' => $validated['is_private'] ?? false,
-    ]);
+        $post = Post::create([
+            'topic_id' => $validated['topic_id'],
+            'user_id' => Auth::id(),
+            'content' => $validated['content'],
+            'is_private' => $validated['is_private'] ?? false,
+        ]);
 
-    if ($post->is_private && !empty($validated['excluded_user_ids'])) {
-        $post->excludedUsers()->attach($validated['excluded_user_ids']);
+        if ($post->is_private && !empty($validated['excluded_user_ids'])) {
+            $post->excludedUsers()->attach($validated['excluded_user_ids']);
+        }
+
+        Auth::user()->update(['last_communicated_at' => now()]);
+
+        $post->load('author');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Post added successfully.',
+            'post' => [
+                'id' => $post->id,
+                'content' => $post->content,
+                'created_at' => $post->created_at->diffForHumans(),
+                'is_private' => $post->is_private,
+                'author' => [
+                    'name' => $post->author->name ?? 'Unknown',
+                    'id' => $post->author->id ?? null,
+                ],
+                'likes_count' => 0,
+                'is_liked' => false,
+            ]
+        ]);
     }
 
-    Auth::user()->update(['last_communicated_at' => now()]);
+    /**
+     * Server-Sent Events stream for topic updates
+     */
+    public function sseStream($topicId)
+    {
+        $response = response()->stream(function () use ($topicId) {
+            // Set headers for SSE
+            header('Content-Type: text/event-stream');
+            header('Cache-Control: no-cache');
+            header('Connection: keep-alive');
+            header('X-Accel-Buffering: no');
 
-    $post->load('author');
+            $lastCheck = now()->subSeconds(5);
+            $lastPostId = 0;
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Post added successfully.',
-        'post' => [
-            'id' => $post->id,
-            'content' => $post->content,
-            'created_at' => $post->created_at->diffForHumans(),
-            'is_private' => $post->is_private,
-            'author' => [
-                'name' => $post->author->name ?? 'Unknown',
-                'id' => $post->author->id ?? null,
-            ],
-            'likes_count' => 0,
-            'is_liked' => false,
-        ]
-    ]);
-}
+            while (true) {
+                // Check for new posts
+                $newPosts = Post::where('topic_id', $topicId)
+                    ->where('created_at', '>', $lastCheck)
+                    ->where('id', '>', $lastPostId)
+                    ->with('author')
+                    ->orderBy('id', 'asc')
+                    ->get();
 
-/**
- * Server-Sent Events stream for topic updates
- */
-public function sseStream($topicId)
-{
-    $response = response()->stream(function () use ($topicId) {
-        // Set headers for SSE
-        header('Content-Type: text/event-stream');
-        header('Cache-Control: no-cache');
-        header('Connection: keep-alive');
-        header('X-Accel-Buffering: no');
+                if ($newPosts->isNotEmpty()) {
+                    foreach ($newPosts as $post) {
+                        // Skip if post is by current user
+                        if ($post->user_id == Auth::id()) {
+                            continue;
+                        }
+                        
+                        $data = [
+                            'id' => $post->id,
+                            'content' => $post->content,
+                            'author' => $post->author->name ?? 'Unknown',
+                            'author_id' => $post->user_id,
+                            'created_at' => $post->created_at->diffForHumans(),
+                            'total' => Post::where('topic_id', $topicId)->count(),
+                        ];
 
-        $lastCheck = now()->subSeconds(5);
-        $lastPostId = 0;
+                        echo "event: new_post\n";
+                        echo "data: " . json_encode($data) . "\n\n";
+                        ob_flush();
+                        flush();
 
-        while (true) {
-            // Check for new posts
-            $newPosts = Post::where('topic_id', $topicId)
-                ->where('created_at', '>', $lastCheck)
+                        $lastPostId = $post->id;
+                    }
+                }
+
+                $lastCheck = now();
+                
+                // Keep connection alive
+                echo ": heartbeat\n\n";
+                ob_flush();
+                flush();
+
+                // Sleep for 2 seconds
+                sleep(2);
+            }
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no',
+        ]);
+
+        return $response;
+    }
+
+    /**
+     * Long polling - waits for new posts
+     */
+    /**
+     * Long polling - waits for new posts
+     */
+    public function longPoll($topicId)
+    {
+        // Get user ID before releasing session
+        $userId = Auth::id();
+        
+        // RELEASE SESSION LOCK - This fixes the posting delay!
+        session_write_close();
+
+        $lastPostId = request('last_post_id', 0);
+        $timeout = 20; // seconds to wait
+        $start = time();
+
+        while (time() - $start < $timeout) {
+            // Check for new posts (excluding current user's own posts)
+            $post = Post::where('topic_id', $topicId)
                 ->where('id', '>', $lastPostId)
+                ->where('user_id', '!=', $userId)
                 ->with('author')
                 ->orderBy('id', 'asc')
-                ->get();
+                ->first();
 
-            if ($newPosts->isNotEmpty()) {
-                foreach ($newPosts as $post) {
-                    // Skip if post is by current user
-                    if ($post->user_id == Auth::id()) {
-                        continue;
-                    }
-                    
-                    $data = [
+            if ($post) {
+                // New post found! Return it immediately
+                return response()->json([
+                    'has_updates' => true,
+                    'post' => [
                         'id' => $post->id,
                         'content' => $post->content,
                         'author' => $post->author->name ?? 'Unknown',
                         'author_id' => $post->user_id,
                         'created_at' => $post->created_at->diffForHumans(),
-                        'total' => Post::where('topic_id', $topicId)->count(),
-                    ];
-
-                    echo "event: new_post\n";
-                    echo "data: " . json_encode($data) . "\n\n";
-                    ob_flush();
-                    flush();
-
-                    $lastPostId = $post->id;
-                }
+                    ],
+                    'total' => Post::where('topic_id', $topicId)->count(),
+                ]);
             }
 
-            $lastCheck = now();
-            
-            // Keep connection alive
-            echo ": heartbeat\n\n";
-            ob_flush();
-            flush();
-
-            // Sleep for 2 seconds
-            sleep(2);
-        }
-    }, 200, [
-        'Content-Type' => 'text/event-stream',
-        'Cache-Control' => 'no-cache',
-        'Connection' => 'keep-alive',
-        'X-Accel-Buffering' => 'no',
-    ]);
-
-    return $response;
-}
-
-/**
- * Long polling - waits for new posts
- */
-public function longPoll($topicId)
-{
-    // Get the last post ID the client knows about
-    $lastPostId = request('last_post_id', 0);
-    $timeout = 30; // seconds to wait
-
-    // Start time
-    $start = time();
-
-    while (time() - $start < $timeout) {
-        // Check for new posts (excluding current user's own posts)
-        $post = Post::where('topic_id', $topicId)
-            ->where('id', '>', $lastPostId)
-            ->where('user_id', '!=', Auth::id())
-            ->with('author')
-            ->orderBy('id', 'asc')
-            ->first();
-
-        if ($post) {
-            // New post found! Return it immediately
-            return response()->json([
-                'has_updates' => true,
-                'post' => [
-                    'id' => $post->id,
-                    'content' => $post->content,
-                    'author' => $post->author->name ?? 'Unknown',
-                    'author_id' => $post->user_id,
-                    'created_at' => $post->created_at->diffForHumans(),
-                ],
-                'total' => Post::where('topic_id', $topicId)->count(),
-            ]);
+            // Sleep for 1 second before checking again
+            sleep(1);
         }
 
-        // Sleep for 1 second before checking again
-        sleep(1);
+        // Timeout - no new posts
+        return response()->json([
+            'has_updates' => false,
+        ]);
     }
 
-    // Timeout - no new posts
-    return response()->json([
-        'has_updates' => false,
-    ]);
-}
+    /**
+     * Store a reply to a specific post (threaded reply) - AJAX
+     */
+    public function storeReply(Request $request)
+    {
+        $validated = $request->validate([
+            'topic_id' => 'required|exists:topics,id',
+            'parent_id' => 'required|exists:posts,id',
+            'content' => 'required|string|min:3',
+            'is_private' => 'boolean',
+        ]);
 
-/**
- * Store a reply to a specific post (threaded reply) - AJAX
- */
-public function storeReply(Request $request)
-{
-    $validated = $request->validate([
-        'topic_id' => 'required|exists:topics,id',
-        'parent_id' => 'required|exists:posts,id',
-        'content' => 'required|string|min:3',
-        'is_private' => 'boolean',
-    ]);
+        $post = Post::create([
+            'topic_id' => $validated['topic_id'],
+            'parent_id' => $validated['parent_id'],
+            'user_id' => Auth::id(),
+            'content' => $validated['content'],
+            'is_private' => $validated['is_private'] ?? false,
+        ]);
 
-    $post = Post::create([
-        'topic_id' => $validated['topic_id'],
-        'parent_id' => $validated['parent_id'],
-        'user_id' => Auth::id(),
-        'content' => $validated['content'],
-        'is_private' => $validated['is_private'] ?? false,
-    ]);
+        Auth::user()->update(['last_communicated_at' => now()]);
 
-    Auth::user()->update(['last_communicated_at' => now()]);
+        // Load the author relationship
+        $post->load('author');
 
-    // Load the author relationship
-    $post->load('author');
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Reply posted successfully.',
-        'post' => [
-            'id' => $post->id,
-            'content' => $post->content,
-            'created_at' => $post->created_at->diffForHumans(),
-            'is_private' => $post->is_private,
-            'author' => [
-                'name' => $post->author->name ?? 'Unknown',
-                'id' => $post->author->id ?? null,
-            ],
-            'likes_count' => 0,
-            'is_liked' => false,
-            'children' => [],
-        ]
-    ]);
-}
+        return response()->json([
+            'success' => true,
+            'message' => 'Reply posted successfully.',
+            'post' => [
+                'id' => $post->id,
+                'content' => $post->content,
+                'created_at' => $post->created_at->diffForHumans(),
+                'is_private' => $post->is_private,
+                'author' => [
+                    'name' => $post->author->name ?? 'Unknown',
+                    'id' => $post->author->id ?? null,
+                ],
+                'likes_count' => 0,
+                'is_liked' => false,
+                'children' => [],
+            ]
+        ]);
+    }
 
     /**
      * Toggle like on a post (AJAX)
