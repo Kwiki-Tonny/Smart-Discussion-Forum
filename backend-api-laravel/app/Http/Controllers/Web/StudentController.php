@@ -499,6 +499,74 @@ public function storePost(Request $request)
 }
 
 /**
+ * Server-Sent Events stream for topic updates
+ */
+public function sseStream($topicId)
+{
+    $response = response()->stream(function () use ($topicId) {
+        // Set headers for SSE
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+        header('Connection: keep-alive');
+        header('X-Accel-Buffering: no');
+
+        $lastCheck = now()->subSeconds(5);
+        $lastPostId = 0;
+
+        while (true) {
+            // Check for new posts
+            $newPosts = Post::where('topic_id', $topicId)
+                ->where('created_at', '>', $lastCheck)
+                ->where('id', '>', $lastPostId)
+                ->with('author')
+                ->orderBy('id', 'asc')
+                ->get();
+
+            if ($newPosts->isNotEmpty()) {
+                foreach ($newPosts as $post) {
+                    // Skip if post is by current user
+                    if ($post->user_id == Auth::id()) {
+                        continue;
+                    }
+                    
+                    $data = [
+                        'id' => $post->id,
+                        'content' => $post->content,
+                        'author' => $post->author->name ?? 'Unknown',
+                        'author_id' => $post->user_id,
+                        'created_at' => $post->created_at->diffForHumans(),
+                        'total' => Post::where('topic_id', $topicId)->count(),
+                    ];
+
+                    echo "event: new_post\n";
+                    echo "data: " . json_encode($data) . "\n\n";
+                    ob_flush();
+                    flush();
+
+                    $lastPostId = $post->id;
+                }
+            }
+
+            $lastCheck = now();
+            
+            // Keep connection alive
+            echo ": heartbeat\n\n";
+            ob_flush();
+            flush();
+
+            // Sleep for 2 seconds
+            sleep(2);
+        }
+    }, 200, [
+        'Content-Type' => 'text/event-stream',
+        'Cache-Control' => 'no-cache',
+        'Connection' => 'keep-alive',
+        'X-Accel-Buffering' => 'no',
+    ]);
+
+    return $response;
+}
+/**
  * Store a reply to a specific post (threaded reply) - AJAX
  */
 public function storeReply(Request $request)
