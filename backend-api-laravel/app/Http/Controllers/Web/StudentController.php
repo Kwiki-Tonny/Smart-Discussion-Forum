@@ -93,6 +93,20 @@ class StudentController extends Controller
         return redirect()->back()->with('success', 'Recommendations refreshed.');
     }
 
+
+    /**
+     * Show all recommendations for the user
+     */
+    public function recommendations()
+    {
+        $user = Auth::user();
+        $affinityCalculator = app(\App\Services\AffinityCalculator::class);
+        
+        $recommendations = $affinityCalculator->getRecommendations($user->id, 20);
+        $affinityScores = $affinityCalculator->getAffinity($user->id);
+        
+        return view('student.recommendations', compact('recommendations', 'affinityScores'));
+    }
     /**
      * List All Groups (Index) - Shows ALL groups with membership status
      */
