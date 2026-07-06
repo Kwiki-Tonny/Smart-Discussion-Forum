@@ -58,6 +58,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/posts/{post}/like', [StudentController::class, 'toggleLike'])->name('posts.like');
     Route::post('/posts/reply', [StudentController::class, 'storeReply'])->name('posts.reply');
 
+    //---------- SSE Routes ----------
+    Route::get('/sse/topic/{topicId}', [StudentController::class, 'sseStream'])->name('sse.stream');
+
     // ---------- Quiz ----------
     Route::get('/quiz/{id}/performance-report', [StudentController::class, 'performanceReport'])->name('quiz.report');
 
