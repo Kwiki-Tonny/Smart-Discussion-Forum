@@ -70,8 +70,8 @@
                     <span class="text-[10px] mb-0.5">▤</span>
                     Analytics
                 </a>
-                <a href="#" 
-                   class="flex flex-col items-center text-[9px] font-medium text-[#666666] hover:text-[#000000] w-full py-2 transition-colors">
+                <a href="{{ route('recommendations.index') }}" 
+                class="flex flex-col items-center text-[9px] font-medium text-[#666666] hover:text-[#000000] w-full py-2 transition-colors">
                     <span class="text-[10px] mb-0.5">◈</span>
                     Recs
                 </a>
