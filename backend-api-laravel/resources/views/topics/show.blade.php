@@ -336,6 +336,109 @@ document.addEventListener('DOMContentLoaded', function() {
     bindReplyToggles();
     bindReplyForms();
     bindLikeEvents();
+
+    // ============================================================
+    // 7. SERVER-SENT EVENTS (SSE) - Real-time updates
+    // ============================================================
+    function setupSSE() {
+        const topicId = {{ $topic->id }};
+        const eventSource = new EventSource('{{ route("sse.stream", $topic->id) }}');
+        let notificationBanner = null;
+        let reloadTimer = null;
+
+        eventSource.addEventListener('new_post', function(event) {
+            const data = JSON.parse(event.data);
+            const currentUserId = {{ Auth::id() }};
+
+            // Skip if the post is by the current user (already shown via AJAX)
+            if (data.author_id == currentUserId) {
+                return;
+            }
+
+            // Show notification
+            showSSENotification(data);
+        });
+
+        eventSource.addEventListener('error', function(event) {
+            console.log('SSE connection error. Attempting to reconnect...');
+            // Close and reconnect after 5 seconds
+            eventSource.close();
+            setTimeout(() => {
+                setupSSE();
+            }, 5000);
+        });
+
+        function showSSENotification(data) {
+            // Remove existing notification
+            if (notificationBanner) {
+                notificationBanner.remove();
+            }
+            if (reloadTimer) {
+                clearTimeout(reloadTimer);
+            }
+
+            // Create notification banner
+            notificationBanner = document.createElement('div');
+            notificationBanner.id = 'sse-notification';
+            notificationBanner.className = 'fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-[#000000] text-white px-6 py-4 z-50 border border-[#E5E5E5] shadow-xl max-w-lg w-full';
+            notificationBanner.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4 min-w-0">
+                        <span class="text-lg font-bold text-white flex-shrink-0">1</span>
+                        <span class="text-sm font-medium text-white truncate">new reply</span>
+                        <span class="text-xs text-[#999999] truncate hidden sm:inline">
+                            by ${data.author}
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-3 flex-shrink-0">
+                        <button onclick="dismissSSENotification()" 
+                                class="text-xs text-[#999999] hover:text-white transition-colors">
+                            Later
+                        </button>
+                        <button onclick="reloadSSEPage()" 
+                                class="bg-white text-[#000000] px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#E5E5E5] transition-colors">
+                            View Now
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-2 text-xs text-[#999999] border-t border-[#333333] pt-2">
+                    Auto-refreshing in 3 seconds...
+                </div>
+            `;
+            document.body.appendChild(notificationBanner);
+
+            // Auto-reload after 3 seconds
+            reloadTimer = setTimeout(() => {
+                reloadSSEPage();
+            }, 3000);
+        }
+
+        window.dismissSSENotification = function() {
+            if (notificationBanner) {
+                notificationBanner.remove();
+                notificationBanner = null;
+            }
+            if (reloadTimer) {
+                clearTimeout(reloadTimer);
+                reloadTimer = null;
+            }
+        };
+
+        window.reloadSSEPage = function() {
+            dismissSSENotification();
+            window.location.reload();
+        };
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            eventSource.close();
+        });
+    }
+
+    // Start SSE when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        setupSSE();
+    });
 });
 </script>
 @endpush
