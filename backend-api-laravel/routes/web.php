@@ -56,7 +56,7 @@ Route::middleware(['auth'])->group(function () {
     // ---------- Posts ----------
     Route::post('/posts', [StudentController::class, 'storePost'])->name('posts.store');
     Route::post('/posts/{post}/like', [StudentController::class, 'toggleLike'])->name('posts.like');
-    Route::post('/posts/reply', [StudentController::class, 'storeReply'])->name('posts.reply'); // NEW
+    Route::post('/posts/reply', [StudentController::class, 'storeReply'])->name('posts.reply');
 
     // ---------- Quiz ----------
     Route::get('/quiz/{id}/performance-report', [StudentController::class, 'performanceReport'])->name('quiz.report');
