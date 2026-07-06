@@ -34,39 +34,24 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <button class="text-xs text-[#666666] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
+                    {{-- Export PDF Button --}}
+                    <a href="{{ route('topics.export', $topic->id) }}" 
+                       class="text-xs text-[#666666] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
                         📄 Export PDF
-                    </button>
-                    <button class="text-xs text-[#666666] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
+                    </a>
+                    {{-- Share Button --}}
+                    <button onclick="copyLink()" 
+                            class="text-xs text-[#666666] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
                         🔗 Share
                     </button>
                 </div>
             </div>
         </div>
 
-        {{-- Posts --}}
-        <div class="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
+        {{-- Posts Container --}}
+        <div id="posts-container" class="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
             @forelse($posts as $post)
-                <div class="bg-white border border-[#E5E5E5] p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center space-x-3">
-                            <span class="text-sm font-bold text-[#000000]">{{ $post->author->name ?? 'Unknown' }}</span>
-                            <span class="text-[10px] text-[#666666]">{{ $post->created_at->diffForHumans() }}</span>
-                            @if($post->is_private)
-                                <span class="text-[8px] font-bold uppercase tracking-wider text-[#DC2626] border border-[#DC2626] px-1.5 py-0.5">Private</span>
-                            @endif
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <button class="text-xs text-[#666666] hover:text-[#000000] transition-colors">
-                                Likes {{ $post->likes_count ?? 0 }}
-                            </button>
-                            <button class="text-xs text-[#666666] hover:text-[#000000] transition-colors">
-                                Reply
-                            </button>
-                        </div>
-                    </div>
-                    <p class="text-sm text-[#000000] leading-relaxed">{{ $post->content }}</p>
-                </div>
+                @include('partials._post', ['post' => $post])
             @empty
                 <div class="bg-white border border-[#E5E5E5] p-12 text-center">
                     <p class="text-sm text-[#666666]">No posts yet. Be the first to reply!</p>
@@ -74,7 +59,7 @@
             @endforelse
 
             {{-- Reply Form --}}
-            <div class="bg-white border border-[#E5E5E5] p-4">
+            <div class="bg-white border border-[#E5E5E5] p-4" id="main-reply-form">
                 <form method="POST" action="{{ route('posts.store') }}">
                     @csrf
                     <input type="hidden" name="topic_id" value="{{ $topic->id }}">
@@ -99,3 +84,36 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle reply forms for nested replies
+    document.querySelectorAll('.reply-toggle').forEach(button => {
+        button.addEventListener('click', function() {
+            const postId = this.dataset.postId;
+            const form = document.getElementById('reply-form-' + postId);
+            if (form) {
+                form.classList.toggle('hidden');
+            }
+        });
+    });
+});
+
+// Share function - copies the current URL to clipboard
+function copyLink() {
+    const url = window.location.href;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(() => {
+            alert('Link copied to clipboard!');
+        }).catch(() => {
+            // Fallback
+            prompt('Copy this link:', url);
+        });
+    } else {
+        // Fallback for older browsers
+        prompt('Copy this link:', url);
+    }
+}
+</script>
+@endpush

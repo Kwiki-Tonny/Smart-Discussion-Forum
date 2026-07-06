@@ -48,10 +48,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/topics/create', [StudentController::class, 'createTopic'])->name('topics.create');
     Route::post('/topics', [StudentController::class, 'storeTopic'])->name('topics.store');
     Route::get('/groups/{group}/topics/{topic}', [StudentController::class, 'showTopic'])->name('topics.show');
+    Route::get('/topics/{topic}/export', [StudentController::class, 'exportPdf'])->name('topics.export'); // NEW
 
     // ---------- Posts ----------
     Route::post('/posts', [StudentController::class, 'storePost'])->name('posts.store');
     Route::post('/posts/{post}/like', [StudentController::class, 'toggleLike'])->name('posts.like');
+    Route::post('/posts/reply', [StudentController::class, 'storeReply'])->name('posts.reply'); // NEW
 
     // ---------- Quiz ----------
     Route::get('/quiz/{id}/performance-report', [StudentController::class, 'performanceReport'])->name('quiz.report');
