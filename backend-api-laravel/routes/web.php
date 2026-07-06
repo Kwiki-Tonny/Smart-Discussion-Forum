@@ -60,6 +60,9 @@ Route::middleware(['auth'])->group(function () {
 
     // ---------- Affinity Cache ----------
     Route::post('/affinity/clear', [StudentController::class, 'clearAffinityCache'])->name('affinity.clear');
+
+    //---------- Reccommendations ----------
+    Route::get('/recommendations', [StudentController::class, 'recommendations'])->name('recommendations.index');
 });
 
 
