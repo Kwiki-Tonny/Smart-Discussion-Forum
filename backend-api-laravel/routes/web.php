@@ -57,6 +57,9 @@ Route::middleware(['auth'])->group(function () {
 
     // ---------- Quiz ----------
     Route::get('/quiz/{id}/performance-report', [StudentController::class, 'performanceReport'])->name('quiz.report');
+
+    // ---------- Affinity Cache ----------
+    Route::post('/affinity/clear', [StudentController::class, 'clearAffinityCache'])->name('affinity.clear');
 });
 
 
