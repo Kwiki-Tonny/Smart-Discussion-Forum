@@ -566,6 +566,53 @@ public function sseStream($topicId)
 
     return $response;
 }
+
+/**
+ * Long polling - waits for new posts
+ */
+public function longPoll($topicId)
+{
+    // Get the last post ID the client knows about
+    $lastPostId = request('last_post_id', 0);
+    $timeout = 30; // seconds to wait
+
+    // Start time
+    $start = time();
+
+    while (time() - $start < $timeout) {
+        // Check for new posts (excluding current user's own posts)
+        $post = Post::where('topic_id', $topicId)
+            ->where('id', '>', $lastPostId)
+            ->where('user_id', '!=', Auth::id())
+            ->with('author')
+            ->orderBy('id', 'asc')
+            ->first();
+
+        if ($post) {
+            // New post found! Return it immediately
+            return response()->json([
+                'has_updates' => true,
+                'post' => [
+                    'id' => $post->id,
+                    'content' => $post->content,
+                    'author' => $post->author->name ?? 'Unknown',
+                    'author_id' => $post->user_id,
+                    'created_at' => $post->created_at->diffForHumans(),
+                ],
+                'total' => Post::where('topic_id', $topicId)->count(),
+            ]);
+        }
+
+        // Sleep for 1 second before checking again
+        sleep(1);
+    }
+
+    // Timeout - no new posts
+    return response()->json([
+        'has_updates' => false,
+    ]);
+}
+
 /**
  * Store a reply to a specific post (threaded reply) - AJAX
  */
