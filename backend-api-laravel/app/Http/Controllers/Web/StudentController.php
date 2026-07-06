@@ -29,7 +29,6 @@ class StudentController extends Controller
             }])
             ->get();
         
-        // Get group IDs the user is in
         $groupIds = $user->groups()->pluck('groups.id')->toArray();
         
         // Get recent topics from user's groups
@@ -40,15 +39,11 @@ class StudentController extends Controller
             ->limit(10)
             ->get();
         
-        // Get recommendations
-        $recommendations = Topic::whereIn('group_id', $groupIds)
-            ->whereNotIn('id', $recentTopics->pluck('id')->toArray())
-            ->with('group')
-            ->inRandomOrder()
-            ->limit(5)
-            ->get();
+        // 🔄 INTEGRATED: Affinity Calculator for recommendations
+        $affinityCalculator = app(\App\Services\AffinityCalculator::class);
+        $recommendations = $affinityCalculator->getRecommendations($user->id, 5);
         
-        // Get upcoming quizzes (if starts_at column exists)
+        // Get upcoming quizzes
         try {
             $upcomingQuizzes = Quiz::whereIn('group_id', $groupIds)
                 ->with('group')
@@ -60,7 +55,7 @@ class StudentController extends Controller
             $upcomingQuizzes = collect([]);
         }
         
-        // Get available groups (groups the user is NOT in)
+        // Get available groups
         $availableGroups = Group::whereNotIn('id', $groupIds)
             ->withCount(['topics', 'users'])
             ->orderBy('name')
@@ -69,8 +64,11 @@ class StudentController extends Controller
         // Stats
         $totalTopics = Topic::whereIn('group_id', $groupIds)->where('creator_id', $user->id)->count();
         $totalPosts = Post::where('user_id', $user->id)->count();
-        $totalLikes = PostLike::where('user_id', $user->id)->count(); // Updated: actual like count
+        $totalLikes = PostLike::where('user_id', $user->id)->count();
         $totalQuizzesTaken = QuizSubmission::where('user_id', $user->id)->count();
+        
+        // 🔄 INTEGRATED: Get affinity scores for display (optional)
+        $affinityScores = $affinityCalculator->getAffinity($user->id);
         
         return view('student.dashboard', compact(
             'groups', 
@@ -81,7 +79,8 @@ class StudentController extends Controller
             'totalTopics',
             'totalPosts',
             'totalLikes',
-            'totalQuizzesTaken'
+            'totalQuizzesTaken',
+            'affinityScores'  // ← New variable for showing categories
         ));
     }
 
