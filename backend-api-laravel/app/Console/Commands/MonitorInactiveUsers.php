@@ -3,72 +3,82 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Models\BlacklistLog;
 use App\Notifications\InactivityWarningOne;
 use App\Notifications\InactivityWarningTwo;
 use Illuminate\Console\Command;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
-class MonitorInactiveUsers extends Command
+class ModerationMonitor extends Command
 {
     protected $signature = 'moderation:monitor';
+    protected $description = 'Monitor user inactivity and enforce warnings/blacklisting';
 
-    protected $description = 'Checks user inactivity and applies the 2-warning blacklist state machine';
-
-    public function handle(): int
+    public function handle()
     {
-        $this->info('Running inactivity monitor: ' . now());
+        $this->info('Running inactivity monitor...');
 
-        $users = User::whereIn('status', ['active', 'warned_once', 'warned_twice'])
-            ->whereNotNull('last_communicated_at')
-            ->get();
+        $users = User::where('status', '!=', 'blacklisted')->get();
 
         foreach ($users as $user) {
-            $daysInactive = Carbon::parse($user->last_communicated_at)->diffInDays(now());
+            $daysInactive = now()->diffInDays($user->last_communicated_at ?? $user->created_at);
 
-            // Rule 3: 21+ days inactive and already on second warning -> blacklist
+            $this->line("User: {$user->email} | Status: {$user->status} | Days inactive: {$daysInactive}");
+
+            // State machine logic
             if ($daysInactive >= 21 && $user->status === 'warned_twice') {
-                $this->blacklistUser($user);
-                continue;
-            }
+                // Blacklist
+                $user->status = 'blacklisted';
+                $user->blacklist_expires_at = now()->addDays(14);
+                $user->save();
 
-            // Rule 2: 14+ days inactive and already on first warning -> second warning
-            if ($daysInactive >= 14 && $user->status === 'warned_once') {
+                BlacklistLog::create([
+                    'user_id' => $user->id,
+                    'reason' => 'Inactivity breach: 21+ days without communication',
+                    'action_type' => 'hard_blacklist',
+                    'expires_at' => $user->blacklist_expires_at,
+                ]);
+
+                $this->warn("User {$user->email} has been BLACKLISTED.");
+
+                // 🔄 INTEGRATED: Send notification
+                $user->notify(new \App\Notifications\InactivityWarningTwo());
+
+            } elseif ($daysInactive >= 14 && $user->status === 'warned_once') {
+                // Second warning
                 $user->status = 'warned_twice';
                 $user->save();
-                $user->notify(new InactivityWarningTwo());
-                Log::info("User {$user->id} moved to warned_twice ({$daysInactive} days inactive).");
-                $this->warn("User #{$user->id} ({$user->email}) -> warned_twice");
-                continue;
-            }
 
-            // Rule 1: 7+ days inactive and still active -> first warning
-            if ($daysInactive >= 7 && $user->status === 'active') {
+                BlacklistLog::create([
+                    'user_id' => $user->id,
+                    'reason' => 'Inactivity breach: 14+ days without communication',
+                    'action_type' => 'issue_warning_2',
+                ]);
+
+                $this->info("User {$user->email} is now WARNED_TWICE.");
+
+                // 🔄 INTEGRATED: Send notification
+                $user->notify(new \App\Notifications\InactivityWarningTwo());
+
+            } elseif ($daysInactive >= 7 && $user->status === 'active') {
+                // First warning
                 $user->status = 'warned_once';
                 $user->save();
-                $user->notify(new InactivityWarningOne());
-                Log::info("User {$user->id} moved to warned_once ({$daysInactive} days inactive).");
-                $this->warn("User #{$user->id} ({$user->email}) -> warned_once");
+
+                BlacklistLog::create([
+                    'user_id' => $user->id,
+                    'reason' => 'Inactivity breach: 7+ days without communication',
+                    'action_type' => 'issue_warning_1',
+                ]);
+
+                $this->info("User {$user->email} is now WARNED_ONCE.");
+
+                // 🔄 INTEGRATED: Send notification
+                $user->notify(new \App\Notifications\InactivityWarningOne());
             }
         }
 
         $this->info('Inactivity monitor completed.');
-
-        return self::SUCCESS;
-    }
-
-    protected function blacklistUser(User $user): void
-    {
-        $user->status = 'blacklisted';
-        $user->blacklist_expires_at = now()->addDays(14);
-        $user->save();
-
-        // Revoke all Sanctum tokens to force logout
-        if (method_exists($user, 'tokens')) {
-            $user->tokens()->delete();
-        }
-
-        Log::warning("User {$user->id} ({$user->email}) BLACKLISTED until {$user->blacklist_expires_at}.");
-        $this->error("User #{$user->id} ({$user->email}) -> BLACKLISTED until {$user->blacklist_expires_at}");
+        return Command::SUCCESS;
     }
 }
