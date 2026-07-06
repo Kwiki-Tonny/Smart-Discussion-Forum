@@ -508,32 +508,36 @@ class StudentController extends Controller
     }
 
     /**
-     * Toggle like on a post
+     * Toggle like on a post (AJAX)
      */
     public function toggleLike($postId)
     {
         $user = Auth::user();
         $post = Post::findOrFail($postId);
 
-        // Check if user already liked this post
         $existingLike = PostLike::where('post_id', $postId)
                                 ->where('user_id', $user->id)
                                 ->first();
 
         if ($existingLike) {
-            // Unlike
             $existingLike->delete();
-            $message = 'Like removed.';
+            $liked = false;
         } else {
-            // Like
             PostLike::create([
                 'post_id' => $postId,
                 'user_id' => $user->id,
             ]);
-            $message = 'Post liked.';
+            $liked = true;
         }
 
-        return redirect()->back()->with('success', $message);
+        $likeCount = PostLike::where('post_id', $postId)->count();
+
+        return response()->json([
+            'success' => true,
+            'liked' => $liked,
+            'count' => $likeCount,
+            'message' => $liked ? 'Post liked!' : 'Like removed.'
+        ]);
     }
 
     /**
