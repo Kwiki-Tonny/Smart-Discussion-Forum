@@ -1,34 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.AnchorPane?>
-<?import javafx.scene.shape.Circle?>
 <?import javafx.scene.text.Font?>
 
-<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="687.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1">
+
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="740.0" prefWidth="896.0" style="-fx-background-color: green;" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.forum.Lcontroller">
    <children>
-      <Label layoutX="79.0" layoutY="42.0" text="SMART DISCUSSION FORUM" textFill="#13d93a">
-         <font>
-            <Font name="System Bold" size="36.0" />
-         </font>
-      </Label>
-      <Label layoutX="184.0" layoutY="124.0" text="Welcomes You !" textFill="#4fe457">
-         <font>
-            <Font name="Arial Black" size="24.0" />
-         </font>
-      </Label>
-      <TextField layoutX="150.0" layoutY="216.0" prefHeight="54.0" prefWidth="322.0" promptText="Email" style="-fx-background-color: light green;">
-         <font>
-            <Font size="18.0" />
-         </font></TextField>
-      <TextField layoutX="150.0" layoutY="335.0" prefHeight="54.0" prefWidth="322.0" promptText="Password" style="-fx-background-color: llight green;">
-         <font>
-            <Font size="18.0" />
-         </font></TextField>
-      <Circle fill="#0b5b42" layoutX="14.0" layoutY="262.0" radius="100.0" stroke="BLACK" strokeType="INSIDE" />
-      <Circle fill="#277e40" layoutX="14.0" layoutY="449.0" radius="39.0" stroke="BLACK" strokeType="INSIDE" />
-      <Circle fill="#075123" layoutX="14.0" layoutY="593.0" radius="95.0" stroke="BLACK" strokeType="INSIDE" />
-      <AnchorPane layoutX="117.0" layoutY="88.0" prefHeight="6.0" prefWidth="387.0" style="-fx-background-color: green;" />
+      <AnchorPane layoutX="241.0" layoutY="108.0" prefHeight="507.0" prefWidth="442.0" style="-fx-background-color: lime;">
+         <children>
+            <Label layoutX="44.0" layoutY="22.0" prefHeight="35.0" prefWidth="318.0" text="SMART DISCUSSION FORUM">
+               <font>
+                  <Font size="24.0" />
+               </font>
+            </Label>
+            <Label layoutX="85.0" layoutY="57.0" text="Welcome back, please enter your detalis" />
+            <TextField layoutX="31.0" layoutY="135.0" prefHeight="35.0" prefWidth="242.0" style="-fx-background-radius: 60;" />
+            <Label layoutX="45.0" layoutY="117.0" text="Email" textFill="#2f4b26" />
+            <Label layoutX="34.0" layoutY="185.0" text="Password" textFill="#345e2b" />
+            <TextField layoutX="31.0" layoutY="208.0" prefHeight="35.0" prefWidth="242.0" style="-fx-background-radius: 60;" />
+            <CheckBox layoutX="34.0" layoutY="259.0" mnemonicParsing="false" text="Remember me" />
+            <Label layoutX="203.0" layoutY="259.0" text="forgot password" />
+            <Button fx:id="But" layoutX="54.0" layoutY="344.0" mnemonicParsing="false" onAction="#BtnOnClick" prefHeight="35.0" prefWidth="312.0" style="-fx-background-radius: 100; -fx-background-color: green;" text="Login" textFill="#daf4d0">
+               <font>
+                  <Font size="18.0" />
+               </font>
+            </Button>
+         </children>
+      </AnchorPane>
    </children>
 </AnchorPane>

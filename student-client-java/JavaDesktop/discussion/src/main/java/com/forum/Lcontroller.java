@@ -1,30 +1,36 @@
 package com.forum;
-
-/**
- * Sample Skeleton for 'LogIn.fxml' Controller Class
- */
-/**
- * Sample Skeleton for 'LogIn.fxml' Controller Class
- */
-
 import java.net.URL;
 import java.util.ResourceBundle;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 
 public class Lcontroller {
 
-    @FXML // ResourceBundle that was given to the FXMLLoader
+    @FXML
     private ResourceBundle resources;
 
-    @FXML // URL location of the FXML file that was given to the FXMLLoader
+    @FXML
     private URL location;
 
-    @FXML // This method is called by the FXMLLoader when initialization is complete
+    @FXML
+    private Button But;
+
+    @FXML
+    void BtnOnClick(ActionEvent event) {
+        System.out.println("Button Clicked");
+
+    }
+
+    @FXML
     void initialize() {
+        assert But != null : "fx:id=\"But\" was not injected: check your FXML file 'LogIn.fxml'.";
 
     }
 
 }
+
+
 
     
 
