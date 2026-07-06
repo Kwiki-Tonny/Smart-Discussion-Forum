@@ -482,30 +482,49 @@ class StudentController extends Controller
         return redirect()->back()->with('success', 'Post added successfully.');
     }
 
-    /**
-     * Store a reply to a specific post (threaded reply)
-     */
-    public function storeReply(Request $request)
-    {
-        $validated = $request->validate([
-            'topic_id' => 'required|exists:topics,id',
-            'parent_id' => 'required|exists:posts,id',  // The post being replied to
-            'content' => 'required|string|min:3',
-            'is_private' => 'boolean',
-        ]);
+/**
+ * Store a reply to a specific post (threaded reply) - AJAX
+ */
+public function storeReply(Request $request)
+{
+    $validated = $request->validate([
+        'topic_id' => 'required|exists:topics,id',
+        'parent_id' => 'required|exists:posts,id',
+        'content' => 'required|string|min:3',
+        'is_private' => 'boolean',
+    ]);
 
-        $post = Post::create([
-            'topic_id' => $validated['topic_id'],
-            'parent_id' => $validated['parent_id'],
-            'user_id' => Auth::id(),
-            'content' => $validated['content'],
-            'is_private' => $validated['is_private'] ?? false,
-        ]);
+    $post = Post::create([
+        'topic_id' => $validated['topic_id'],
+        'parent_id' => $validated['parent_id'],
+        'user_id' => Auth::id(),
+        'content' => $validated['content'],
+        'is_private' => $validated['is_private'] ?? false,
+    ]);
 
-        Auth::user()->update(['last_communicated_at' => now()]);
+    Auth::user()->update(['last_communicated_at' => now()]);
 
-        return redirect()->back()->with('success', 'Reply posted successfully.');
-    }
+    // Load the author relationship
+    $post->load('author');
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Reply posted successfully.',
+        'post' => [
+            'id' => $post->id,
+            'content' => $post->content,
+            'created_at' => $post->created_at->diffForHumans(),
+            'is_private' => $post->is_private,
+            'author' => [
+                'name' => $post->author->name ?? 'Unknown',
+                'id' => $post->author->id ?? null,
+            ],
+            'likes_count' => 0,
+            'is_liked' => false,
+            'children' => [],
+        ]
+    ]);
+}
 
     /**
      * Toggle like on a post (AJAX)
