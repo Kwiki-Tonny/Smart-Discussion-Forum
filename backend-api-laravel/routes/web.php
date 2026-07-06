@@ -62,7 +62,11 @@ Route::middleware(['auth'])->group(function () {
     //Route::get('/sse/topic/{topicId}', [StudentController::class, 'sseStream'])->name('sse.stream');
 
     //---------- Long Polling Routes ----------
-    Route::get('/topics/{topic}/poll', [StudentController::class, 'longPoll'])->name('topics.poll');
+    //Route::get('/topics/{topic}/poll', [StudentController::class, 'longPoll'])->name('topics.poll');
+
+    // Stateless polling route - no session!
+    Route::get('/poll/topic/{topic}', [App\Http\Controllers\Api\PollController::class, 'poll'])
+    ->name('topics.poll');
 
     // ---------- Quiz ----------
     Route::get('/quiz/{id}/performance-report', [StudentController::class, 'performanceReport'])->name('quiz.report');

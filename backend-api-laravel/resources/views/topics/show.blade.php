@@ -327,17 +327,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // 6. LONG POLLING - Only checks when new messages arrive
+    // 6. LONG POLLING - STATELESS (no session blocking)
     // ============================================================
     let lastPostId = {{ $posts->last()->id ?? 0 }};
     let isPolling = false;
     let longPollTimeout = null;
+    const userId = {{ Auth::id() }}; // ✅ Send user ID to exclude own posts
 
     function startLongPoll() {
         if (isPolling) return;
         isPolling = true;
 
-        fetch('{{ route("topics.poll", $topic->id) }}?last_post_id=' + lastPostId, {
+        fetch('{{ route("topics.poll", $topic->id) }}?last_post_id=' + lastPostId + '&user_id=' + userId, {
             method: 'GET',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -348,15 +349,15 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             isPolling = false;
             if (data.has_updates && data.post) {
-                const currentUserId = {{ Auth::id() }};
-                if (data.post.author_id != currentUserId) {
+                if (data.post.author_id != userId) {
                     showNewPostNotification(data.post);
                     lastPostId = data.post.id;
                 } else {
                     lastPostId = Math.max(lastPostId, data.post.id);
                 }
             }
-            longPollTimeout = setTimeout(startLongPoll, 1000);
+            // Poll every 2 seconds to reduce server load
+            longPollTimeout = setTimeout(startLongPoll, 2000);
         })
         .catch(error => {
             isPolling = false;
