@@ -76,11 +76,11 @@
                     Recs
                 </a>
             </div>
-            <a href="#" 
-               class="flex flex-col items-center text-[9px] font-medium text-[#666666] hover:text-[#000000] w-full py-2 transition-colors">
-                <span class="text-[10px] mb-0.5">◉</span>
-                Profile
-            </a>
+        <a href="{{ route('profile') }}" 
+        class="flex flex-col items-center text-[9px] font-medium text-[#666666] hover:text-[#000000] w-full py-2 transition-colors">
+            <span class="text-[10px] mb-0.5">◉</span>
+            Profile
+        </a>
         </nav>
 
         {{-- CONTEXT PANEL --}}
