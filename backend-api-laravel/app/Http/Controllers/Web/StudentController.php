@@ -724,101 +724,101 @@ class StudentController extends Controller
         return view('student.quizzes', compact('quizzes'));
     }
 
-/**
- * Take a quiz (attempt page)
- */
-public function takeQuiz($quizId)
-{
-    $user = Auth::user();
-    $quiz = Quiz::with(['group'])->findOrFail($quizId);
-    
-    // Check if quiz is available
-    if ($quiz->starts_at > now()) {
-        return redirect()->route('student.quizzes')
-            ->with('error', 'This quiz has not started yet.');
+    /**
+     * Take a quiz (attempt page)
+     */
+    public function takeQuiz($quizId)
+    {
+        $user = Auth::user();
+        $quiz = Quiz::with(['group'])->findOrFail($quizId);
+        
+        // Check if quiz is available
+        if ($quiz->starts_at > now()) {
+            return redirect()->route('student.quizzes')
+                ->with('error', 'This quiz has not started yet.');
+        }
+        
+        if ($quiz->ends_at < now()) {
+            return redirect()->route('student.quizzes')
+                ->with('error', 'This quiz has already ended.');
+        }
+        
+        // Check if user already submitted
+        $existing = QuizSubmission::where('quiz_id', $quizId)
+            ->where('user_id', $user->id)
+            ->first();
+        
+        if ($existing) {
+            return redirect()->route('student.quizzes')
+                ->with('info', 'You have already taken this quiz.');
+        }
+        
+        // Check if user's status is allowed
+        $allowedCategories = $quiz->allowed_categories ?? ['active'];
+        if (!in_array($user->status, $allowedCategories)) {
+            return redirect()->route('student.quizzes')
+                ->with('error', 'You are not eligible to take this quiz.');
+        }
+        
+        // Calculate remaining time
+        $remainingSeconds = now()->diffInSeconds($quiz->ends_at, false);
+        if ($remainingSeconds <= 0) {
+            return redirect()->route('student.quizzes')
+                ->with('error', 'This quiz has ended.');
+        }
+        
+        return view('student.quiz-take', compact('quiz', 'remainingSeconds'));
     }
-    
-    if ($quiz->ends_at < now()) {
-        return redirect()->route('student.quizzes')
-            ->with('error', 'This quiz has already ended.');
-    }
-    
-    // Check if user already submitted
-    $existing = QuizSubmission::where('quiz_id', $quizId)
-        ->where('user_id', $user->id)
-        ->first();
-    
-    if ($existing) {
-        return redirect()->route('student.quizzes')
-            ->with('info', 'You have already taken this quiz.');
-    }
-    
-    // Check if user's status is allowed
-    $allowedCategories = $quiz->allowed_categories ?? ['active'];
-    if (!in_array($user->status, $allowedCategories)) {
-        return redirect()->route('student.quizzes')
-            ->with('error', 'You are not eligible to take this quiz.');
-    }
-    
-    // Calculate remaining time
-    $remainingSeconds = now()->diffInSeconds($quiz->ends_at, false);
-    if ($remainingSeconds <= 0) {
-        return redirect()->route('student.quizzes')
-            ->with('error', 'This quiz has ended.');
-    }
-    
-    return view('student.quiz-take', compact('quiz', 'remainingSeconds'));
-}
 
-/**
- * Submit quiz (AJAX)
- */
-public function submitQuiz(Request $request, $quizId)
-{
-    $user = Auth::user();
-    $quiz = Quiz::findOrFail($quizId);
-    
-    // Validate answers
-    $validated = $request->validate([
-        'answers' => 'required|array',
-        'time_spent' => 'nullable|integer',
-    ]);
-    
-    // Check if already submitted
-    $existing = QuizSubmission::where('quiz_id', $quizId)
-        ->where('user_id', $user->id)
-        ->first();
-    
-    if ($existing) {
+    /**
+     * Submit quiz (AJAX)
+     */
+    public function submitQuiz(Request $request, $quizId)
+    {
+        $user = Auth::user();
+        $quiz = Quiz::findOrFail($quizId);
+        
+        // Validate answers
+        $validated = $request->validate([
+            'answers' => 'required|array',
+            'time_spent' => 'nullable|integer',
+        ]);
+        
+        // Check if already submitted
+        $existing = QuizSubmission::where('quiz_id', $quizId)
+            ->where('user_id', $user->id)
+            ->first();
+        
+        if ($existing) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You have already submitted this quiz.'
+            ], 400);
+        }
+        
+        // Calculate score (placeholder - you can add actual grading logic)
+        $score = 0;
+        $totalQuestions = count($validated['answers']);
+        // For now, assign random score for testing
+        $score = rand(60, 95);
+        
+        // Create submission
+        $submission = QuizSubmission::create([
+            'quiz_id' => $quizId,
+            'user_id' => $user->id,
+            'score' => $score,
+            'answers_payload' => json_encode($validated['answers']),
+            'is_auto_submitted' => $request->input('auto_submitted', false),
+            'created_at' => now(),
+        ]);
+        
         return response()->json([
-            'success' => false,
-            'message' => 'You have already submitted this quiz.'
-        ], 400);
+            'success' => true,
+            'message' => 'Quiz submitted successfully!',
+            'score' => $score,
+            'total_questions' => $totalQuestions,
+        ]);
     }
-    
-    // Calculate score (placeholder - you can add actual grading logic)
-    $score = 0;
-    $totalQuestions = count($validated['answers']);
-    // For now, assign random score for testing
-    $score = rand(60, 95);
-    
-    // Create submission
-    $submission = QuizSubmission::create([
-        'quiz_id' => $quizId,
-        'user_id' => $user->id,
-        'score' => $score,
-        'answers_payload' => json_encode($validated['answers']),
-        'is_auto_submitted' => $request->input('auto_submitted', false),
-        'created_at' => now(),
-    ]);
-    
-    return response()->json([
-        'success' => true,
-        'message' => 'Quiz submitted successfully!',
-        'score' => $score,
-        'total_questions' => $totalQuestions,
-    ]);
-}
 
     /**
      * Export topic to PDF (Placeholder - will implement with DomPDF later)
