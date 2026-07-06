@@ -59,7 +59,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/posts/reply', [StudentController::class, 'storeReply'])->name('posts.reply');
 
     //---------- SSE Routes ----------
-    Route::get('/sse/topic/{topicId}', [StudentController::class, 'sseStream'])->name('sse.stream');
+    //Route::get('/sse/topic/{topicId}', [StudentController::class, 'sseStream'])->name('sse.stream');
 
     //---------- Long Polling Routes ----------
     Route::get('/topics/{topic}/poll', [StudentController::class, 'longPoll'])->name('topics.poll');
