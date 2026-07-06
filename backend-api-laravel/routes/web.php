@@ -60,6 +60,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/posts/{post}/like', [StudentController::class, 'toggleLike'])->name('posts.like');
     Route::post('/posts/reply', [StudentController::class, 'storeReply'])->name('posts.reply');
 
+    // ---------- Student Quiz Routes ----------
+    Route::get('/quizzes', [StudentController::class, 'quizIndex'])->name('student.quizzes');
+    Route::get('/quizzes/{quiz}/take', [StudentController::class, 'takeQuiz'])->name('student.quiz.take');
+    Route::post('/quizzes/{quiz}/submit', [StudentController::class, 'submitQuiz'])->name('student.quiz.submit');
+
     //---------- SSE Routes ----------
     //Route::get('/sse/topic/{topicId}', [StudentController::class, 'sseStream'])->name('sse.stream');
 
