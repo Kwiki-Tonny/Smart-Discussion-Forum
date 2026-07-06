@@ -41,16 +41,23 @@ class StudentController extends Controller
             ->limit(10)
             ->get();
         
-        // 🔄 INTEGRATED: Affinity Calculator for recommendations
+        // Affinity Calculator for recommendations
         $affinityCalculator = app(\App\Services\AffinityCalculator::class);
         $recommendations = $affinityCalculator->getRecommendations($user->id, 5);
         
-        // Get upcoming quizzes
+        // ✅ FIXED: Only show quizzes that are active or upcoming (not ended)
         try {
             $upcomingQuizzes = Quiz::whereIn('group_id', $groupIds)
+                ->where('is_active', true)
+                ->where(function($query) {
+                    $query->where('starts_at', '>', now())
+                        ->orWhere(function($q) {
+                            $q->where('starts_at', '<=', now())
+                                ->where('ends_at', '>=', now());
+                        });
+                })
                 ->with('group')
-                ->where('starts_at', '>', now())
-                ->orderBy('starts_at')
+                ->orderBy('starts_at', 'asc')
                 ->limit(5)
                 ->get();
         } catch (\Exception $e) {
@@ -69,7 +76,7 @@ class StudentController extends Controller
         $totalLikes = PostLike::where('user_id', $user->id)->count();
         $totalQuizzesTaken = QuizSubmission::where('user_id', $user->id)->count();
         
-        // 🔄 INTEGRATED: Get affinity scores for display (optional)
+        // Affinity scores
         $affinityScores = $affinityCalculator->getAffinity($user->id);
         
         return view('student.dashboard', compact(
@@ -82,7 +89,7 @@ class StudentController extends Controller
             'totalPosts',
             'totalLikes',
             'totalQuizzesTaken',
-            'affinityScores'  // ← New variable for showing categories
+            'affinityScores'
         ));
     }
 

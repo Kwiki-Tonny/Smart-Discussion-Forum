@@ -21,26 +21,38 @@
     </div>
     <div class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
         <p class="text-[10px] font-bold uppercase tracking-wider text-[#666666] px-2 py-1">Questions</p>
-        @foreach($quiz->questions as $q)
+        @forelse($quiz->questions as $q)
             <div class="bg-white border border-[#E5E5E5] p-3">
                 <div class="flex justify-between items-start">
                     <div class="flex-1 min-w-0">
                         <p class="text-xs font-bold text-[#000000]">{{ $q->question }}</p>
-                        <div class="flex items-center space-x-2 mt-1">
+                        <div class="flex items-center space-x-2 mt-1 flex-wrap">
                             <span class="text-[8px] font-bold uppercase tracking-wider text-[#666666] border border-[#E5E5E5] px-1.5 py-0.5">
-                                {{ $q->type }}
+                                {{ ucfirst($q->type) }}
                             </span>
                             <span class="text-[8px] text-[#666666]">{{ $q->points }} pts</span>
+                            @if($q->type !== 'text')
+                                <span class="text-[8px] text-[#666666]">{{ count($q->options ?? []) }} options</span>
+                            @endif
                         </div>
+                        @if($q->correct_answers)
+                            <p class="text-[8px] text-[#16A34A] mt-0.5">
+                                ✅ Correct: {{ is_array($q->correct_answers) ? implode(', ', $q->correct_answers) : $q->correct_answers }}
+                            </p>
+                        @endif
                     </div>
                     <form action="{{ route('lecturer.quiz.question.delete', [$quiz->id, $q->id]) }}" method="POST">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="text-[#DC2626] hover:text-[#B91C1C] text-xs" onclick="return confirm('Remove this question?')">✕</button>
+                        <button type="submit" class="text-[#DC2626] hover:text-[#B91C1C] text-sm font-bold" onclick="return confirm('Remove this question?')">✕</button>
                     </form>
                 </div>
             </div>
-        @endforeach
+        @empty
+            <div class="p-4 text-center bg-white border border-[#E5E5E5]">
+                <p class="text-sm text-[#666666]">No questions added yet.</p>
+            </div>
+        @endforelse
     </div>
 @endsection
 
@@ -52,10 +64,12 @@
                     <h1 class="text-xl font-bold text-[#000000]">{{ $quiz->title }}</h1>
                     <p class="text-sm text-[#666666] mt-1">
                         {{ $quiz->group->name ?? 'N/A' }} • {{ $quiz->duration }} min
-                        @if($quiz->isActive())
-                            <span class="text-[#16A34A]">● Active</span>
+                        @if($quiz->hasEnded())
+                            <span class="text-[#DC2626] font-bold">● Ended</span>
+                        @elseif(!$quiz->hasStarted())
+                            <span class="text-[#16A34A] font-bold">● Upcoming</span>
                         @else
-                            <span class="text-[#DC2626]">● Inactive</span>
+                            <span class="text-[#16A34A] font-bold">● Active</span>
                         @endif
                     </p>
                 </div>
@@ -117,10 +131,16 @@
                         <p class="text-[9px] text-[#666666]">For text questions, enter the exact expected answer</p>
                     </div>
 
-                    <button type="submit"
-                            class="bg-[#000000] text-white px-6 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#333333] transition-colors">
-                        Add Question
-                    </button>
+                    <div class="flex items-center space-x-3 pt-2 border-t border-[#E5E5E5]">
+                        <a href="{{ route('lecturer.quizzes') }}"
+                           class="text-xs font-bold uppercase tracking-wider text-[#666666] hover:text-[#000000] transition-colors">
+                            Back to Quizzes
+                        </a>
+                        <button type="submit"
+                                class="bg-[#000000] text-white px-6 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#333333] transition-colors">
+                            Add Question
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -132,11 +152,10 @@
 document.addEventListener('DOMContentLoaded', function() {
     const typeSelect = document.getElementById('question-type');
     const optionsContainer = document.getElementById('options-container');
-    const correctContainer = document.getElementById('correct-container');
     const correctInput = document.getElementById('correct-input');
 
-    typeSelect.addEventListener('change', function() {
-        const type = this.value;
+    function updateFields() {
+        const type = typeSelect.value;
         if (type === 'text') {
             optionsContainer.style.display = 'none';
             correctInput.placeholder = 'Enter the expected answer...';
@@ -144,7 +163,10 @@ document.addEventListener('DOMContentLoaded', function() {
             optionsContainer.style.display = 'block';
             correctInput.placeholder = 'Enter correct option number(s) separated by commas (e.g., 1,3)';
         }
-    });
+    }
+
+    typeSelect.addEventListener('change', updateFields);
+    updateFields();
 });
 </script>
 @endpush

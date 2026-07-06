@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('moderation:monitor')->dailyAt('02:00');
+Schedule::command('quiz:update-status')->daily();

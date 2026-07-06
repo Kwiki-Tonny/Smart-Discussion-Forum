@@ -17,24 +17,30 @@
         @forelse($quizzes as $quiz)
             <div class="bg-white border border-[#E5E5E5] p-3">
                 <h3 class="text-sm font-bold text-[#000000]">{{ $quiz->title }}</h3>
-                <div class="flex items-center space-x-2 mt-1">
+                <div class="flex items-center space-x-2 mt-1 flex-wrap">
                     <span class="text-[10px] text-[#666666]">{{ $quiz->group->name ?? 'N/A' }}</span>
                     <span class="text-[10px] text-[#666666]">•</span>
                     <span class="text-[10px] text-[#666666]">{{ $quiz->duration }} min</span>
                     <span class="text-[10px] text-[#666666]">•</span>
                     <span class="text-[10px] text-[#666666]">{{ $quiz->submissions->count() }} submissions</span>
                 </div>
-                @if($quiz->starts_at && $quiz->starts_at > now())
-                    <span class="inline-block text-[8px] font-bold uppercase tracking-wider text-[#16A34A] border border-[#16A34A] px-1.5 py-0.5 mt-1">Upcoming</span>
-                @elseif($quiz->ends_at && $quiz->ends_at < now())
+                @if($quiz->hasEnded())
                     <span class="inline-block text-[8px] font-bold uppercase tracking-wider text-[#666666] border border-[#E5E5E5] px-1.5 py-0.5 mt-1">Ended</span>
+                @elseif(!$quiz->hasStarted())
+                    <span class="inline-block text-[8px] font-bold uppercase tracking-wider text-[#16A34A] border border-[#16A34A] px-1.5 py-0.5 mt-1">Upcoming</span>
                 @else
                     <span class="inline-block text-[8px] font-bold uppercase tracking-wider text-[#D97706] border border-[#D97706] px-1.5 py-0.5 mt-1">Active</span>
                 @endif
-                <a href="{{ route('lecturer.quiz.results', $quiz->id) }}"
-                   class="block text-center mt-2 text-[10px] font-bold uppercase tracking-wider border border-[#000000] px-3 py-1 hover:bg-[#000000] hover:text-white transition-colors">
-                    View Results
-                </a>
+                <div class="flex items-center space-x-2 mt-2">
+                    <a href="{{ route('lecturer.quiz.edit', $quiz->id) }}"
+                       class="flex-1 text-center text-[10px] font-bold uppercase tracking-wider border border-[#000000] px-2 py-1 hover:bg-[#000000] hover:text-white transition-colors">
+                        Edit Questions
+                    </a>
+                    <a href="{{ route('lecturer.quiz.results', $quiz->id) }}"
+                       class="flex-1 text-center text-[10px] font-bold uppercase tracking-wider border border-[#000000] px-2 py-1 hover:bg-[#000000] hover:text-white transition-colors">
+                        Results
+                    </a>
+                </div>
             </div>
         @empty
             <div class="p-8 text-center">
@@ -67,17 +73,23 @@
                                 Starts: {{ $quiz->starts_at->format('M d, Y h:i A') }}
                             </p>
                         @endif
-                        @if($quiz->starts_at && $quiz->starts_at > now())
-                            <span class="inline-block mt-1 text-[8px] font-bold uppercase tracking-wider text-[#16A34A] border border-[#16A34A] px-1.5 py-0.5">Upcoming</span>
-                        @elseif($quiz->ends_at && $quiz->ends_at < now())
+                        @if($quiz->hasEnded())
                             <span class="inline-block mt-1 text-[8px] font-bold uppercase tracking-wider text-[#666666] border border-[#E5E5E5] px-1.5 py-0.5">Ended</span>
+                        @elseif(!$quiz->hasStarted())
+                            <span class="inline-block mt-1 text-[8px] font-bold uppercase tracking-wider text-[#16A34A] border border-[#16A34A] px-1.5 py-0.5">Upcoming</span>
                         @else
                             <span class="inline-block mt-1 text-[8px] font-bold uppercase tracking-wider text-[#D97706] border border-[#D97706] px-1.5 py-0.5">Active</span>
                         @endif
-                        <a href="{{ route('lecturer.quiz.results', $quiz->id) }}"
-                           class="block text-center mt-3 text-xs font-bold uppercase tracking-wider border border-[#000000] px-3 py-1 hover:bg-[#000000] hover:text-white transition-colors">
-                            View Results
-                        </a>
+                        <div class="flex items-center space-x-2 mt-3">
+                            <a href="{{ route('lecturer.quiz.edit', $quiz->id) }}"
+                               class="flex-1 text-center text-[10px] font-bold uppercase tracking-wider border border-[#000000] px-2 py-1 hover:bg-[#000000] hover:text-white transition-colors">
+                                Edit
+                            </a>
+                            <a href="{{ route('lecturer.quiz.results', $quiz->id) }}"
+                               class="flex-1 text-center text-[10px] font-bold uppercase tracking-wider border border-[#000000] px-2 py-1 hover:bg-[#000000] hover:text-white transition-colors">
+                                Results
+                            </a>
+                        </div>
                     </div>
                 @empty
                     <div class="col-span-full bg-white border border-[#E5E5E5] p-12 text-center">
