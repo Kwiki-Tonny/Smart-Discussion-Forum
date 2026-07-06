@@ -93,7 +93,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // ============================================================
     function bindReplyToggles() {
         document.querySelectorAll('.reply-toggle').forEach(button => {
-            // Remove existing listener to avoid duplicates
             button.removeEventListener('click', replyToggleHandler);
             button.addEventListener('click', replyToggleHandler);
         });
@@ -112,7 +111,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // ============================================================
     function bindReplyForms() {
         document.querySelectorAll('.reply-form-ajax').forEach(form => {
-            // Remove existing listener to avoid duplicates
             form.removeEventListener('submit', replyFormHandler);
             form.addEventListener('submit', replyFormHandler);
         });
@@ -164,11 +162,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 tempDiv.innerHTML = newPost;
                 childrenContainer.appendChild(tempDiv.firstElementChild);
 
-                // Clear form
                 this.querySelector('textarea[name="content"]').value = '';
                 this.closest('.reply-form').classList.add('hidden');
 
-                // Re-bind events on new elements
                 bindLikeEvents();
                 bindReplyToggles();
                 bindReplyForms();
@@ -274,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // 5. HELPERS
+    // 5. HELPER FUNCTIONS
     // ============================================================
     function createPostHTML(post) {
         const isLiked = post.is_liked ? '❤️' : '🤍';
@@ -323,7 +319,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateReplyCount() {
         const posts = document.querySelectorAll('#posts-container > .bg-white.border');
-        const count = posts.length - 1; // subtract main reply form
+        const count = posts.length - 1;
         const replySpan = document.querySelector('.context_panel .p-2.text-xs.font-bold');
         if (replySpan) {
             replySpan.textContent = `• ${count} replies`;
@@ -331,198 +327,80 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // 6. INITIAL BINDING
+    // 6. LONG POLLING - Only checks when new messages arrive
     // ============================================================
-    bindReplyToggles();
-    bindReplyForms();
-    bindLikeEvents();
+    let lastPostId = {{ $posts->last()->id ?? 0 }};
+    let isPolling = false;
+    let longPollTimeout = null;
 
-    // ============================================================
-    // 7. SERVER-SENT EVENTS (SSE) - Real-time updates
-    // ============================================================
-    function setupSSE() {
-        const topicId = {{ $topic->id }};
-        const eventSource = new EventSource('{{ route("sse.stream", $topic->id) }}');
-        let notificationBanner = null;
-        let reloadTimer = null;
+    function startLongPoll() {
+        if (isPolling) return;
+        isPolling = true;
 
-        eventSource.addEventListener('new_post', function(event) {
-            const data = JSON.parse(event.data);
-            const currentUserId = {{ Auth::id() }};
-
-            // Skip if the post is by the current user (already shown via AJAX)
-            if (data.author_id == currentUserId) {
-                return;
+        fetch('{{ route("topics.poll", $topic->id) }}?last_post_id=' + lastPostId, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
             }
-
-            // Show notification
-            showSSENotification(data);
-        });
-
-        eventSource.addEventListener('error', function(event) {
-            console.log('SSE connection error. Attempting to reconnect...');
-            // Close and reconnect after 5 seconds
-            eventSource.close();
-            setTimeout(() => {
-                setupSSE();
-            }, 5000);
-        });
-
-        function showSSENotification(data) {
-            // Remove existing notification
-            if (notificationBanner) {
-                notificationBanner.remove();
+        })
+        .then(response => response.json())
+        .then(data => {
+            isPolling = false;
+            if (data.has_updates && data.post) {
+                const currentUserId = {{ Auth::id() }};
+                if (data.post.author_id != currentUserId) {
+                    showNewPostNotification(data.post);
+                    lastPostId = data.post.id;
+                } else {
+                    lastPostId = Math.max(lastPostId, data.post.id);
+                }
             }
-            if (reloadTimer) {
-                clearTimeout(reloadTimer);
-            }
-
-            // Create notification banner
-            notificationBanner = document.createElement('div');
-            notificationBanner.id = 'sse-notification';
-            notificationBanner.className = 'fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-[#000000] text-white px-6 py-4 z-50 border border-[#E5E5E5] shadow-xl max-w-lg w-full';
-            notificationBanner.innerHTML = `
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-4 min-w-0">
-                        <span class="text-lg font-bold text-white flex-shrink-0">1</span>
-                        <span class="text-sm font-medium text-white truncate">new reply</span>
-                        <span class="text-xs text-[#999999] truncate hidden sm:inline">
-                            by ${data.author}
-                        </span>
-                    </div>
-                    <div class="flex items-center space-x-3 flex-shrink-0">
-                        <button onclick="dismissSSENotification()" 
-                                class="text-xs text-[#999999] hover:text-white transition-colors">
-                            Later
-                        </button>
-                        <button onclick="reloadSSEPage()" 
-                                class="bg-white text-[#000000] px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#E5E5E5] transition-colors">
-                            View Now
-                        </button>
-                    </div>
-                </div>
-                <div class="mt-2 text-xs text-[#999999] border-t border-[#333333] pt-2">
-                    Auto-refreshing in 3 seconds...
-                </div>
-            `;
-            document.body.appendChild(notificationBanner);
-
-            // Auto-reload after 3 seconds
-            reloadTimer = setTimeout(() => {
-                reloadSSEPage();
-            }, 3000);
-        }
-
-        window.dismissSSENotification = function() {
-            if (notificationBanner) {
-                notificationBanner.remove();
-                notificationBanner = null;
-            }
-            if (reloadTimer) {
-                clearTimeout(reloadTimer);
-                reloadTimer = null;
-            }
-        };
-
-        window.reloadSSEPage = function() {
-            dismissSSENotification();
-            window.location.reload();
-        };
-
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', function() {
-            eventSource.close();
+            longPollTimeout = setTimeout(startLongPoll, 1000);
+        })
+        .catch(error => {
+            isPolling = false;
+            console.log('Long poll error:', error);
+            longPollTimeout = setTimeout(startLongPoll, 5000);
         });
     }
 
-    // Start SSE when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-        setupSSE();
-    });
+    function showNewPostNotification(post) {
+        dismissNotification();
 
-    // ============================================================
-// 7. LONG POLLING - Only checks when new messages arrive
-// ============================================================
-let lastPostId = {{ $posts->last()->id ?? 0 }};
-let isPolling = false;
-let longPollTimeout = null;
-
-function startLongPoll() {
-    if (isPolling) return;
-    isPolling = true;
-
-    fetch('{{ route("topics.poll", $topic->id) }}?last_post_id=' + lastPostId, {
-        method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        isPolling = false;
-        if (data.has_updates && data.post) {
-            const currentUserId = {{ Auth::id() }};
-            // Skip if the post is by the current user (already handled by AJAX)
-            if (data.post.author_id != currentUserId) {
-                showNewPostNotification(data.post);
-                // Update lastPostId so we don't get it again
-                lastPostId = data.post.id;
-            } else {
-                // If it's our own post, just update the ID
-                lastPostId = Math.max(lastPostId, data.post.id);
-            }
-        }
-        // Immediately start the next poll
-        longPollTimeout = setTimeout(startLongPoll, 1000);
-    })
-    .catch(error => {
-        isPolling = false;
-        console.log('Long poll error:', error);
-        // Retry after 5 seconds on error
-        longPollTimeout = setTimeout(startLongPoll, 5000);
-    });
-}
-
-function showNewPostNotification(post) {
-    // Remove any existing notification
-    dismissNotification();
-
-    // Create notification banner
-    const banner = document.createElement('div');
-    banner.id = 'new-post-notification';
-    banner.className = 'fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-[#000000] text-white px-6 py-4 z-50 border border-[#E5E5E5] shadow-xl max-w-lg w-full';
-    banner.innerHTML = `
-        <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-4 min-w-0">
-                <span class="text-lg font-bold text-white flex-shrink-0">1</span>
-                <span class="text-sm font-medium text-white truncate">new reply</span>
-                <span class="text-xs text-[#999999] truncate hidden sm:inline">
-                    by ${post.author}
-                </span>
+        const banner = document.createElement('div');
+        banner.id = 'new-post-notification';
+        banner.className = 'fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-[#000000] text-white px-6 py-4 z-50 border border-[#E5E5E5] shadow-xl max-w-lg w-full';
+        banner.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4 min-w-0">
+                    <span class="text-lg font-bold text-white flex-shrink-0">1</span>
+                    <span class="text-sm font-medium text-white truncate">new reply</span>
+                    <span class="text-xs text-[#999999] truncate hidden sm:inline">
+                        by ${post.author}
+                    </span>
+                </div>
+                <div class="flex items-center space-x-3 flex-shrink-0">
+                    <button onclick="dismissNotification()" 
+                            class="text-xs text-[#999999] hover:text-white transition-colors">
+                        Later
+                    </button>
+                    <button onclick="reloadPage()" 
+                            class="bg-white text-[#000000] px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#E5E5E5] transition-colors">
+                        View Now
+                    </button>
+                </div>
             </div>
-            <div class="flex items-center space-x-3 flex-shrink-0">
-                <button onclick="dismissNotification()" 
-                        class="text-xs text-[#999999] hover:text-white transition-colors">
-                    Later
-                </button>
-                <button onclick="reloadPage()" 
-                        class="bg-white text-[#000000] px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#E5E5E5] transition-colors">
-                    View Now
-                </button>
+            <div class="mt-2 text-xs text-[#999999] border-t border-[#333333] pt-2">
+                Auto-refreshing in 5 seconds...
             </div>
-        </div>
-        <div class="mt-2 text-xs text-[#999999] border-t border-[#333333] pt-2">
-            Auto-refreshing in 5 seconds...
-        </div>
-    `;
-    document.body.appendChild(banner);
+        `;
+        document.body.appendChild(banner);
 
-    // Auto-reload after 5 seconds
-    window.reloadTimer = setTimeout(() => {
-        reloadPage();
-    }, 5000);
-}
+        window.reloadTimer = setTimeout(() => {
+            reloadPage();
+        }, 5000);
+    }
 
     function dismissNotification() {
         const existing = document.getElementById('new-post-notification');
@@ -540,25 +418,26 @@ function showNewPostNotification(post) {
         window.location.reload();
     }
 
-    // Start long polling after page loads (give it a few seconds to settle)
+    // ============================================================
+    // 7. CLEANUP ON PAGE UNLOAD
+    // ============================================================
+    window.addEventListener('beforeunload', function() {
+        if (longPollTimeout) {
+            clearTimeout(longPollTimeout);
+            longPollTimeout = null;
+        }
+        isPolling = false;
+    });
+
+    // ============================================================
+    // 8. INITIALIZATION
+    // ============================================================
+    bindReplyToggles();
+    bindReplyForms();
+    bindLikeEvents();
+
+    // Start long polling after 3 seconds
     setTimeout(startLongPoll, 3000);
-
-    // Clean up on page unload
-    window.addEventListener('beforeunload', function() {
-        if (longPollTimeout) {
-            clearTimeout(longPollTimeout);
-            longPollTimeout = null;
-        }
-        isPolling = false;
-    });
-
-    window.addEventListener('beforeunload', function() {
-        if (longPollTimeout) {
-            clearTimeout(longPollTimeout);
-            longPollTimeout = null;
-        }
-        isPolling = false;
-    });
 });
 </script>
 @endpush
