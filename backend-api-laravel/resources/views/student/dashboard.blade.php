@@ -94,10 +94,16 @@
                         Here's what's happening in your groups
                     </p>
                 </div>
-                <a href="{{ route('topics.create') }}" 
-                   class="bg-[#000000] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#333333] transition-colors">
-                    + New Topic
-                </a>
+                <div class="flex items-center space-x-3">
+                    <a href="{{ route('topics.create') }}" 
+                       class="bg-[#000000] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#333333] transition-colors">
+                        + New Topic
+                    </a>
+                    <a href="{{ route('student.quizzes') }}" 
+                       class="bg-[#000000] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#333333] transition-colors">
+                        📝 Quizzes
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -155,7 +161,7 @@
                 {{-- Right Sidebar (1/3) --}}
                 <div class="space-y-6">
 
-                    {{-- 🔄 ML: Recommendations Widget --}}
+                    {{-- ML: Recommendations Widget --}}
                     <div class="bg-white border border-[#E5E5E5]">
                         <div class="border-b border-[#E5E5E5] px-4 py-3 flex items-center justify-between">
                             <h2 class="text-sm font-bold uppercase tracking-wider text-[#000000]">Recommended Topics</h2>
@@ -184,7 +190,7 @@
                         </div>
                     </div>
 
-                    {{-- 🔄 ML: Affinity Scores Widget --}}
+                    {{-- ML: Affinity Scores Widget --}}
                     @if(isset($affinityScores) && count($affinityScores) > 0)
                     <div class="bg-white border border-[#E5E5E5]">
                         <div class="border-b border-[#E5E5E5] px-4 py-3 flex items-center justify-between">

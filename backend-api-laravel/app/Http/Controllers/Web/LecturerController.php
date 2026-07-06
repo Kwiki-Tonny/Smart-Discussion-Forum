@@ -182,8 +182,8 @@ class LecturerController extends Controller
             'ends_at' => $endsAt,
         ]);
 
-        return redirect()->route('lecturer.quizzes')
-            ->with('success', "Quiz '{$quiz->title}' created successfully!");
+        return redirect()->route('lecturer.quiz.edit', $quiz->id)
+        ->with('success', "Quiz '{$quiz->title}' created! Now add questions.");
     }
 
     /**
@@ -225,5 +225,79 @@ class LecturerController extends Controller
         });
 
         return view('lecturer.grading', compact('students'));
+    }
+
+    /**
+     * Show questions for a quiz
+     */
+    public function editQuiz($quizId)
+    {
+        $quiz = Quiz::with(['questions', 'group'])->findOrFail($quizId);
+        $groups = Group::orderBy('name')->get();
+        return view('lecturer.quiz-edit', compact('quiz', 'groups'));
+    }
+
+    /**
+     * Add a question to a quiz
+     */
+    public function storeQuestion(Request $request, $quizId)
+    {
+        $validated = $request->validate([
+            'question' => 'required|string',
+            'type' => 'required|in:single,multiple,text',
+            'options' => 'nullable|array',
+            'options.*' => 'nullable|string',
+            'correct_answers' => 'nullable|array',
+            'points' => 'required|integer|min:1|max:100',
+        ]);
+
+        // Clean options (remove empty)
+        $options = array_filter($validated['options'] ?? [], function($opt) {
+            return !empty(trim($opt));
+        });
+
+        // For text type, no options needed
+        if ($validated['type'] === 'text') {
+            $options = [];
+        }
+
+        $question = QuizQuestion::create([
+            'quiz_id' => $quizId,
+            'question' => $validated['question'],
+            'type' => $validated['type'],
+            'options' => $options,
+            'correct_answers' => $validated['correct_answers'] ?? [],
+            'points' => $validated['points'],
+            'order' => QuizQuestion::where('quiz_id', $quizId)->count() + 1,
+        ]);
+
+        return redirect()->route('lecturer.quiz.edit', $quizId)
+            ->with('success', 'Question added successfully!');
+    }
+
+    /**
+     * Remove a question
+     */
+    public function deleteQuestion($quizId, $questionId)
+    {
+        $question = QuizQuestion::where('quiz_id', $quizId)->findOrFail($questionId);
+        $question->delete();
+
+        return redirect()->route('lecturer.quiz.edit', $quizId)
+            ->with('success', 'Question removed.');
+    }
+
+    /**
+     * Toggle quiz status (active/inactive)
+     */
+    public function toggleQuizStatus($quizId)
+    {
+        $quiz = Quiz::findOrFail($quizId);
+        $quiz->is_active = !$quiz->is_active;
+        $quiz->save();
+
+        $status = $quiz->is_active ? 'activated' : 'deactivated';
+        return redirect()->route('lecturer.quizzes')
+            ->with('success', "Quiz {$status} successfully.");
     }
 }

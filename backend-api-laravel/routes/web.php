@@ -94,7 +94,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/quiz/{quiz}/results', [LecturerController::class, 'quizResults'])->name('lecturer.quiz.results');
         Route::get('/grading', [LecturerController::class, 'gradingMatrix'])->name('lecturer.grading');
     });
-});
+
+    // ---------- Lecturer Quiz Management ----------
+    Route::get('/quiz/{quiz}/edit', [LecturerController::class, 'editQuiz'])->name('lecturer.quiz.edit');
+    Route::post('/quiz/{quiz}/question', [LecturerController::class, 'storeQuestion'])->name('lecturer.quiz.question.store');
+    Route::delete('/quiz/{quiz}/question/{question}', [LecturerController::class, 'deleteQuestion'])->name('lecturer.quiz.question.delete');
+    Route::post('/quiz/{quiz}/toggle', [LecturerController::class, 'toggleQuizStatus'])->name('lecturer.quiz.toggle');
+    });
 
 
 // ==================== ROUTE PARAMETER PATTERNS ====================

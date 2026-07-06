@@ -501,7 +501,7 @@ class StudentController extends Controller
     /**
      * Server-Sent Events stream for topic updates
      */
-    public function sseStream($topicId)
+/*     public function sseStream($topicId)
     {
         $response = response()->stream(function () use ($topicId) {
             // Set headers for SSE
@@ -565,11 +565,9 @@ class StudentController extends Controller
         ]);
 
         return $response;
-    }
+    } */
 
-    /**
-     * Long polling - waits for new posts
-     */
+
     /**
      * Long polling - waits for new posts
      */
@@ -776,32 +774,74 @@ class StudentController extends Controller
     public function submitQuiz(Request $request, $quizId)
     {
         $user = Auth::user();
-        $quiz = Quiz::findOrFail($quizId);
-        
-        // Validate answers
+        $quiz = Quiz::with(['questions'])->findOrFail($quizId);
+
         $validated = $request->validate([
             'answers' => 'required|array',
             'time_spent' => 'nullable|integer',
         ]);
-        
+
         // Check if already submitted
         $existing = QuizSubmission::where('quiz_id', $quizId)
             ->where('user_id', $user->id)
             ->first();
-        
+
         if ($existing) {
             return response()->json([
                 'success' => false,
                 'message' => 'You have already submitted this quiz.'
             ], 400);
         }
-        
-        // Calculate score (placeholder - you can add actual grading logic)
-        $score = 0;
-        $totalQuestions = count($validated['answers']);
-        // For now, assign random score for testing
-        $score = rand(60, 95);
-        
+
+        // Auto-mark answers
+        $totalPoints = 0;
+        $earnedPoints = 0;
+        $answerDetails = [];
+
+        foreach ($quiz->questions as $question) {
+            $totalPoints += $question->points;
+            $userAnswer = $validated['answers']['q' . $question->id] ?? '';
+
+            // Determine if answer is correct
+            $isCorrect = false;
+            $pointsEarned = 0;
+
+            if ($question->type === 'text') {
+                // For text questions, check if answer matches the correct answer
+                $correctAnswers = $question->correct_answers ?? [];
+                $isCorrect = in_array(strtolower(trim($userAnswer)), array_map('strtolower', $correctAnswers));
+                $pointsEarned = $isCorrect ? $question->points : 0;
+            } else {
+                // For single/multiple choice
+                $correctAnswers = $question->correct_answers ?? [];
+                $userAnswers = is_array($userAnswer) ? $userAnswer : [$userAnswer];
+
+                if ($question->type === 'single') {
+                    $isCorrect = in_array($userAnswers[0] ?? '', $correctAnswers);
+                    $pointsEarned = $isCorrect ? $question->points : 0;
+                } else {
+                    // Multiple choice - all correct answers must be selected
+                    $correctSet = array_map('strval', $correctAnswers);
+                    $userSet = array_map('strval', $userAnswers);
+                    sort($correctSet);
+                    sort($userSet);
+                    $isCorrect = $correctSet === $userSet;
+                    $pointsEarned = $isCorrect ? $question->points : 0;
+                }
+            }
+
+            $earnedPoints += $pointsEarned;
+
+            $answerDetails[] = [
+                'question_id' => $question->id,
+                'answer' => is_array($userAnswer) ? json_encode($userAnswer) : $userAnswer,
+                'is_correct' => $isCorrect,
+                'points_earned' => $pointsEarned,
+            ];
+        }
+
+        $score = $totalPoints > 0 ? round(($earnedPoints / $totalPoints) * 100, 2) : 0;
+
         // Create submission
         $submission = QuizSubmission::create([
             'quiz_id' => $quizId,
@@ -811,12 +851,25 @@ class StudentController extends Controller
             'is_auto_submitted' => $request->input('auto_submitted', false),
             'created_at' => now(),
         ]);
-        
+
+        // Save individual answers
+        foreach ($answerDetails as $detail) {
+            QuizAnswer::create([
+                'submission_id' => $submission->id,
+                'question_id' => $detail['question_id'],
+                'answer' => $detail['answer'],
+                'is_correct' => $detail['is_correct'],
+                'points_earned' => $detail['points_earned'],
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Quiz submitted successfully!',
             'score' => $score,
-            'total_questions' => $totalQuestions,
+            'total_questions' => $quiz->questions->count(),
+            'earned_points' => $earnedPoints,
+            'total_points' => $totalPoints,
         ]);
     }
 
