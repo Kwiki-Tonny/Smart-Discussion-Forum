@@ -77,7 +77,10 @@
         const checkbox = document.getElementById('agreeCheckbox');
         const agreeBtn = document.getElementById('agreeBtn');
         const declineBtn = document.getElementById('declineBtn');
+        
+        // 🔴 DEBUG: Check if group ID is being passed correctly
         const groupId = {{ $group->id }};
+        console.log('[Guidelines] Group ID:', groupId);
 
         // Enable/disable agree button based on checkbox
         checkbox.addEventListener('change', function() {
@@ -94,32 +97,63 @@
         agreeBtn.addEventListener('click', function() {
             if (this.disabled) return;
 
+            // 🔴 DEBUG: Log the action
+            console.log('[Guidelines] Agree button clicked');
+
             // Show loading state
             const originalText = this.textContent;
             this.textContent = 'Processing...';
             this.disabled = true;
 
-            fetch('{{ route("groups.agree", $group->id) }}', {
+            const url = '{{ route("groups.agree", $group->id) }}';
+            const token = document.querySelector('meta[name="csrf-token"]')?.content;
+
+            // 🔴 DEBUG: Log the request details
+            console.log('[Guidelines] Sending request to:', url);
+            console.log('[Guidelines] CSRF Token:', token ? 'Present' : 'MISSING!');
+
+            if (!token) {
+                alert('CSRF token missing. Please refresh the page.');
+                this.textContent = originalText;
+                this.disabled = false;
+                return;
+            }
+
+            fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    'X-CSRF-TOKEN': token
                 },
                 body: JSON.stringify({})
             })
-            .then(response => response.json())
+            .then(response => {
+                // 🔴 DEBUG: Log the response status
+                console.log('[Guidelines] Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
+                return response.json();
+            })
             .then(data => {
+                // 🔴 DEBUG: Log the response data
+                console.log('[Guidelines] Response data:', data);
+
                 if (data.status === 'success') {
-                    window.location.href = '{{ route("groups.topics", $group->id) }}';
+                    // ✅ Success - redirect to topics
+                    const redirectUrl = '{{ route("groups.topics", $group->id) }}';
+                    console.log('[Guidelines] Redirecting to:', redirectUrl);
+                    window.location.href = redirectUrl;
                 } else {
-                    alert('Something went wrong. Please try again.');
+                    alert('Something went wrong: ' + (data.message || 'Unknown error'));
                     this.textContent = originalText;
                     this.disabled = false;
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('Network error. Please try again.');
+                console.error('[Guidelines] Error:', error);
+                alert('Network error: ' + error.message + '\nPlease try again.');
                 this.textContent = originalText;
                 this.disabled = false;
             });
@@ -128,11 +162,13 @@
         // Handle Decline
         declineBtn.addEventListener('click', function() {
             if (confirm('Are you sure you want to decline access to this group? You will be redirected to the dashboard.')) {
+                const token = document.querySelector('meta[name="csrf-token"]')?.content;
+                
                 fetch('{{ route("groups.decline", $group->id) }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        'X-CSRF-TOKEN': token
                     },
                     body: JSON.stringify({})
                 })

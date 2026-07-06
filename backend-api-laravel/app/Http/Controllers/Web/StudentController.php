@@ -114,19 +114,27 @@ class StudentController extends Controller
     {
         $user = Auth::user();
         $group = Group::withCount(['topics', 'users'])->findOrFail($groupId);
-        
+
+        // Check if user is a member of this group
+        $isMember = $user->groups()->where('group_id', $groupId)->exists();
+        if (!$isMember) {
+            return redirect()->route('groups.index')
+                ->with('error', 'You must join the group first before viewing the guidelines.');
+        }
+
         // Check if user already agreed
         $hasAgreed = $user->groups()
             ->where('group_id', $groupId)
             ->wherePivot('has_agreed_rules', true)
             ->exists();
-        
+
         if ($hasAgreed) {
             return redirect()->route('groups.topics', $groupId);
         }
-        
+
         return view('groups.guidelines', compact('group'));
     }
+
 
     /**
      * Accept Group Rules
@@ -135,12 +143,20 @@ class StudentController extends Controller
     {
         $user = Auth::user();
         $group = Group::findOrFail($groupId);
-        
+
+        // Ensure the user is a member (pivot record exists)
+        if (!$user->groups()->where('group_id', $groupId)->exists()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'You are not a member of this group.'
+            ], 403);
+        }
+
         // Update pivot table
         $user->groups()->updateExistingPivot($groupId, [
             'has_agreed_rules' => true
         ]);
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Rules accepted successfully.'
