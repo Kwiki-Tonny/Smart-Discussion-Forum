@@ -7,6 +7,7 @@ use App\Models\Group;
 use App\Models\Topic;
 use App\Models\Quiz;
 use App\Models\Post;
+use App\Models\PostLike;
 use App\Models\QuizSubmission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,7 +29,7 @@ class StudentController extends Controller
             }])
             ->get();
         
-        // Get group IDs the user is in - ✅ FIXED: Specify table
+        // Get group IDs the user is in
         $groupIds = $user->groups()->pluck('groups.id')->toArray();
         
         // Get recent topics from user's groups
@@ -68,7 +69,7 @@ class StudentController extends Controller
         // Stats
         $totalTopics = Topic::whereIn('group_id', $groupIds)->where('creator_id', $user->id)->count();
         $totalPosts = Post::where('user_id', $user->id)->count();
-        $totalLikes = 0; // Placeholder
+        $totalLikes = PostLike::where('user_id', $user->id)->count(); // Updated: actual like count
         $totalQuizzesTaken = QuizSubmission::where('user_id', $user->id)->count();
         
         return view('student.dashboard', compact(
@@ -91,7 +92,7 @@ class StudentController extends Controller
     {
         $user = Auth::user();
         
-        // Get IDs of groups the user is already in - ✅ FIXED: Specify table
+        // Get IDs of groups the user is already in
         $userGroupIds = $user->groups()->pluck('groups.id')->toArray();
         
         // Fetch ALL groups with counts
@@ -134,7 +135,6 @@ class StudentController extends Controller
 
         return view('groups.guidelines', compact('group'));
     }
-
 
     /**
      * Accept Group Rules
@@ -250,31 +250,48 @@ class StudentController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
         ]);
-        
+
+        // 🔄 INTEGRATED: ML Text Classifier
+        $mlClassifier = app(\App\Services\MLTextClassifier::class);
+        $mlCategory = $mlClassifier->classify(
+            $validated['title'],
+            $validated['description'] ?? '',
+            $validated['group_id']
+        );
+
         $topic = Topic::create([
             'group_id' => $validated['group_id'],
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'creator_id' => Auth::id(),
-            'ml_category' => null,
+            'ml_category' => $mlCategory, // ← Now populated by ML classifier!
         ]);
-        
+
         Auth::user()->update(['last_communicated_at' => now()]);
-        
+
         return redirect()->route('topics.show', [$topic->group_id, $topic->id])
-            ->with('success', 'Topic created successfully.');
+            ->with('success', "Topic created successfully! Category: {$mlCategory}");
     }
 
     /**
-     * Show a single topic with its posts
+     * Show a single topic with its posts (including threaded replies)
      */
     public function showTopic($groupId, $topicId)
     {
         $topic = Topic::with(['creator', 'group'])
-            ->findOrFail($topicId);
+            ->findOrFail($groupId);
         
+        // Fetch posts with nested replies and likes
         $posts = Post::where('topic_id', $topicId)
-            ->with('author')
+            ->whereNull('parent_id') // Only top-level posts
+            ->with([
+                'author',
+                'children' => function($query) {
+                    $query->with(['author', 'children.author'])->orderBy('created_at', 'asc');
+                },
+                'likes'
+            ])
+            ->withCount('likes')
             ->orderBy('created_at', 'asc')
             ->get();
         
@@ -311,12 +328,68 @@ class StudentController extends Controller
     }
 
     /**
+     * Store a reply to a specific post (threaded reply)
+     */
+    public function storeReply(Request $request)
+    {
+        $validated = $request->validate([
+            'topic_id' => 'required|exists:topics,id',
+            'parent_id' => 'required|exists:posts,id',  // The post being replied to
+            'content' => 'required|string|min:3',
+            'is_private' => 'boolean',
+        ]);
+
+        $post = Post::create([
+            'topic_id' => $validated['topic_id'],
+            'parent_id' => $validated['parent_id'],
+            'user_id' => Auth::id(),
+            'content' => $validated['content'],
+            'is_private' => $validated['is_private'] ?? false,
+        ]);
+
+        Auth::user()->update(['last_communicated_at' => now()]);
+
+        return redirect()->back()->with('success', 'Reply posted successfully.');
+    }
+
+    /**
      * Toggle like on a post
      */
     public function toggleLike($postId)
     {
-        // Placeholder - will implement later
-        return response()->json(['status' => 'success']);
+        $user = Auth::user();
+        $post = Post::findOrFail($postId);
+
+        // Check if user already liked this post
+        $existingLike = PostLike::where('post_id', $postId)
+                                ->where('user_id', $user->id)
+                                ->first();
+
+        if ($existingLike) {
+            // Unlike
+            $existingLike->delete();
+            $message = 'Like removed.';
+        } else {
+            // Like
+            PostLike::create([
+                'post_id' => $postId,
+                'user_id' => $user->id,
+            ]);
+            $message = 'Post liked.';
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Export topic to PDF (Placeholder - will implement with DomPDF later)
+     */
+    public function exportPdf($topicId)
+    {
+        $topic = Topic::with(['group', 'creator', 'posts.author'])->findOrFail($topicId);
+        
+        // Placeholder for now - will implement DomPDF in Sprint 3
+        return response("PDF export for '{$topic->title}' coming soon!", 200);
     }
 
     /**
