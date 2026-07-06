@@ -76,6 +76,17 @@ Route::middleware(['auth'])->group(function () {
 
     //---------- Reccommendations ----------
     Route::get('/recommendations', [StudentController::class, 'recommendations'])->name('recommendations.index');
+
+        // ---------- Lecturer Routes ----------
+    Route::middleware(['role:lecturer,admin'])->prefix('lecturer')->group(function () {
+        Route::get('/dashboard', [LecturerController::class, 'index'])->name('lecturer.dashboard');
+        Route::get('/group/{group}/analytics', [LecturerController::class, 'groupAnalytics'])->name('lecturer.group.analytics');
+        Route::get('/quizzes', [LecturerController::class, 'quizzes'])->name('lecturer.quizzes');
+        Route::get('/quiz/create', [LecturerController::class, 'createQuiz'])->name('lecturer.quiz.create');
+        Route::post('/quiz/store', [LecturerController::class, 'storeQuiz'])->name('lecturer.quiz.store');
+        Route::get('/quiz/{quiz}/results', [LecturerController::class, 'quizResults'])->name('lecturer.quiz.results');
+        Route::get('/grading', [LecturerController::class, 'gradingMatrix'])->name('lecturer.grading');
+    });
 });
 
 
