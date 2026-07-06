@@ -395,39 +395,50 @@ class StudentController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        // 🔄 INTEGRATED: ML Text Classifier
+        $groupId = $validated['group_id'];
+
+        // ML Text Classifier
         $mlClassifier = app(\App\Services\MLTextClassifier::class);
         $mlCategory = $mlClassifier->classify(
             $validated['title'],
             $validated['description'] ?? '',
-            $validated['group_id']
+            $groupId
         );
 
+        // ✅ Create the topic
         $topic = Topic::create([
-            'group_id' => $validated['group_id'],
+            'group_id' => $groupId,
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'creator_id' => Auth::id(),
-            'ml_category' => $mlCategory, // ← Now populated by ML classifier!
+            'ml_category' => $mlCategory,
         ]);
+
+        // ✅ Check if topic was created successfully
+        if (!$topic) {
+            return redirect()->back()
+                ->with('error', 'Failed to create topic. Please try again.')
+                ->withInput();
+        }
 
         Auth::user()->update(['last_communicated_at' => now()]);
 
-        return redirect()->route('topics.show', [$topic->group_id, $topic->id])
+        return redirect()->route('groups.topics', $groupId)
             ->with('success', "Topic created successfully! Category: {$mlCategory}");
     }
 
     /**
-     * Show a single topic with its posts (including threaded replies)
+     * Show a single topic with its posts
      */
     public function showTopic($groupId, $topicId)
     {
-        $topic = Topic::with(['creator', 'group'])
-            ->findOrFail($groupId);
+        // Topic must belong to the group
+        $topic = Topic::where('group_id', $groupId)
+            ->with(['creator', 'group'])
+            ->findOrFail($topicId);
         
-        // Fetch posts with nested replies and likes
         $posts = Post::where('topic_id', $topicId)
-            ->whereNull('parent_id') // Only top-level posts
+            ->whereNull('parent_id')
             ->with([
                 'author',
                 'children' => function($query) {
