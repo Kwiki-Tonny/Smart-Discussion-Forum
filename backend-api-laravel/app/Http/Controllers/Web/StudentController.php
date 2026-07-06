@@ -453,34 +453,50 @@ class StudentController extends Controller
         return view('topics.show', compact('topic', 'posts'));
     }
 
-    /**
-     * Store a new post
-     */
-    public function storePost(Request $request)
-    {
-        $validated = $request->validate([
-            'topic_id' => 'required|exists:topics,id',
-            'content' => 'required|string|min:3',
-            'is_private' => 'boolean',
-            'excluded_user_ids' => 'nullable|array',
-        ]);
-        
-        $post = Post::create([
-            'topic_id' => $validated['topic_id'],
-            'user_id' => Auth::id(),
-            'content' => $validated['content'],
-            'is_private' => $validated['is_private'] ?? false,
-        ]);
-        
-        // Handle exclusions if private
-        if ($post->is_private && !empty($validated['excluded_user_ids'])) {
-            $post->excludedUsers()->attach($validated['excluded_user_ids']);
-        }
-        
-        Auth::user()->update(['last_communicated_at' => now()]);
-        
-        return redirect()->back()->with('success', 'Post added successfully.');
+/**
+ * Store a new post (AJAX)
+ */
+public function storePost(Request $request)
+{
+    $validated = $request->validate([
+        'topic_id' => 'required|exists:topics,id',
+        'content' => 'required|string|min:3',
+        'is_private' => 'boolean',
+        'excluded_user_ids' => 'nullable|array',
+    ]);
+
+    $post = Post::create([
+        'topic_id' => $validated['topic_id'],
+        'user_id' => Auth::id(),
+        'content' => $validated['content'],
+        'is_private' => $validated['is_private'] ?? false,
+    ]);
+
+    if ($post->is_private && !empty($validated['excluded_user_ids'])) {
+        $post->excludedUsers()->attach($validated['excluded_user_ids']);
     }
+
+    Auth::user()->update(['last_communicated_at' => now()]);
+
+    $post->load('author');
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Post added successfully.',
+        'post' => [
+            'id' => $post->id,
+            'content' => $post->content,
+            'created_at' => $post->created_at->diffForHumans(),
+            'is_private' => $post->is_private,
+            'author' => [
+                'name' => $post->author->name ?? 'Unknown',
+                'id' => $post->author->id ?? null,
+            ],
+            'likes_count' => 0,
+            'is_liked' => false,
+        ]
+    ]);
+}
 
 /**
  * Store a reply to a specific post (threaded reply) - AJAX
