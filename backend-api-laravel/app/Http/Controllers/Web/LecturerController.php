@@ -353,4 +353,27 @@ class LecturerController extends Controller
         return redirect()->route('lecturer.quiz.edit', $quizId)
             ->with('success', "{$count} question(s) added successfully!");
     }
+
+    public function profile()
+    {
+        $user = Auth::user();
+
+        // Get groups the lecturer manages (all groups they have access to)
+        $groups = Group::withCount(['topics', 'users'])->get();
+
+        // Stats
+        $totalGroups = $groups->count();
+        $totalTopics = Topic::count();
+        $totalPosts = Post::count();
+        $totalStudents = User::where('role', 'student')->count();
+
+        return view('lecturer.profile', compact(
+            'user',
+            'groups',
+            'totalGroups',
+            'totalTopics',
+            'totalPosts',
+            'totalStudents'
+        ));
+    }
 }
