@@ -84,6 +84,7 @@ Route::middleware(['auth'])->group(function () {
 
         // ---------- Lecturer Dashboard ----------
         Route::get('/dashboard', [LecturerController::class, 'index'])->name('lecturer.dashboard');
+        Route::get('/profile', [LecturerController::class, 'profile'])->name('lecturer.profile');
 
         // ---------- Group Analytics ----------
         Route::get('/group/{group}/analytics', [LecturerController::class, 'groupAnalytics'])->name('lecturer.group.analytics');
