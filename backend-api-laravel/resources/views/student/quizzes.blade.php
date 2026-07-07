@@ -21,6 +21,10 @@
                 </div>
                 @if($quiz->has_taken)
                     <span class="inline-block mt-1 text-[8px] font-bold uppercase tracking-wider text-[#16A34A] border border-[#16A34A] px-1.5 py-0.5">Completed ✅</span>
+                    <a href="{{ route('quiz.report', $quiz->id) }}"
+                       class="block text-center mt-2 text-[10px] font-bold uppercase tracking-wider border border-[#000000] px-3 py-1 hover:bg-[#000000] hover:text-white transition-colors">
+                        View Results
+                    </a>
                 @else
                     <a href="{{ route('student.quiz.take', $quiz->id) }}"
                        class="block text-center mt-2 text-[10px] font-bold uppercase tracking-wider bg-[#000000] text-white px-3 py-1 hover:bg-[#333333] transition-colors">
@@ -62,7 +66,14 @@
                                 ⏱️ Ends: {{ $quiz->ends_at->format('M d, Y h:i A') }}
                             </p>
                         @endif
-                        @if(!$quiz->has_taken)
+                        @if($quiz->has_taken)
+                            <div class="flex items-center space-x-2 mt-3">
+                                <a href="{{ route('quiz.report', $quiz->id) }}"
+                                   class="flex-1 text-center text-xs font-bold uppercase tracking-wider bg-[#000000] text-white px-3 py-2 hover:bg-[#333333] transition-colors">
+                                    View Results
+                                </a>
+                            </div>
+                        @else
                             <a href="{{ route('student.quiz.take', $quiz->id) }}"
                                class="block text-center mt-3 text-xs font-bold uppercase tracking-wider bg-[#000000] text-white px-3 py-2 hover:bg-[#333333] transition-colors">
                                 Start Quiz
