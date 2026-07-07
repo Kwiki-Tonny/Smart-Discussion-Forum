@@ -886,18 +886,25 @@ class StudentController extends Controller
      */
     public function exportPdf($topicId)
     {
-        $topic = Topic::with(['group', 'creator', 'posts.author'])->findOrFail($topicId);
-        
+        $topic = Topic::with(['group', 'creator'])->findOrFail($topicId);
+
+        // ✅ Fetch posts with nested children (threaded replies)
+        $posts = Post::where('topic_id', $topicId)
+            ->whereNull('parent_id')
+            ->with(['author', 'children.author', 'children.children.author'])
+            ->orderBy('created_at', 'asc')
+            ->get();
+
         $data = [
             'topic' => $topic,
-            'posts' => $topic->posts,
+            'posts' => $posts,
             'group' => $topic->group,
             'author' => $topic->creator,
         ];
-        
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.topic', $data);
         $pdf->setPaper('A4', 'portrait');
-        
+
         $filename = Str::slug($topic->title) . '_history.pdf';
         return $pdf->download($filename);
     }
