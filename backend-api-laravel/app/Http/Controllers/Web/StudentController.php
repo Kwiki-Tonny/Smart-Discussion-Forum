@@ -892,11 +892,80 @@ class StudentController extends Controller
     }
 
     /**
-     * Show performance report
+     * Show performance report for a quiz
      */
     public function performanceReport($quizId)
     {
-        // Placeholder - will implement later
-        return view('quiz.report', ['quizId' => $quizId]);
+        $user = Auth::user();
+        $quiz = Quiz::with(['questions', 'group'])->findOrFail($quizId);
+
+        // Check if quiz has ended
+        if (!$quiz->hasEnded()) {
+            return redirect()->route('student.quizzes')
+                ->with('error', 'Results are locked until the evaluation session finishes.');
+        }
+
+        // Get the user's submission
+        $submission = QuizSubmission::where('quiz_id', $quizId)
+            ->where('user_id', $user->id)
+            ->with(['answers'])
+            ->first();
+
+        if (!$submission) {
+            return redirect()->route('student.quizzes')
+                ->with('info', 'You have not taken this quiz.');
+        }
+
+        // Get all submissions for this quiz (for comparison)
+        $allSubmissions = QuizSubmission::where('quiz_id', $quizId)
+            ->with('user')
+            ->get();
+
+        // Calculate statistics
+        $scores = $allSubmissions->pluck('score')->filter();
+        $averageScore = $scores->avg() ?? 0;
+        $highestScore = $scores->max() ?? 0;
+        $lowestScore = $scores->min() ?? 0;
+        $passCount = $scores->filter(fn($s) => $s >= 50)->count();
+        $passRate = $allSubmissions->count() > 0 ? round(($passCount / $allSubmissions->count()) * 100, 1) : 0;
+
+        // Get user's rank
+        $rank = $scores->sortDesc()->search($submission->score) + 1;
+        $totalStudents = $scores->count();
+
+        // Prepare answer breakdown
+        $questionDetails = [];
+        foreach ($quiz->questions as $index => $question) {
+            $userAnswer = $submission->answers->where('question_id', $question->id)->first();
+            $isCorrect = $userAnswer ? $userAnswer->is_correct : false;
+            $pointsEarned = $userAnswer ? $userAnswer->points_earned : 0;
+
+            $questionDetails[] = [
+                'number' => $index + 1,
+                'question' => $question->question,
+                'type' => $question->type,
+                'user_answer' => $userAnswer ? $userAnswer->answer : 'Not answered',
+                'correct_answer' => is_array($question->correct_answers) 
+                    ? implode(', ', $question->correct_answers) 
+                    : $question->correct_answers,
+                'is_correct' => $isCorrect,
+                'points' => $question->points,
+                'points_earned' => $pointsEarned,
+                'options' => $question->options ?? [],
+            ];
+        }
+
+        return view('student.performance-report', compact(
+            'quiz',
+            'submission',
+            'allSubmissions',
+            'averageScore',
+            'highestScore',
+            'lowestScore',
+            'passRate',
+            'rank',
+            'totalStudents',
+            'questionDetails'
+        ));
     }
 }
