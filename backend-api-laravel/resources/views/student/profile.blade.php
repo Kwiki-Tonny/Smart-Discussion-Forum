@@ -64,16 +64,16 @@
     {{-- Vertical Navigation Tabs --}}
     <div class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1 bg-[#FAFAFA]">
         <button class="tab-btn w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-wider border-l-2 border-[#000000] bg-white text-[#000000] transition-colors" data-tab="activity">
-            📄 Activity
+            Activity
         </button>
         <button class="tab-btn w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-wider border-l-2 border-transparent text-[#666666] hover:bg-[#F0F0F0] hover:text-[#000000] transition-colors" data-tab="quizzes">
-            📝 Quizzes
+            Quizzes
         </button>
         <button class="tab-btn w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-wider border-l-2 border-transparent text-[#666666] hover:bg-[#F0F0F0] hover:text-[#000000] transition-colors" data-tab="warnings">
-            ⚠️ Warnings
+            Warnings
         </button>
         <button class="tab-btn w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-wider border-l-2 border-transparent text-[#666666] hover:bg-[#F0F0F0] hover:text-[#000000] transition-colors" data-tab="insights">
-            💡 Insights
+            Insights
         </button>
     </div>
 @endsection
@@ -96,19 +96,19 @@
                             <div class="flex items-center justify-between">
                                 <div class="min-w-0 flex-1">
                                     @if($activity->type === 'topic')
-                                        <span class="text-xs font-bold text-[#000000]">📄 Created topic</span>
+                                        <span class="text-xs font-bold text-[#000000]">Created topic</span>
                                         <a href="{{ route('topics.show', [$activity->group_id, $activity->topic_id]) }}" 
                                            class="text-sm font-semibold text-[#000000] hover:underline block mt-1 truncate">
                                             {{ $activity->title }}
                                         </a>
                                     @elseif($activity->type === 'post')
-                                        <span class="text-xs font-bold text-[#000000]">💬 Posted reply</span>
+                                        <span class="text-xs font-bold text-[#000000]">Posted reply</span>
                                         <a href="{{ route('topics.show', [$activity->group_id, $activity->topic_id]) }}#post-{{ $activity->post_id }}" 
                                            class="text-sm text-[#666666] block mt-1 line-clamp-2 hover:text-[#000000]">
                                             {{ $activity->content }}
                                         </a>
                                     @elseif($activity->type === 'like')
-                                        <span class="text-xs font-bold text-[#000000]">❤️ Liked a post</span>
+                                        <span class="text-xs font-bold text-[#000000]">Liked a post</span>
                                         <a href="{{ route('topics.show', [$activity->group_id, $activity->topic_id]) }}#post-{{ $activity->post_id }}" 
                                            class="text-sm text-[#666666] block mt-1 line-clamp-2 hover:text-[#000000]">
                                             {{ $activity->content }}

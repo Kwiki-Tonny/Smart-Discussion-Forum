@@ -23,19 +23,22 @@ Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
 Route::get('/register', [AuthController::class, 'showRegistrationForm'])->name('register');
 Route::post('/register', [AuthController::class, 'register'])->name('register.submit');
 
-// 3. Password Reset (Stubbed - can be implemented later)
+// 3. Password Reset (Stubbed)
 Route::get('/password/reset', [AuthController::class, 'showResetForm'])->name('password.request');
 Route::post('/password/reset', [AuthController::class, 'resetPassword'])->name('password.update');
 
 
-// ==================== PROTECTED ROUTES (Require Authentication) ====================
+// ==================== PROTECTED ROUTES ====================
 
 Route::middleware(['auth'])->group(function () {
 
     // ---------- Logout ----------
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    // ---------- Student Dashboard ----------
+
+    // ==================== STUDENT ROUTES ====================
+
+    // ---------- Dashboard ----------
     Route::get('/dashboard', [StudentController::class, 'index'])->name('dashboard');
 
     // ---------- Profile ----------
@@ -53,54 +56,61 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/topics/create', [StudentController::class, 'createTopic'])->name('topics.create');
     Route::post('/topics', [StudentController::class, 'storeTopic'])->name('topics.store');
     Route::get('/groups/{group}/topics/{topic}', [StudentController::class, 'showTopic'])->name('topics.show');
-    Route::get('/topics/{topic}/export', [StudentController::class, 'exportPdf'])->name('topics.export'); // NEW
+    Route::get('/topics/{topic}/export', [StudentController::class, 'exportPdf'])->name('topics.export');
 
     // ---------- Posts ----------
     Route::post('/posts', [StudentController::class, 'storePost'])->name('posts.store');
     Route::post('/posts/{post}/like', [StudentController::class, 'toggleLike'])->name('posts.like');
     Route::post('/posts/reply', [StudentController::class, 'storeReply'])->name('posts.reply');
 
-    // ---------- Student Quiz Routes ----------
+    // ---------- Student Quizzes ----------
     Route::get('/quizzes', [StudentController::class, 'quizIndex'])->name('student.quizzes');
     Route::get('/quizzes/{quiz}/take', [StudentController::class, 'takeQuiz'])->name('student.quiz.take');
     Route::post('/quizzes/{quiz}/submit', [StudentController::class, 'submitQuiz'])->name('student.quiz.submit');
 
-    //---------- SSE Routes ----------
-    //Route::get('/sse/topic/{topicId}', [StudentController::class, 'sseStream'])->name('sse.stream');
-
-    //---------- Long Polling Routes ----------
-    //Route::get('/topics/{topic}/poll', [StudentController::class, 'longPoll'])->name('topics.poll');
-
-    // Stateless polling route - no session!
-    Route::get('/poll/topic/{topic}', [App\Http\Controllers\Api\PollController::class, 'poll'])
-    ->name('topics.poll');
-
-    // ---------- Quiz ----------
+    // ---------- Performance Report ----------
     Route::get('/quiz/{id}/performance-report', [StudentController::class, 'performanceReport'])->name('quiz.report');
+
+    // ---------- Recommendations ----------
+    Route::get('/recommendations', [StudentController::class, 'recommendations'])->name('recommendations.index');
 
     // ---------- Affinity Cache ----------
     Route::post('/affinity/clear', [StudentController::class, 'clearAffinityCache'])->name('affinity.clear');
 
-    //---------- Reccommendations ----------
-    Route::get('/recommendations', [StudentController::class, 'recommendations'])->name('recommendations.index');
 
-        // ---------- Lecturer Routes ----------
+    // ==================== LECTURER ROUTES ====================
+
     Route::middleware(['role:lecturer,admin'])->prefix('lecturer')->group(function () {
+
+        // ---------- Lecturer Dashboard ----------
         Route::get('/dashboard', [LecturerController::class, 'index'])->name('lecturer.dashboard');
+
+        // ---------- Group Analytics ----------
         Route::get('/group/{group}/analytics', [LecturerController::class, 'groupAnalytics'])->name('lecturer.group.analytics');
+
+        // ---------- Quiz Management ----------
         Route::get('/quizzes', [LecturerController::class, 'quizzes'])->name('lecturer.quizzes');
         Route::get('/quiz/create', [LecturerController::class, 'createQuiz'])->name('lecturer.quiz.create');
         Route::post('/quiz/store', [LecturerController::class, 'storeQuiz'])->name('lecturer.quiz.store');
         Route::get('/quiz/{quiz}/results', [LecturerController::class, 'quizResults'])->name('lecturer.quiz.results');
+
+        // ---------- Quiz Edit & Questions ----------
+        Route::get('/quiz/{quiz}/edit', [LecturerController::class, 'editQuiz'])->name('lecturer.quiz.edit');
+        Route::post('/quiz/{quiz}/question', [LecturerController::class, 'storeQuestion'])->name('lecturer.quiz.question.store');
+        Route::post('/quiz/{quiz}/questions/bulk', [LecturerController::class, 'storeBulkQuestions'])->name('lecturer.quiz.question.store.bulk');
+        Route::delete('/quiz/{quiz}/question/{question}', [LecturerController::class, 'deleteQuestion'])->name('lecturer.quiz.question.delete');
+        Route::post('/quiz/{quiz}/toggle', [LecturerController::class, 'toggleQuizStatus'])->name('lecturer.quiz.toggle');
+
+        // ---------- Grading Matrix ----------
         Route::get('/grading', [LecturerController::class, 'gradingMatrix'])->name('lecturer.grading');
     });
 
-    // ---------- Lecturer Quiz Management ----------
-    Route::get('/quiz/{quiz}/edit', [LecturerController::class, 'editQuiz'])->name('lecturer.quiz.edit');
-    Route::post('/quiz/{quiz}/question', [LecturerController::class, 'storeQuestion'])->name('lecturer.quiz.question.store');
-    Route::delete('/quiz/{quiz}/question/{question}', [LecturerController::class, 'deleteQuestion'])->name('lecturer.quiz.question.delete');
-    Route::post('/quiz/{quiz}/toggle', [LecturerController::class, 'toggleQuizStatus'])->name('lecturer.quiz.toggle');
-    });
+
+    // ==================== POLLING ROUTES ====================
+
+    // Stateless polling route - no session blocking!
+    Route::get('/poll/topic/{topic}', [PollController::class, 'poll'])->name('topics.poll');
+});
 
 
 // ==================== ROUTE PARAMETER PATTERNS ====================
@@ -108,4 +118,6 @@ Route::middleware(['auth'])->group(function () {
 Route::pattern('group', '[0-9]+');
 Route::pattern('topic', '[0-9]+');
 Route::pattern('post', '[0-9]+');
+Route::pattern('quiz', '[0-9]+');
+Route::pattern('question', '[0-9]+');
 Route::pattern('id', '[0-9]+');

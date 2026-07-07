@@ -85,61 +85,76 @@
             </div>
         </div>
 
+        {{-- Bulk Question Addition --}}
         <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
             <div class="bg-white border border-[#E5E5E5] p-6">
-                <h2 class="text-sm font-bold uppercase tracking-wider text-[#000000] mb-4">Add Question</h2>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-bold uppercase tracking-wider text-[#000000]">Add Questions</h2>
+                    <button type="button" id="add-question-btn"
+                            class="bg-[#000000] text-white px-4 py-1.5 text-xs font-bold uppercase tracking-wider hover:bg-[#333333] transition-colors">
+                        + Add Another Question
+                    </button>
+                </div>
 
-                <form method="POST" action="{{ route('lecturer.quiz.question.store', $quiz->id) }}" class="space-y-4">
+                <form method="POST" action="{{ route('lecturer.quiz.question.store.bulk', $quiz->id) }}" id="bulk-question-form">
                     @csrf
-
-                    <div class="space-y-1">
-                        <label class="block text-xs font-bold uppercase tracking-wide text-[#000000]">Question</label>
-                        <textarea name="question" rows="2" required
-                                  class="w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors"
-                                  placeholder="Enter the question..."></textarea>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-1">
-                            <label class="block text-xs font-bold uppercase tracking-wide text-[#000000]">Type</label>
-                            <select name="type" id="question-type" required
-                                    class="w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors">
-                                <option value="single">Single Choice</option>
-                                <option value="multiple">Multiple Choice</option>
-                                <option value="text">Free Text</option>
-                            </select>
+                    <div id="questions-container">
+                        {{-- Initial question block --}}
+                        <div class="question-block border border-[#E5E5E5] p-4 mb-4 relative">
+                            <div class="absolute top-2 right-2">
+                                <button type="button" class="remove-question-btn text-[#DC2626] hover:text-[#B91C1C] text-sm font-bold" title="Remove this question">✕</button>
+                            </div>
+                            <div class="grid grid-cols-1 gap-3">
+                                <div class="space-y-1">
+                                    <label class="block text-xs font-bold uppercase tracking-wide text-[#000000]">Question</label>
+                                    <textarea name="questions[0][question]" rows="2" required
+                                              class="w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors"
+                                              placeholder="Enter the question..."></textarea>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="space-y-1">
+                                        <label class="block text-xs font-bold uppercase tracking-wide text-[#000000]">Type</label>
+                                        <select name="questions[0][type]" class="question-type w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors">
+                                            <option value="single">Single Choice</option>
+                                            <option value="multiple">Multiple Choice</option>
+                                            <option value="text">Free Text</option>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="block text-xs font-bold uppercase tracking-wide text-[#000000]">Points</label>
+                                        <input type="number" name="questions[0][points]" value="1" min="1" max="100"
+                                               class="w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors">
+                                    </div>
+                                </div>
+                                <div class="space-y-1 options-container">
+                                    <label class="block text-xs font-bold uppercase tracking-wide text-[#000000]">Options (Enter one per line)</label>
+                                    <textarea name="questions[0][options]" rows="3"
+                                              class="w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors"
+                                              placeholder="Option 1&#10;Option 2&#10;Option 3"></textarea>
+                                </div>
+                                <div class="space-y-1 correct-container">
+                                    <label class="block text-xs font-bold uppercase tracking-wide text-[#000000]">Correct Answer(s)</label>
+                                    <input type="text" name="questions[0][correct_answers]"
+                                           class="correct-input w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors"
+                                           placeholder="Enter correct option number(s) separated by commas (e.g., 1,3)">
+                                    <p class="text-[9px] text-[#666666]">For text questions, enter the exact expected answer</p>
+                                </div>
+                            </div>
                         </div>
-                        <div class="space-y-1">
-                            <label class="block text-xs font-bold uppercase tracking-wide text-[#000000]">Points</label>
-                            <input type="number" name="points" value="1" min="1" max="100"
-                                   class="w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors">
-                        </div>
                     </div>
 
-                    <div class="space-y-1" id="options-container">
-                        <label class="block text-xs font-bold uppercase tracking-wide text-[#000000]">Options (Enter one per line)</label>
-                        <textarea name="options" rows="4"
-                                  class="w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors"
-                                  placeholder="Option 1&#10;Option 2&#10;Option 3"></textarea>
-                    </div>
-
-                    <div class="space-y-1" id="correct-container">
-                        <label class="block text-xs font-bold uppercase tracking-wide text-[#000000]">Correct Answer(s)</label>
-                        <input type="text" name="correct_answers" id="correct-input"
-                               class="w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors"
-                               placeholder="Enter correct option number(s) separated by commas (e.g., 1,3)">
-                        <p class="text-[9px] text-[#666666]">For text questions, enter the exact expected answer</p>
-                    </div>
-
-                    <div class="flex items-center space-x-3 pt-2 border-t border-[#E5E5E5]">
+                    <div class="flex items-center justify-between pt-4 border-t border-[#E5E5E5]">
                         <a href="{{ route('lecturer.quizzes') }}"
                            class="text-xs font-bold uppercase tracking-wider text-[#666666] hover:text-[#000000] transition-colors">
                             Back to Quizzes
                         </a>
-                        <button type="submit"
-                                class="bg-[#000000] text-white px-6 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#333333] transition-colors">
-                            Add Question
-                        </button>
+                        <div class="flex items-center space-x-3">
+                            <span id="question-counter" class="text-xs text-[#666666]">1 question</span>
+                            <button type="submit"
+                                    class="bg-[#000000] text-white px-6 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#333333] transition-colors">
+                                Save All Questions
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -150,23 +165,101 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const typeSelect = document.getElementById('question-type');
-    const optionsContainer = document.getElementById('options-container');
-    const correctInput = document.getElementById('correct-input');
+    let questionCount = 1;
+    const container = document.getElementById('questions-container');
+    const addBtn = document.getElementById('add-question-btn');
+    const counter = document.getElementById('question-counter');
 
-    function updateFields() {
-        const type = typeSelect.value;
-        if (type === 'text') {
-            optionsContainer.style.display = 'none';
-            correctInput.placeholder = 'Enter the expected answer...';
-        } else {
-            optionsContainer.style.display = 'block';
-            correctInput.placeholder = 'Enter correct option number(s) separated by commas (e.g., 1,3)';
-        }
+    // Function to update question indices
+    function updateIndices() {
+        const blocks = container.querySelectorAll('.question-block');
+        blocks.forEach((block, index) => {
+            block.querySelectorAll('textarea, input, select').forEach(input => {
+                const name = input.getAttribute('name');
+                if (name) {
+                    input.setAttribute('name', name.replace(/\[\d+\]/, '[' + index + ']'));
+                }
+            });
+        });
+        counter.textContent = blocks.length + ' question' + (blocks.length > 1 ? 's' : '');
     }
 
-    typeSelect.addEventListener('change', updateFields);
-    updateFields();
+    // Add new question block
+    addBtn.addEventListener('click', function() {
+        const newIndex = container.children.length;
+        const lastBlock = container.lastElementChild;
+        const newBlock = lastBlock.cloneNode(true);
+
+        // Clear all input values in the new block (keep structure)
+        newBlock.querySelectorAll('textarea, input').forEach(input => {
+            input.value = '';
+        });
+
+        // Ensure the type select is reset to 'single'
+        const typeSelect = newBlock.querySelector('.question-type');
+        if (typeSelect) typeSelect.value = 'single';
+
+        // Update names with new index
+        newBlock.querySelectorAll('textarea, input, select').forEach(input => {
+            const name = input.getAttribute('name');
+            if (name) {
+                input.setAttribute('name', name.replace(/\[\d+\]/, '[' + newIndex + ']'));
+            }
+        });
+
+        // Ensure remove button exists and works
+        let removeBtn = newBlock.querySelector('.remove-question-btn');
+        if (!removeBtn) {
+            const headerDiv = newBlock.querySelector('.absolute.top-2.right-2');
+            if (headerDiv) {
+                removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'remove-question-btn text-[#DC2626] hover:text-[#B91C1C] text-sm font-bold';
+                removeBtn.innerHTML = '✕';
+                removeBtn.title = 'Remove this question';
+                headerDiv.appendChild(removeBtn);
+            }
+        }
+
+        // Append the new block
+        container.appendChild(newBlock);
+        updateIndices();
+    });
+
+    // Remove question (delegated)
+    container.addEventListener('click', function(e) {
+        const removeBtn = e.target.closest('.remove-question-btn');
+        if (removeBtn) {
+            const block = removeBtn.closest('.question-block');
+            if (block && container.children.length > 1) {
+                block.remove();
+                updateIndices();
+            } else {
+                alert('You must have at least one question.');
+            }
+        }
+    });
+
+    // Handle type change to show/hide options
+    container.addEventListener('change', function(e) {
+        const select = e.target.closest('.question-type');
+        if (select) {
+            const block = select.closest('.question-block');
+            const optionsContainer = block.querySelector('.options-container');
+            const correctInput = block.querySelector('.correct-input');
+
+            if (select.value === 'text') {
+                optionsContainer.style.display = 'none';
+                correctInput.placeholder = 'Enter the expected answer...';
+            } else {
+                optionsContainer.style.display = 'block';
+                correctInput.placeholder = 'Enter correct option number(s) separated by commas (e.g., 1,3)';
+            }
+        }
+    });
+
+    // Initial update for any existing fields
+    updateIndices();
 });
 </script>
 @endpush

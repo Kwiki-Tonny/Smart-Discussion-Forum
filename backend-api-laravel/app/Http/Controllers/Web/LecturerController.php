@@ -300,4 +300,57 @@ class LecturerController extends Controller
         return redirect()->route('lecturer.quizzes')
             ->with('success', "Quiz {$status} successfully.");
     }
+
+    /**
+     * Store multiple questions at once (bulk)
+     */
+    public function storeBulkQuestions(Request $request, $quizId)
+    {
+        $quiz = Quiz::findOrFail($quizId);
+
+        $validated = $request->validate([
+            'questions' => 'required|array',
+            'questions.*.question' => 'required|string',
+            'questions.*.type' => 'required|in:single,multiple,text',
+            'questions.*.options' => 'nullable|string',
+            'questions.*.correct_answers' => 'nullable|string',
+            'questions.*.points' => 'required|integer|min:1|max:100',
+        ]);
+
+        $count = 0;
+
+        foreach ($validated['questions'] as $index => $qData) {
+            // Parse options (split by newline)
+            $options = [];
+            if (!empty($qData['options'])) {
+                $options = array_filter(array_map('trim', explode("\n", $qData['options'])));
+            }
+
+            // Parse correct answers
+            $correctAnswers = [];
+            if (!empty($qData['correct_answers'])) {
+                if ($qData['type'] === 'text') {
+                    $correctAnswers = [trim($qData['correct_answers'])];
+                } else {
+                    // Split by comma and trim
+                    $correctAnswers = array_filter(array_map('trim', explode(',', $qData['correct_answers'])));
+                }
+            }
+
+            QuizQuestion::create([
+                'quiz_id' => $quizId,
+                'question' => $qData['question'],
+                'type' => $qData['type'],
+                'options' => $options,
+                'correct_answers' => $correctAnswers,
+                'points' => $qData['points'],
+                'order' => $index + 1,
+            ]);
+
+            $count++;
+        }
+
+        return redirect()->route('lecturer.quiz.edit', $quizId)
+            ->with('success', "{$count} question(s) added successfully!");
+    }
 }

@@ -101,7 +101,7 @@
                     </a>
                     <a href="{{ route('student.quizzes') }}" 
                        class="bg-[#000000] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#333333] transition-colors">
-                        📝 Quizzes
+                        Quizzes
                     </a>
                 </div>
             </div>
