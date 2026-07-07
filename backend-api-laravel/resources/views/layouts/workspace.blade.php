@@ -58,29 +58,100 @@
     <div class="flex flex-1 overflow-hidden">
 
         {{-- SIDEBAR --}}
-        <nav class="w-16 bg-[#FAFAFA] border-r border-[#E5E5E5] flex flex-col items-center py-6 justify-between flex-shrink-0">
-            <div class="flex flex-col space-y-8 w-full items-center">
-                <a href="{{ route('dashboard') }}" 
-                   class="flex flex-col items-center text-[9px] font-bold text-[#000000] w-full py-2 bg-white border-y border-[#E5E5E5]">
-                    <span class="text-[10px] mb-0.5">▣</span>
-                    Groups
-                </a>
+        <nav class="w-20 bg-[#FAFAFA] border-r border-[#E5E5E5] flex flex-col items-center py-6 justify-between flex-shrink-0">
+            {{-- Top Navigation Items --}}
+            <div class="flex flex-col space-y-6 w-full items-center">
+
+                @auth
+                    @if(Auth::user()->role === 'student')
+                        {{-- Student Menu --}}
+                        <a href="{{ route('dashboard') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('dashboard') || request()->routeIs('groups.*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">▣</span>
+                            <span>Groups</span>
+                        </a>
+
+                        <a href="{{ route('profile') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('profile') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">◉</span>
+                            <span>Profile</span>
+                        </a>
+
+                        <a href="{{ route('recommendations.index') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('recommendations.*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">◈</span>
+                            <span>Recs</span>
+                        </a>
+
+                        <a href="{{ route('student.quizzes') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('student.quizzes*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">📝</span>
+                            <span>Quizzes</span>
+                        </a>
+
+                    @elseif(Auth::user()->role === 'lecturer')
+                        {{-- Lecturer Menu --}}
+                        <a href="{{ route('lecturer.dashboard') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('lecturer.dashboard') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">▣</span>
+                            <span>Dashboard</span>
+                        </a>
+
+                        {{-- Groups link – same as student but lecturers can access --}}
+                        <a href="{{ route('groups.index') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('groups.*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">▤</span>
+                            <span>Groups</span>
+                        </a>
+
+                        <a href="{{ route('lecturer.quizzes') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('lecturer.quizzes*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">📝</span>
+                            <span>Quizzes</span>
+                        </a>
+
+                        <a href="{{ route('lecturer.grading') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('lecturer.grading') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">📊</span>
+                            <span>Grading</span>
+                        </a>
+
+                        <a href="{{ route('lecturer.profile') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('lecturer.profile') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">◉</span>
+                            <span>Profile</span>
+                        </a>
+
+                    @elseif(Auth::user()->role === 'admin')
+                        {{-- Admin Menu (similar to lecturer but with extra) --}}
+                        <a href="{{ route('admin.dashboard') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors">
+                            <span class="text-xl mb-1">▣</span>
+                            <span>Admin</span>
+                        </a>
+                        {{-- Add other admin links as needed --}}
+                    @endif
+                @endauth
+
+            </div>
+
+            {{-- Bottom – Settings/Logout (if needed) --}}
+            <div class="flex flex-col space-y-6 w-full items-center border-t border-[#E5E5E5] pt-4">
                 <a href="#" 
-                   class="flex flex-col items-center text-[9px] font-medium text-[#666666] hover:text-[#000000] w-full py-2 transition-colors">
-                    <span class="text-[10px] mb-0.5">▤</span>
-                    Analytics
-                </a>
-                <a href="{{ route('recommendations.index') }}" 
-                class="flex flex-col items-center text-[9px] font-medium text-[#666666] hover:text-[#000000] w-full py-2 transition-colors">
-                    <span class="text-[10px] mb-0.5">◈</span>
-                    Recs
+                class="flex flex-col items-center text-center text-[10px] font-medium w-full py-2 transition-colors text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]">
+                    <span class="text-base mb-1">⚙</span>
+                    <span>Settings</span>
                 </a>
             </div>
-        <a href="{{ route('profile') }}" 
-        class="flex flex-col items-center text-[9px] font-medium text-[#666666] hover:text-[#000000] w-full py-2 transition-colors">
-            <span class="text-[10px] mb-0.5">◉</span>
-            Profile
-        </a>
         </nav>
 
         {{-- CONTEXT PANEL --}}
