@@ -126,8 +126,16 @@
     {{-- Footer --}}
     <div class="footer">
         Generated from Smart Discussion Forum &bull; {{ now()->format('M d, Y h:i A') }}
-        &bull; Page {PAGE_NUM} of {PAGE_COUNT}
+        &bull; Page <span class="page-number"></span> of <span class="page-count"></span>
     </div>
 
+    <script type="text/php">
+        if (isset($pdf)) {
+            $pdf->page_script('
+                $font = $fontMetrics->get_font("DejaVu Sans", "normal", 10);
+                $pdf->text(500, 820, "Page " . $PAGE_NUM . " of " . $page_count, $font, 10, array(0,0,0));
+            ');
+        }
+    </script>
 </body>
 </html>
