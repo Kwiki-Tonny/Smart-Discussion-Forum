@@ -216,22 +216,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Collect answers
         const answers = {};
-        document.querySelectorAll('input[type="radio"]:checked').forEach(input => {
+        document.querySelectorAll('input[type="radio"]:checked, input[type="text"]').forEach(input => {
             const name = input.name;
-            answers[name] = parseInt(input.value);
+            if (input.type === 'radio') {
+                answers[name] = parseInt(input.value);
+            } else if (input.type === 'text') {
+                answers[name] = input.value.trim();
+            }
         });
 
-        // Show loading
         const submitBtn = document.getElementById('submit-quiz-btn');
         const originalText = submitBtn.textContent;
         submitBtn.textContent = 'Submitting...';
         submitBtn.disabled = true;
 
+        const token = document.querySelector('meta[name="csrf-token"]')?.content;
+        if (!token) {
+            alert('CSRF token missing. Please refresh the page.');
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+            isSubmitted = false;
+            return;
+        }
+
         fetch('{{ route("student.quiz.submit", $quiz->id) }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                'X-CSRF-TOKEN': token,
+                'Accept': 'application/json',
             },
             body: JSON.stringify({
                 answers: answers,
@@ -239,10 +252,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 auto_submitted: autoSubmitted
             })
         })
-        .then(response => response.json())
+        .then(async response => {
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`HTTP ${response.status}: ${errorData.message || response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
-                // Show success message
+                // ✅ Show success
                 const container = document.getElementById('quiz-container');
                 container.innerHTML = `
                     <div class="flex-1 flex items-center justify-center p-8">
@@ -257,11 +276,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     </div>
                 `;
+            } else {
+                alert(data.message || 'Submission failed. Please try again.');
             }
         })
         .catch(error => {
             console.error('Submit error:', error);
-            alert('Failed to submit quiz. Please try again.');
+            alert('Failed to submit quiz: ' + error.message);
         })
         .finally(() => {
             submitBtn.textContent = originalText;
