@@ -111,6 +111,23 @@ Route::middleware(['auth'])->group(function () {
 
     // Stateless polling route - no session blocking!
     Route::get('/poll/topic/{topic}', [PollController::class, 'poll'])->name('topics.poll');
+
+    // ---------- Admin Routes ----------
+    Route::middleware(['role:admin'])->prefix('admin')->group(function () {
+        Route::get('/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
+        Route::get('/users', [AdminController::class, 'users'])->name('admin.users');
+        Route::get('/users/{id}/edit', [AdminController::class, 'editUser'])->name('admin.user.edit');
+        Route::put('/users/{id}', [AdminController::class, 'updateUser'])->name('admin.user.update');
+        Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->name('admin.user.delete');
+        Route::get('/registrations', [AdminController::class, 'registrations'])->name('admin.registrations');
+        Route::post('/registrations/{id}/approve', [AdminController::class, 'approveRegistration'])->name('admin.registration.approve');
+        Route::delete('/registrations/{id}/reject', [AdminController::class, 'rejectRegistration'])->name('admin.registration.reject');
+        Route::get('/blacklist', [AdminController::class, 'blacklist'])->name('admin.blacklist');
+        Route::post('/blacklist', [AdminController::class, 'manualBlacklist'])->name('admin.blacklist.store');
+        Route::delete('/blacklist/{id}', [AdminController::class, 'removeBlacklist'])->name('admin.blacklist.remove');
+        Route::get('/configuration', [AdminController::class, 'configuration'])->name('admin.configuration');
+        Route::post('/configuration', [AdminController::class, 'updateConfiguration'])->name('admin.configuration.update');
+    });
 });
 
 
