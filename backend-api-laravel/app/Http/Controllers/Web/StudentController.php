@@ -13,6 +13,7 @@ use App\Models\BlacklistLog;
 use App\Models\UserInteraction;  
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class StudentController extends Controller
 {
@@ -897,7 +898,7 @@ class StudentController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.topic', $data);
         $pdf->setPaper('A4', 'portrait');
         
-        $filename = str_slug($topic->title) . '_history.pdf';
+        $filename = Str::slug($topic->title) . '_history.pdf';
         return $pdf->download($filename);
     }
     /**

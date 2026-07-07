@@ -36,7 +36,7 @@
                 <div class="flex items-center space-x-3">
                     {{-- Export PDF Button --}}
                     <a href="{{ route('topics.export', $topic->id) }}" 
-                       class="text-xs text-[#666666] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
+                    class="text-xs text-[#666666] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
                         📄 Export PDF
                     </a>
                     {{-- Share Button --}}
