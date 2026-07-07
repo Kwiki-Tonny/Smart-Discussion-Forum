@@ -887,10 +887,19 @@ class StudentController extends Controller
     {
         $topic = Topic::with(['group', 'creator', 'posts.author'])->findOrFail($topicId);
         
-        // Placeholder for now - will implement DomPDF in Sprint 3
-        return response("PDF export for '{$topic->title}' coming soon!", 200);
+        $data = [
+            'topic' => $topic,
+            'posts' => $topic->posts,
+            'group' => $topic->group,
+            'author' => $topic->creator,
+        ];
+        
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.topic', $data);
+        $pdf->setPaper('A4', 'portrait');
+        
+        $filename = str_slug($topic->title) . '_history.pdf';
+        return $pdf->download($filename);
     }
-
     /**
      * Show performance report for a quiz
      */
