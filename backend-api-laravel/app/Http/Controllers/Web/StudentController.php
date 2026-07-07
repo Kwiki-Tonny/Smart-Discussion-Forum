@@ -708,20 +708,24 @@ class StudentController extends Controller
     {
         $user = Auth::user();
         
-        // Get quizzes from groups the user is in
+        // Get group IDs the user is in
         $groupIds = $user->groups()->pluck('groups.id')->toArray();
         
-        // Get available quizzes (not started, or started but not ended)
+        // Get quizzes that are active AND (not yet started OR currently active)
         $quizzes = Quiz::whereIn('group_id', $groupIds)
-            ->where('starts_at', '<=', now())
-            ->where('ends_at', '>', now())
+            ->where('is_active', true)
+            ->where('ends_at', '>', now()) // Must not have ended
+            ->where(function($query) {
+                $query->where('starts_at', '<=', now())   // Already started
+                    ->orWhere('starts_at', '>', now()); // Or upcoming
+            })
             ->with(['group', 'submissions' => function($query) use ($user) {
                 $query->where('user_id', $user->id);
             }])
-            ->orderBy('ends_at', 'asc')
+            ->orderBy('starts_at', 'asc')
             ->get();
         
-        // Check if user has taken each quiz
+        // Add flag for taken quizzes
         $quizzes->each(function ($quiz) use ($user) {
             $quiz->has_taken = $quiz->submissions->isNotEmpty();
         });
