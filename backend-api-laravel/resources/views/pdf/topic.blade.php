@@ -133,7 +133,6 @@
     {{-- Footer --}}
     <div class="footer">
         Generated from Smart Discussion Forum &bull; {{ now()->format('M d, Y h:i A') }}
-        &bull; Page <span class="page-number"></span> of <span class="page-count"></span>
     </div>
 
 </body>
