@@ -785,11 +785,12 @@ class StudentController extends Controller
     public function submitQuiz(Request $request, $quizId)
     {
         $user = Auth::user();
-        $quiz = Quiz::with(['questions'])->findOrFail($quizId);
+        $quiz = Quiz::findOrFail($quizId);
 
         $validated = $request->validate([
             'answers' => 'required|array',
             'time_spent' => 'nullable|integer',
+            'auto_submitted' => 'nullable|boolean',
         ]);
 
         // Check if already submitted
@@ -813,17 +814,14 @@ class StudentController extends Controller
             $totalPoints += $question->points;
             $userAnswer = $validated['answers']['q' . $question->id] ?? '';
 
-            // Determine if answer is correct
             $isCorrect = false;
             $pointsEarned = 0;
 
             if ($question->type === 'text') {
-                // For text questions, check if answer matches the correct answer
                 $correctAnswers = $question->correct_answers ?? [];
                 $isCorrect = in_array(strtolower(trim($userAnswer)), array_map('strtolower', $correctAnswers));
                 $pointsEarned = $isCorrect ? $question->points : 0;
             } else {
-                // For single/multiple choice
                 $correctAnswers = $question->correct_answers ?? [];
                 $userAnswers = is_array($userAnswer) ? $userAnswer : [$userAnswer];
 
@@ -831,7 +829,6 @@ class StudentController extends Controller
                     $isCorrect = in_array($userAnswers[0] ?? '', $correctAnswers);
                     $pointsEarned = $isCorrect ? $question->points : 0;
                 } else {
-                    // Multiple choice - all correct answers must be selected
                     $correctSet = array_map('strval', $correctAnswers);
                     $userSet = array_map('strval', $userAnswers);
                     sort($correctSet);
@@ -860,19 +857,18 @@ class StudentController extends Controller
             'score' => $score,
             'answers_payload' => json_encode($validated['answers']),
             'is_auto_submitted' => $request->input('auto_submitted', false),
-            'created_at' => now(),
         ]);
 
-        // Save individual answers
-        foreach ($answerDetails as $detail) {
-            QuizAnswer::create([
-                'submission_id' => $submission->id,
-                'question_id' => $detail['question_id'],
-                'answer' => $detail['answer'],
-                'is_correct' => $detail['is_correct'],
-                'points_earned' => $detail['points_earned'],
-            ]);
-        }
+        // Save individual answers (if you have the QuizAnswer model)
+        // foreach ($answerDetails as $detail) {
+        //     QuizAnswer::create([
+        //         'submission_id' => $submission->id,
+        //         'question_id' => $detail['question_id'],
+        //         'answer' => $detail['answer'],
+        //         'is_correct' => $detail['is_correct'],
+        //         'points_earned' => $detail['points_earned'],
+        //     ]);
+        // }
 
         return response()->json([
             'success' => true,
