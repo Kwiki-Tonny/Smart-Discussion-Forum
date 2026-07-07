@@ -9,6 +9,8 @@ use App\Models\Post;
 use App\Models\User;
 use App\Models\Quiz;
 use App\Models\QuizSubmission;
+use App\Models\QuizQuestion;
+use App\Models\QuizAnswer;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
