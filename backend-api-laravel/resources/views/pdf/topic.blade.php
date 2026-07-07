@@ -94,6 +94,13 @@
         .page-break {
             page-break-after: always;
         }
+        /* Page numbering using CSS counters */
+        .page-number:before {
+            content: counter(page);
+        }
+        .page-count:before {
+            content: counter(pages);
+        }
     </style>
 </head>
 <body>
@@ -129,13 +136,5 @@
         &bull; Page <span class="page-number"></span> of <span class="page-count"></span>
     </div>
 
-    <script type="text/php">
-        if (isset($pdf)) {
-            $pdf->page_script('
-                $font = $fontMetrics->get_font("DejaVu Sans", "normal", 10);
-                $pdf->text(500, 820, "Page " . $PAGE_NUM . " of " . $page_count, $font, 10, array(0,0,0));
-            ');
-        }
-    </script>
 </body>
 </html>
