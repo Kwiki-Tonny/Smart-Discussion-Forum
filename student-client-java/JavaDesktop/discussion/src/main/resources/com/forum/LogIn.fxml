@@ -4,30 +4,37 @@
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.text.Font?>
 
 <AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="740.0" prefWidth="896.0" style="-fx-background-color: black;" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.forum.Lcontroller">
    <children>
-      <AnchorPane layoutX="241.0" layoutY="108.0" prefHeight="507.0" prefWidth="442.0" style="-fx-background-color: white; -fx-background-radius: 60;">
+      <AnchorPane fx:id="pane" layoutX="233.0" layoutY="66.0" prefHeight="660.0" prefWidth="502.0" style="-fx-background-color: white; -fx-background-radius: 60;" stylesheets="@style.css">
          <children>
-            <Label layoutX="44.0" layoutY="22.0" prefHeight="35.0" prefWidth="350.0" text="SMART DISCUSSION FORUM">
+            <Label fx:id="h1" layoutX="76.0" layoutY="117.0" prefHeight="35.0" prefWidth="350.0" text="SMART DISCUSSION FORUM">
                <font>
                   <Font name="Arial Rounded MT Bold" size="24.0" />
                </font>
             </Label>
-            <Label layoutX="85.0" layoutY="57.0" text="Welcome back, please enter your detalis" />
-            <TextField layoutX="31.0" layoutY="135.0" prefHeight="35.0" prefWidth="242.0" style="-fx-background-radius: 60;" />
-            <Label layoutX="40.0" layoutY="111.0" prefHeight="18.0" prefWidth="39.0" text="Email" textFill="#2f4b26" />
-            <Label layoutX="34.0" layoutY="185.0" text="Password" textFill="#345e2b" />
-            <TextField layoutX="31.0" layoutY="208.0" prefHeight="35.0" prefWidth="242.0" style="-fx-background-radius: 60;" />
-            <CheckBox layoutX="34.0" layoutY="259.0" mnemonicParsing="false" text="Remember me" />
-            <Label layoutX="203.0" layoutY="259.0" text="forgot password" />
-            <Button fx:id="But" layoutX="54.0" layoutY="344.0" mnemonicParsing="false" onAction="#BtnOnClick" prefHeight="35.0" prefWidth="312.0" style="-fx-background-radius: 100; -fx-background-color: black;" text="Login" textFill="#daf4d0">
+            <Label fx:id="h2" layoutX="135.0" layoutY="153.0" text="Welcome back, please enter your detalis" />
+            <TextField fx:id="field1" layoutX="91.0" layoutY="264.0" prefHeight="35.0" prefWidth="312.0" style="-fx-background-radius: 60;" />
+            <Label fx:id="email" layoutX="96.0" layoutY="233.0" prefHeight="18.0" prefWidth="39.0" text="Email" textFill="#2f4b26" />
+            <Label fx:id="password" layoutX="91.0" layoutY="321.0" text="Password" textFill="#345e2b" />
+            <TextField fx:id="field2" layoutX="91.0" layoutY="345.0" prefHeight="35.0" prefWidth="312.0" style="-fx-background-radius: 60;" />
+            <CheckBox layoutX="66.0" layoutY="427.0" mnemonicParsing="false" text="Remember me" />
+            <Label fx:id="label" layoutX="316.0" layoutY="427.0" text="forgot password" />
+            <Button fx:id="But" layoutX="88.0" layoutY="506.0" mnemonicParsing="false" onAction="#BtnOnClick" prefHeight="40.0" prefWidth="362.0" style="-fx-background-radius: 100; -fx-background-color: black;" text="Login" textFill="#daf4d0">
                <font>
                   <Font size="18.0" />
                </font>
             </Button>
+            <ImageView fitHeight="84.0" fitWidth="125.0" layoutX="199.0" layoutY="25.0" pickOnBounds="true" preserveRatio="true">
+               <image>
+                  <Image url="@images/audience.png" />
+               </image>
+            </ImageView>
          </children>
       </AnchorPane>
    </children>
