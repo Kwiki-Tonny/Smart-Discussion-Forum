@@ -174,8 +174,10 @@
                                 <span>•</span>
                                 <span>Posted {{ $topic->created_at ? $topic->created_at->diffForHumans() : 'Just now' }}</span>
                             </div>
-                            <a href="#" class="text-[#00a884] font-bold hover:underline flex items-center gap-1">
-                                View Cascading Feed →
+<a href="{{ route('topics.show', $topic->id) }}" class="text-[#00a884] font-bold hover:underline flex items-center gap-1">
+    View Cascading Feed →
+</a>
+                            
                             </a>
                         </div>
                     </div>

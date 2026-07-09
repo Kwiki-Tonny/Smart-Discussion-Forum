@@ -23,6 +23,11 @@ class Post extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function user()
+    {
+        return $this->author(); // Simply forwards the request to your author relationship
+    }
+
     /**
      * Relationship: Many-to-Many (Content Security Privacy Filter)
      * Maps out exactly which restricted users are blocked from seeing this post row.

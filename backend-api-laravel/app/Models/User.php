@@ -46,4 +46,11 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    // Moved inside the class brackets safely:
+    public function groups()
+    {
+        // withPivot tells Laravel to pull the custom true/false column from the bridge table
+        return $this->belongsToMany(Group::class)->withPivot('has_agreed_rules');
+    }
 }
