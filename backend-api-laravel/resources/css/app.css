@@ -1,3 +1,6 @@
+/* resources/css/app.css */
+
+/* --- 1. TAILWIND IMPORT --- */
 @import 'tailwindcss';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -5,7 +8,231 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+/* --- 2. DESIGN SYSTEM VARIABLES --- */
+:root {
+    /* Base Colors */
+    --bg-body: #f9f9f9;
+    --bg-surface: #ffffff;
+    --bg-sidebar: #1a1a1a;
+    --bg-nav: #f5f5f5;
+    
+    /* Text Colors */
+    --text-primary: #000000;
+    --text-secondary: #333333;
+    --text-muted: #666666;
+    --text-inverse: #ffffff;
+    
+    /* Borders */
+    --border-color: #e5e5e5;
+    --border-dark: #000000;
+    
+    /* Accent Colors */
+    --color-success: #16a34a;
+    --color-danger: #dc2626;
+    --color-warning: #d97706;
+    --color-info: #2563eb;
+    --color-accent: #0d9488;
+    --color-gold: #ca8a04;
+    
+    /* Accent Backgrounds (8% opacity) */
+    --bg-success-soft: rgba(22, 163, 74, 0.08);
+    --bg-danger-soft: rgba(220, 38, 38, 0.08);
+    --bg-warning-soft: rgba(217, 119, 6, 0.08);
+    --bg-info-soft: rgba(37, 99, 235, 0.08);
+    --bg-accent-soft: rgba(13, 148, 136, 0.08);
+    --bg-gold-soft: rgba(202, 138, 4, 0.08);
+    
+    /* UI States */
+    --hover-bg: #f0f0f0;
+    --active-bg: #e5e5e5;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
 }
+
+/* --- 3. RESET & BASE --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-body);
+    color: var(--text-primary);
+    font-family: 'Segoe UI', Inter, system-ui, sans-serif;
+    min-height: 100vh;
+}
+
+/* --- 4. TYPOGRAPHY --- */
+.heading-xl { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.heading-lg { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.heading-md { font-size: 16px; font-weight: 600; }
+.heading-sm { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.body-text { font-size: 14px; line-height: 1.6; }
+.body-small { font-size: 12px; color: var(--text-muted); }
+
+/* --- 5. STATUS BADGES --- */
+.badge {
+    display: inline-block;
+    padding: 2px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.badge-success { background: var(--bg-success-soft); color: var(--color-success); }
+.badge-danger { background: var(--bg-danger-soft); color: var(--color-danger); }
+.badge-warning { background: var(--bg-warning-soft); color: var(--color-warning); }
+.badge-info { background: var(--bg-info-soft); color: var(--color-info); }
+.badge-accent { background: var(--bg-accent-soft); color: var(--color-accent); }
+.badge-gold { background: var(--bg-gold-soft); color: var(--color-gold); }
+
+/* --- 6. BUTTONS --- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: 2px solid transparent;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.btn-black {
+    background: #000000;
+    color: #ffffff;
+    border-color: #000000;
+}
+.btn-black:hover { background: #333333; border-color: #333333; }
+
+.btn-outline-black {
+    background: transparent;
+    color: #000000;
+    border-color: #000000;
+}
+.btn-outline-black:hover { background: #f0f0f0; }
+
+.btn-success {
+    background: var(--color-success);
+    color: #ffffff;
+    border-color: var(--color-success);
+}
+.btn-success:hover { background: #15803d; border-color: #15803d; }
+
+.btn-danger {
+    background: var(--color-danger);
+    color: #ffffff;
+    border-color: var(--color-danger);
+}
+.btn-danger:hover { background: #b91c1c; border-color: #b91c1c; }
+
+.btn-warning {
+    background: var(--color-warning);
+    color: #ffffff;
+    border-color: var(--color-warning);
+}
+.btn-warning:hover { background: #b45309; border-color: #b45309; }
+
+.btn-outline-success {
+    background: transparent;
+    color: var(--color-success);
+    border-color: var(--color-success);
+}
+.btn-outline-success:hover { background: var(--bg-success-soft); }
+
+.btn-outline-danger {
+    background: transparent;
+    color: var(--color-danger);
+    border-color: var(--color-danger);
+}
+.btn-outline-danger:hover { background: var(--bg-danger-soft); }
+
+/* --- 7. CARDS & PANELS --- */
+.card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    padding: 20px;
+}
+
+.card-shadow {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+}
+
+/* --- 8. INPUTS & FORMS --- */
+.input {
+    width: 100%;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    font-size: 14px;
+    transition: border-color 0.15s ease;
+}
+.input:focus {
+    outline: none;
+    border-color: #000000;
+}
+.input-error {
+    border-color: var(--color-danger);
+}
+.input-error:focus {
+    border-color: var(--color-danger);
+}
+
+/* --- 9. STATUS BADGE (User Status) --- */
+.status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+.status-dot-online { background: var(--color-success); }
+.status-dot-warned { background: var(--color-warning); }
+.status-dot-blacklisted { background: var(--color-danger); }
+
+/* --- 10. SIDEBAR (Dark) --- */
+.sidebar {
+    width: 65px;
+    background: var(--bg-sidebar);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 16px;
+    border-right: 1px solid #2a2a2a;
+    flex-shrink: 0;
+}
+
+.sidebar-icon {
+    font-size: 22px;
+    color: #666666;
+    margin-bottom: 24px;
+    cursor: pointer;
+    transition: color 0.2s;
+    background: none;
+    border: none;
+}
+.sidebar-icon:hover { color: #ffffff; }
+.sidebar-icon-active { color: #ffffff; }
+
+/* --- 11. NAVIGATION (Light) --- */
+.nav-container {
+    width: 280px;
+    background: var(--bg-nav);
+    border-right: 1px solid var(--border-color);
+    flex-shrink: 0;
+    overflow-y: auto;
+}
+
+/* --- 12. SCROLLBAR --- */
+.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #d4d4d4; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }

@@ -11,10 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware) {
-        // Register our custom rules checkpoint middleware alias here
+    ->withMiddleware(function (Middleware $middleware): void {
+        // Unified route middleware aliases for both features
         $middleware->alias([
             'check.rules' => \App\Http\Middleware\EnsureAgreedToGroupRules::class,
+            'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
