@@ -14,7 +14,7 @@
       <AnchorPane layoutX="69.0" layoutY="50.0" prefHeight="646.0" prefWidth="814.0" style="-fx-background-color: white;">
          <children>
             <VBox layoutY="-1.0" prefHeight="663.0" prefWidth="66.0" style="-fx-background-color: black;" />
-            <AnchorPane layoutY="633.0" prefHeight="30.0" prefWidth="824.0" style="-fx-background-color: white;">
+            <AnchorPane layoutY="633.0" prefHeight="30.0" prefWidth="824.0" style="-fx-background-color: white; -fx-border-color: grey;">
                <children>
                   <Circle fill="#1ad164" layoutX="37.0" layoutY="14.0" radius="5.0" stroke="BLACK" strokeType="INSIDE" />
                   <Label layoutX="48.0" layoutY="6.0" text="Online" textFill="#009621" />
@@ -22,7 +22,7 @@
                   <Label layoutX="649.0" layoutY="6.0" text="Last sync: Just now" />
                </children>
             </AnchorPane>
-            <AnchorPane prefHeight="50.0" prefWidth="824.0" style="-fx-background-color: white; -fx-background-radius: grey;">
+            <AnchorPane prefHeight="50.0" prefWidth="824.0" style="-fx-background-color: white; -fx-border-color: grey;">
                <children>
                   <Label layoutX="15.0" layoutY="17.0" prefHeight="18.0" prefWidth="159.0" text="Smart Discussion Forum">
                      <font>
@@ -33,7 +33,7 @@
                </children>
             </AnchorPane>
             <ListView layoutX="66.0" layoutY="50.0" prefHeight="462.0" prefWidth="200.0" />
-            <AnchorPane layoutX="266.0" layoutY="50.0" prefHeight="574.0" prefWidth="558.0" style="-fx-background-radius: black;" />
+            <AnchorPane layoutX="268.0" layoutY="50.0" prefHeight="582.0" prefWidth="556.0" style="-fx-border-color: grey;" />
             <TextField layoutX="67.0" layoutY="50.0" prefHeight="30.0" prefWidth="200.0" text="GROUPS">
                <font>
                   <Font size="14.0" />
