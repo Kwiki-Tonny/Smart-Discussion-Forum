@@ -1,7 +1,7 @@
 package com.forum;
+import java.io.IOException;
 import java.net.URL;
 import java.util.ResourceBundle;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 
@@ -16,10 +16,10 @@ public class Lcontroller {
     @FXML
     private Button But;
 
-    @FXML
-    void BtnOnClick(ActionEvent event) {
-        System.out.println("Button Clicked");
 
+     @FXML
+    private void BtnOnClick() throws IOException {
+        App.setRoot("main");
     }
 
     @FXML
