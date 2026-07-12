@@ -11,7 +11,7 @@
 
 <AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="740.0" prefWidth="896.0" style="-fx-background-color: black;" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.forum.Lcontroller">
    <children>
-      <AnchorPane fx:id="pane" layoutX="233.0" layoutY="66.0" prefHeight="660.0" prefWidth="502.0" style="-fx-background-color: white; -fx-background-radius: 60;" stylesheets="@style.css">
+      <AnchorPane fx:id="pane" layoutX="233.0" layoutY="66.0" prefHeight="660.0" prefWidth="502.0" style="-fx-background-color: white; -fx-background-radius: 60;">
          <children>
             <Label fx:id="h1" layoutX="76.0" layoutY="117.0" prefHeight="35.0" prefWidth="350.0" text="SMART DISCUSSION FORUM">
                <font>
