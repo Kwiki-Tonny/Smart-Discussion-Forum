@@ -4,30 +4,26 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class QuizSubmission extends Model
+class QuizQuestion extends Model
 {
     protected $fillable = [
         'quiz_id',
-        'user_id',
-        'score',
-        'answers_payload',
-        'is_auto_submitted',
-        'created_at',
+        'question',
+        'type',
+        'options',
+        'correct_answers',
+        'points',
+        'order',
     ];
 
     protected $casts = [
-        'answers_payload' => 'array',
-        'is_auto_submitted' => 'boolean',
+        'options' => 'array',
+        'correct_answers' => 'array',
     ];
 
     public function quiz()
     {
         return $this->belongsTo(Quiz::class);
-    }
-
-    public function user()
-    {
-        return $this->belongsTo(User::class);
     }
 
     public function answers()
