@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 @extends('layouts.app')
 
 @section('content')
@@ -234,4 +234,4 @@
     @stack('scripts')
 </body>
 </html>
->>>>>>> origin/main
+

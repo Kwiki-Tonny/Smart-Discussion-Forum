@@ -170,7 +170,7 @@
                             </a>
                         </div>
                         <div class="p-4 space-y-3">
-                            @forelse($recommendations as $topic)
+                            @forelse($recommendations as $topic)----------------------------------------------------------------------------------------------------------
                                 <a href="{{ route('topics.show', [$topic->group_id, $topic->id]) }}" 
                                    class="block hover:bg-[#F5F5F5] transition-colors p-2 -mx-2">
                                     <p class="text-sm text-[#000000]">{{ $topic->title }}</p>
@@ -197,7 +197,7 @@
                             <h2 class="text-sm font-bold uppercase tracking-wider text-[#000000]">Your Interests</h2>
                             <span class="text-[8px] text-[#666666]">ML Powered</span>
                         </div>
-                        <div class="p-4 space-y-2">
+                        <div class="p-4 space-y-2"> 
                             @php $displayCategories = array_slice($affinityScores, 0, 5); @endphp
                             @foreach($displayCategories as $category => $score)
                                 <div>

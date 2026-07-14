@@ -50,7 +50,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 @forelse($quizzes as $quiz)
                     <div class="bg-white border border-[#E5E5E5] p-4">
-                        <div class="flex items-start justify-between">
+                        <div class="flex items-start                                     justify-between">
                             <h3 class="text-sm font-bold text-[#000000]">{{ $quiz->title }}</h3>
                             @if($quiz->has_taken)
                                 <span class="text-[8px] font-bold uppercase tracking-wider text-[#16A34A] border border-[#16A34A] px-1.5 py-0.5 flex-shrink-0 ml-2">Done</span>
