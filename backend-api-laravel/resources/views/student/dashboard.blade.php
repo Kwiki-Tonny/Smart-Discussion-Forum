@@ -180,34 +180,57 @@
                 {{-- Right Sidebar (1/3) --}}
                 <div class="space-y-6">
 
-                    {{-- ML: Recommendations Widget --}}
-                    <div class="bg-white border border-[#E5E5E5]">
-                        <div class="border-b border-[#E5E5E5] px-4 py-3 flex items-center justify-between">
-                            <h2 class="text-sm font-bold uppercase tracking-wider text-[#000000]">Recommended Topics</h2>
-                            <a href="{{ route('recommendations.index') }}" class="text-[9px] text-[#666666] hover:text-[#000000]">
-                                View All →
-                            </a>
-                        </div>
-                        <div class="p-4 space-y-3">
-                            @forelse($recommendations as $topic)----------------------------------------------------------------------------------------------------------
-                                <a href="{{ route('topics.show', [$topic->group_id, $topic->id]) }}" 
-                                   class="block hover:bg-[#F5F5F5] transition-colors p-2 -mx-2">
-                                    <p class="text-sm text-[#000000]">{{ $topic->title }}</p>
-                                    <div class="flex items-center space-x-2 mt-1">
-                                        <span class="text-[10px] text-[#666666]">{{ $topic->group->name }}</span>
-                                        @if($topic->ml_category)
-                                            <span class="text-[8px] font-bold uppercase tracking-wider border border-[#E5E5E5] px-1.5 py-0.5">
-                                                {{ $topic->ml_category }}
-                                            </span>
-                                        @endif
-                                    </div>
-                                </a>
-                            @empty
-                                <p class="text-sm text-[#666666]">No recommendations available.</p>
-                                <p class="text-[10px] text-[#666666]">Start interacting with topics to get personalized suggestions.</p>
-                            @endforelse
-                        </div>
-                    </div>
+                   {{-- ML: Recommendations Widget (Instagram/Premium Inspired) --}}
+<div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
+    
+    <!-- Header -->
+    <div class="flex items-center justify-between pb-4 mb-6 border-b border-slate-100">
+        <h2 class="text-emerald-950 font-bold text-sm tracking-wide uppercase flex items-center">
+            <span class="p-2 bg-emerald-50 text-emerald-600 rounded-xl mr-3">
+                <i data-lucide="sparkles" class="w-5 h-5"></i>
+            </span>
+            Recommended for You
+        </h2>
+        <a href="{{ route('recommendations.index') }}" class="text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition duration-150 flex items-center">
+            View All 
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5 ml-1"></i>
+        </a>
+    </div>
+
+    <!-- Recommendations List -->
+    <div class="space-y-4">
+        @forelse($recommendations as $topic)
+            <a href="{{ route('topics.show', [$topic->group_id, $topic->id]) }}" 
+               class="block p-4 rounded-xl bg-gradient-to-br from-white to-slate-50/50 border border-slate-100 hover:border-emerald-100 hover:shadow-sm transition-all duration-200 group">
+                
+                <!-- Topic Title -->
+                <p class="text-sm font-bold text-gray-950 group-hover:text-emerald-700 transition-colors duration-150 line-clamp-2">
+                    {{ $topic->title }}
+                </p>
+                
+                <!-- Topic Metadata -->
+                <div class="flex items-center gap-2 mt-3 flex-wrap">
+                    <span class="text-[11px] font-semibold text-slate-500">
+                        {{ $topic->group->name }}
+                    </span>
+                    
+                    @if($topic->ml_category)
+                        <span class="text-slate-300 text-[10px]">•</span>
+                        <span class="text-[9px] font-extrabold uppercase tracking-widest bg-gradient-to-r from-emerald-500/10 to-teal-500/10 text-emerald-700 px-2.5 py-0.5 rounded-full">
+                            {{ $topic->ml_category }}
+                        </span>
+                    @endif
+                </div>
+            </a>
+        @empty
+            <div class="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200 p-4">
+                <i data-lucide="compass" class="w-8 h-8 mx-auto mb-2 text-slate-300"></i>
+                <p class="text-sm font-bold text-slate-700">No recommendations yet</p>
+                <p class="text-xs text-slate-400 mt-1">Start interacting with topics to get personalized suggestions.</p>
+            </div>
+        @endforelse
+    </div>
+</div>
 
                     {{-- ML: Affinity Scores Widget --}}
                     @if(isset($affinityScores) && count($affinityScores) > 0)
@@ -225,7 +248,7 @@
                                         <span class="text-[10px] text-[#666666]">{{ $score }}%</span>
                                     </div>
                                     <div class="w-full h-1 bg-[#E5E5E5] mt-0.5">
-                                        c
+                                        <div class="h-full bg-blue-500" style="width: {{ $score }}%"></div>
                                     </div>
                                 </div>
                             @endforeach
