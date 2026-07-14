@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -84,7 +84,7 @@
 
 </body>
 </html>
-=======
+
 @extends('layouts.workspace')
 
 @section('title', $topic->title)
@@ -529,4 +529,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endpush
->>>>>>> origin/main
+
