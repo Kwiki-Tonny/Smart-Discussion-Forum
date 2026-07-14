@@ -95,15 +95,17 @@
                     </p>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <a href="{{ route('topics.create') }}" 
-                       class="bg-[#000000] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#333333] transition-colors">
-                        + New Topic
-                    </a>
-                    <a href="{{ route('student.quizzes') }}" 
-                       class="bg-[#000000] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#333333] transition-colors">
-                        Quizzes
-                    </a>
-                </div>
+    <a href="{{ route('topics.create') }}" 
+       class="flex items-center bg-emerald-600 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-emerald-700 transition-colors rounded-md shadow-sm">
+        <i data-lucide="plus-circle" class="w-4 h-4 mr-1.5"></i>
+        + New Topic
+    </a>
+    <a href="{{ route('student.quizzes') }}" 
+       class="flex items-center bg-white text-emerald-700 border border-emerald-200 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-emerald-50 transition-colors rounded-md shadow-sm">
+        <i data-lucide="award" class="w-4 h-4 mr-1.5"></i>
+        Quizzes
+    </a>
+</div>
             </div>
         </div>
 
@@ -111,52 +113,69 @@
         <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                {{-- Recent Topics (Left Column - 2/3) --}}
-                <div class="lg:col-span-2">
-                    <div class="bg-white border border-[#E5E5E5]">
-                        <div class="border-b border-[#E5E5E5] px-4 py-3 flex items-center justify-between">
-                            <h2 class="text-sm font-bold uppercase tracking-wider text-[#000000]">Recent Topics</h2>
-                            @if($recentTopics->count() > 5)
-                                <span class="text-[10px] text-[#666666]">Showing latest 5</span>
-                            @endif
-                        </div>
-                        <div class="divide-y divide-[#E5E5E5]">
-                            @forelse($recentTopics->take(5) as $topic)
-                                <a href="{{ route('topics.show', [$topic->group_id, $topic->id]) }}" 
-                                   class="block px-4 py-3 hover:bg-[#F5F5F5] transition-colors">
-                                    <div class="flex justify-between items-start">
-                                        <div class="flex-1">
-                                            <h3 class="text-sm font-semibold text-[#000000]">{{ $topic->title }}</h3>
-                                            <div class="flex items-center space-x-3 mt-1">
-                                                <span class="text-xs text-[#666666]">
-                                                    {{ $topic->group->name }}
-                                                </span>
-                                                <span class="text-[10px] text-[#666666]">
-                                                    by {{ $topic->creator->name }}
-                                                </span>
-                                                <span class="text-[10px] text-[#666666]">
-                                                    {{ $topic->created_at->diffForHumans() }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <span class="text-[10px] text-[#666666] flex-shrink-0 ml-2">
-                                            {{ $topic->posts_count ?? 0 }} replies
-                                        </span>
-                                    </div>
-                                    @if($topic->ml_category)
-                                        <span class="inline-block mt-1 text-[8px] font-bold uppercase tracking-wider border border-[#000000] px-1.5 py-0.5">
-                                            {{ $topic->ml_category }}
-                                        </span>
-                                    @endif
-                                </a>
-                            @empty
-                                <div class="px-4 py-6 text-center">
-                                    <p class="text-sm text-[#666666]">No recent topics in your groups.</p>
-                                </div>
-                            @endforelse
-                        </div>
-                    </div>
+               <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+    <!-- Header -->
+    <div class="flex items-center justify-between pb-4 mb-6 border-b border-slate-100">
+        <h2 class="text-emerald-950 font-bold text-sm tracking-wide uppercase flex items-center">
+            <span class="p-2 bg-emerald-50 text-emerald-600 rounded-xl mr-3">
+                <i data-lucide="message-square-more" class="w-5 h-5"></i>
+            </span>
+            Recent Discussions
+        </h2>
+        <span class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+            Live Feed
+        </span>
+    </div>
+
+    <!-- Feed List -->
+    <div class="space-y-4">
+        <!-- Topic 1: Secant Method -->
+        <div class="p-4 rounded-xl bg-slate-50 hover:bg-emerald-50/40 transition-all duration-200 border border-transparent hover:border-emerald-100 flex justify-between items-start group">
+            <div class="space-y-2">
+                <span class="inline-flex items-center bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    General Discussion
+                </span>
+                <h3 class="text-base font-bold text-gray-900 group-hover:text-emerald-600 transition duration-150 cursor-pointer">
+                    Secant Method
+                </h3>
+                <div class="flex items-center space-x-3 text-xs text-gray-500">
+                    <span class="font-medium text-gray-700">Software Engineering Year 1</span>
+                    <span>•</span>
+                    <span>by Nakasi Trina</span>
+                    <span>•</span>
+                    <span>1 day ago</span>
                 </div>
+            </div>
+            <span class="flex items-center bg-white text-gray-400 group-hover:text-emerald-600 group-hover:border-emerald-200 border border-slate-100 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm transition-all duration-200">
+                <i data-lucide="message-circle" class="w-3.5 h-3.5 mr-1 text-slate-400 group-hover:text-emerald-500"></i>
+                0 replies
+            </span>
+        </div>
+
+        <!-- Topic 2: Polymorphism -->
+        <div class="p-4 rounded-xl bg-slate-50 hover:bg-emerald-50/40 transition-all duration-200 border border-transparent hover:border-emerald-100 flex justify-between items-start group">
+            <div class="space-y-2">
+                <span class="inline-flex items-center bg-teal-100 text-teal-800 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    Java Fundamentals
+                </span>
+                <h3 class="text-base font-bold text-gray-900 group-hover:text-emerald-600 transition duration-150 cursor-pointer">
+                    Understanding Object Polymorphism and Java Constructors
+                </h3>
+                <div class="flex items-center space-x-3 text-xs text-gray-500">
+                    <span class="font-medium text-gray-700">Software Engineering Year 1</span>
+                    <span>•</span>
+                    <span>by Dr. Mary Nsabagwa</span>
+                    <span>•</span>
+                    <span>1 week ago</span>
+                </div>
+            </div>
+            <span class="flex items-center bg-emerald-600 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm animate-pulse">
+                <i data-lucide="message-circle" class="w-3.5 h-3.5 mr-1 text-white"></i>
+                1 reply
+            </span>
+        </div>
+    </div>
+</div>
 
                 {{-- Right Sidebar (1/3) --}}
                 <div class="space-y-6">
@@ -206,7 +225,7 @@
                                         <span class="text-[10px] text-[#666666]">{{ $score }}%</span>
                                     </div>
                                     <div class="w-full h-1 bg-[#E5E5E5] mt-0.5">
-                                        <div class="h-full bg-[#000000] transition-all" style="width: {{ $score }}%;"></div>
+                                        c
                                     </div>
                                 </div>
                             @endforeach

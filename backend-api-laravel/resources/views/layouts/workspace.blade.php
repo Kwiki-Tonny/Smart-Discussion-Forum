@@ -52,6 +52,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -217,21 +218,13 @@
 
     </div>
 
-    {{-- FOOTER --}}
-    <footer class="h-6 bg-[#FAFAFA] border-t border-[#E5E5E5] flex items-center justify-between px-6 text-[11px] text-[#666666] font-medium flex-shrink-0">
-        <div>
-            <span class="inline-block w-1.5 h-1.5 bg-[#16A34A] rounded-full mr-2"></span>
-            System Status: <span class="text-[#000000] font-bold">Online</span>
-            <span class="mx-3">|</span>
-            Database: <span class="text-[#000000] font-bold">Connected</span>
-        </div>
-        <div class="space-x-4">
-            <a href="#" class="hover:underline">Privacy Policy</a>
-            <a href="#" class="hover:underline">Terms of Service</a>
-        </div>
-    </footer>
+    
 
     @stack('scripts')
+
+    <script>
+  lucide.createIcons();
+</script>
 </body>
 </html>
 
