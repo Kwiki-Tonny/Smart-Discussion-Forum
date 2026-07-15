@@ -3,22 +3,21 @@
 namespace App\Http\Controllers;
 
 use App\Models\Topic;
+use App\Models\Group;
 use Illuminate\Http\Request;
 
 class TopicController extends Controller
 {
-    /**
-     * Display the specified cascading conversation feed.
-     */
-    public function show(Topic $topic)
+    public function show($group, $topic)
     {
-        // Eager load the creator of the topic and all associated posts with their authors
+        $group = Group::findOrFail($group);
+        $topic = Topic::findOrFail($topic);
+
         $topic->load(['creator', 'posts.user']);
-        
-        // Count the posts dynamically
         $topic->loadCount('posts');
 
-        // Return the specific conversation feed template view
-        return view('topics.show', compact('topic'));
+        $posts = $topic->posts;
+
+        return view('topics.show', compact('group', 'topic', 'posts'));
     }
 }

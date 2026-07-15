@@ -14,5 +14,8 @@ export default defineConfig({
         watch: {
             ignored: ['**/storage/framework/views/**'],
         },
+        cors: {
+            origin: 'http://127.0.0.1:8000'
+        },
     },
 });

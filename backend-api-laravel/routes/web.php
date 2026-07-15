@@ -144,3 +144,14 @@ Route::pattern('post', '[0-9]+');
 Route::pattern('quiz', '[0-9]+');
 Route::pattern('question', '[0-9]+');
 Route::pattern('id', '[0-9]+');
+
+// PDF Export Route
+Route::get('/groups/{group_id}/topics/{topic_id}/export-pdf', function ($group_id, $topic_id) {
+    $group = \App\Models\Group::findOrFail($group_id);
+    $topic = \App\Models\Topic::findOrFail($topic_id);
+    $posts = \App\Models\Post::where('topic_id', $topic_id)->get();
+
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.topic-export', compact('group', 'topic', 'posts'));
+    
+    return $pdf->download($topic->title . '_history.pdf');
+})->name('topics.export-pdf');
