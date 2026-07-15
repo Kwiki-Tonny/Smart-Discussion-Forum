@@ -12,11 +12,11 @@
     <!-- Lucide Icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
+<body class="bg-gray-50 text-gray-900 m-0 p-0 flex flex-col min-h-screen">
 
-
-    <!-- Main Content wrapper -->
+    <!-- Main Content wrapper (This will expand to push the footer down naturally) -->
     <div class="flex-grow">
-      <body class="bg-gray-50 text-gray-900 m-0 p-0 flex flex-col min-h-screen">  @yield('content')
+        @yield('content')
     </div>
 
     <!-- The Global Footer (Status Bar & Policy links are now pinned down here) -->
@@ -41,11 +41,6 @@
             </div>
         </div>
     </footer>
-
-   <!-- Main Content wrapper -->
-    <div class="flex-grow">
-        @yield('content')
-    </div>
 
     <!-- Initialize Lucide Icons globally (Only need it once right before body ends!) -->
     <script>

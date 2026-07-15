@@ -2,75 +2,97 @@
 
 @section('title', 'Dashboard')
 
-@section('context_panel')
-    {{-- Your Groups --}}
-    <div class="p-4 border-b border-[#E5E5E5] flex items-center justify-between bg-white sticky top-0">
-        <h2 class="text-sm font-bold uppercase tracking-wider text-[#000000]">Your Groups</h2>
-        <span class="text-[10px] text-[#666666]">{{ $groups->count() }}</span>
+
+                                @csrf
+                                <button type="submit" 
+    @section('context_panel')
+    {{-- Section: Your Groups Header --}}
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Your Groups</h2>
+        {{-- Dynamic Count Badge --}}
+        <span class="flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 rounded-full">
+            {{ $groups->count() }}
+        </span>
     </div>
 
-    <div class="divide-y divide-[#E5E5E5]">
+    {{-- Your Dynamic Joined Groups List --}}
+    <div class="p-4 space-y-3">
         @forelse($groups as $group)
             <a href="{{ route('groups.topics', $group->id) }}" 
-               class="block p-4 bg-white hover:bg-[#F5F5F5] cursor-pointer transition-colors space-y-1 group">
-                <div class="flex justify-between items-baseline">
-                    <h3 class="text-sm font-bold text-[#000000]">{{ $group->name }}</h3>
-                    <span class="text-[10px] text-[#666666]">{{ $group->topics_count ?? 0 }} topics</span>
+               class="block p-4 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 cursor-pointer transition-all duration-200 space-y-1.5 group">
+                <div class="flex justify-between items-baseline gap-2">
+                    <h3 class="text-sm font-bold text-slate-800 group-hover:text-emerald-600 transition-colors">
+                        {{ $group->name }}
+                    </h3>
+                    <span class="text-[10px] font-semibold text-slate-400 shrink-0">
+                        {{ $group->topics_count ?? 0 }} topics
+                    </span>
                 </div>
+                
                 @if($group->description)
-                    <p class="text-xs text-[#666666] line-clamp-1">{{ $group->description }}</p>
+                    <p class="text-xs text-slate-500 line-clamp-1">
+                        {{ $group->description }}
+                    </p>
                 @endif
+                
                 @if($group->latest_topic)
-                    <p class="text-[10px] text-[#666666] mt-1">
+                    <p class="text-[10px] text-emerald-600 font-medium mt-1 flex items-center">
+                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5 animate-pulse"></span>
                         Latest: {{ $group->latest_topic->title }}
                     </p>
                 @endif
             </a>
         @empty
-            <div class="p-6 text-center">
-                <p class="text-sm text-[#666666]">You haven't joined any groups yet.</p>
-                <p class="text-xs text-[#666666] mt-1">Browse available groups below.</p>
+            {{-- Dynamic Empty State --}}
+            <div class="p-6 text-center border-2 border-dashed border-slate-100 rounded-2xl">
+                <p class="text-sm font-semibold text-slate-600">You haven't joined any groups yet.</p>
+                <p class="text-xs text-slate-400 mt-1">Browse available groups below.</p>
             </div>
         @endforelse
     </div>
 
-    {{-- Available Groups --}}
+    {{-- Section: Available Groups --}}
     @if(isset($availableGroups) && $availableGroups->isNotEmpty())
-        <div class="border-t border-[#E5E5E5] mt-2">
-            <div class="p-4 border-b border-[#E5E5E5] flex items-center justify-between bg-[#FAFAFA]">
-                <h2 class="text-sm font-bold uppercase tracking-wider text-[#666666]">Available Groups</h2>
-                <a href="{{ route('groups.index') }}" class="text-[10px] text-[#666666] hover:text-[#000000]">
+        <div class="border-t border-slate-100 mt-2">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Available Groups</h2>
+                <a href="{{ route('groups.index') }}" class="text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors">
                     View All
                 </a>
             </div>
-            <div class="divide-y divide-[#E5E5E5]">
+            
+            <div class="p-4 space-y-3">
                 @foreach($availableGroups->take(3) as $group)
-                    <div class="p-4 bg-white hover:bg-[#F5F5F5] transition-colors space-y-2">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h3 class="text-sm font-bold text-[#000000]">{{ $group->name }}</h3>
+                    <div class="p-4 bg-white rounded-xl border border-slate-100/80 hover:border-slate-200 hover:shadow-sm transition-all duration-150 space-y-3">
+                        <div class="flex justify-between items-start gap-3">
+                            <div class="space-y-1">
+                                <h3 class="text-sm font-bold text-slate-800">{{ $group->name }}</h3>
                                 @if($group->description)
-                                    <p class="text-xs text-[#666666] line-clamp-1">{{ $group->description }}</p>
+                                    <p class="text-xs text-slate-500 line-clamp-1">{{ $group->description }}</p>
                                 @endif
-                                <div class="flex items-center space-x-3 mt-1">
-                                    <span class="text-[10px] text-[#666666]">{{ $group->topics_count ?? 0 }} topics</span>
-                                    <span class="text-[10px] text-[#666666]">•</span>
-                                    <span class="text-[10px] text-[#666666]">{{ $group->users_count ?? 0 }} members</span>
+                                
+                                <div class="flex items-center space-x-2 text-[10px] text-slate-400 pt-1">
+                                    <span class="font-medium text-slate-500">{{ $group->topics_count ?? 0 }} topics</span>
+                                    <span>•</span>
+                                    <span class="font-medium text-slate-500">{{ $group->users_count ?? 0 }} members</span>
                                 </div>
                             </div>
-                            <form action="{{ route('groups.join', $group->id) }}" method="POST">
+                            
+                            {{-- Your CSRF Form is safe and styled --}}
+                            <form action="{{ route('groups.join', $group->id) }}" method="POST" class="shrink-0">
                                 @csrf
                                 <button type="submit" 
-                                        class="text-[10px] font-bold uppercase tracking-wider border border-[#000000] px-3 py-1 hover:bg-[#000000] hover:text-white transition-colors">
+                                        class="bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all duration-150 active:scale-95 shadow-sm">
                                     Join
                                 </button>
                             </form>
                         </div>
                     </div>
                 @endforeach
+                
                 @if($availableGroups->count() > 3)
-                    <div class="p-3 text-center bg-[#FAFAFA]">
-                        <a href="{{ route('groups.index') }}" class="text-xs text-[#666666] hover:text-[#000000]">
+                    <div class="pt-2 text-center">
+                        <a href="{{ route('groups.index') }}" class="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors">
                             + {{ $availableGroups->count() - 3 }} more groups
                         </a>
                     </div>
@@ -78,7 +100,7 @@
             </div>
         </div>
     @endif
-@endsection
+@endsection                             
 
 @section('content')
     <div class="flex flex-col h-full">
@@ -98,7 +120,7 @@
     <a href="{{ route('topics.create') }}" 
        class="flex items-center bg-emerald-600 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-emerald-700 transition-colors rounded-md shadow-sm">
         <i data-lucide="plus-circle" class="w-4 h-4 mr-1.5"></i>
-        + New Topic
+        New Topic
     </a>
     <a href="{{ route('student.quizzes') }}" 
        class="flex items-center bg-white text-emerald-700 border border-emerald-200 px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-emerald-50 transition-colors rounded-md shadow-sm">
@@ -110,7 +132,7 @@
         </div>
 
         {{-- Main Content --}}
-        <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
+<div class="flex-grow p-6">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
@@ -232,31 +254,43 @@
     </div>
 </div>
 
-                    {{-- ML: Affinity Scores Widget --}}
-                    @if(isset($affinityScores) && count($affinityScores) > 0)
-                    <div class="bg-white border border-[#E5E5E5]">
-                        <div class="border-b border-[#E5E5E5] px-4 py-3 flex items-center justify-between">
-                            <h2 class="text-sm font-bold uppercase tracking-wider text-[#000000]">Your Interests</h2>
-                            <span class="text-[8px] text-[#666666]">ML Powered</span>
-                        </div>
-                        <div class="p-4 space-y-2"> 
-                            @php $displayCategories = array_slice($affinityScores, 0, 5); @endphp
-                            @foreach($displayCategories as $category => $score)
-                                <div>
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-xs text-[#666666]">{{ $category }}</span>
-                                        <span class="text-[10px] text-[#666666]">{{ $score }}%</span>
-                                    </div>
-                                    <div class="w-full h-1 bg-[#E5E5E5] mt-0.5">
-                                        <div class="h-full bg-blue-500" style="width: {{ $score }}%"></div>
-                                    </div>
-                                </div>
-                            @endforeach
-                            <p class="text-[9px] text-[#666666] mt-2">Based on your interactions</p>
-                        </div>
+                {{-- ML: Affinity Scores Widget --}}
+@if(isset($affinityScores) && count($affinityScores) > 0)
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow duration-200">
+        <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+            <h2 class="text-slate-800 font-bold text-xs uppercase tracking-wider flex items-center">
+                <span class="p-2 bg-indigo-50 text-indigo-600 rounded-xl mr-3">
+                    <i data-lucide="compass" class="w-4 h-4"></i>
+                </span>
+                Your Interests
+            </h2>
+            <span class="text-[9px] font-extrabold uppercase tracking-widest bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full">
+                ML Engine
+            </span>
+        </div>
+        
+        <div class="space-y-4"> 
+            @php $displayCategories = array_slice($affinityScores, 0, 5); @endphp
+            @foreach($displayCategories as $category => $score)
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs font-semibold text-slate-700">{{ $category }}</span>
+                        <span class="text-xs font-bold text-indigo-600">{{ $score }}%</span>
                     </div>
-                    @endif
+                    <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                        {{-- This inner bar dynamically fills up based on the score! --}}
+                        <div class="h-full bg-gradient-to-r from-indigo-500 to-violet-600 rounded-full transition-all duration-500" style="width: {{ $score }}%"></div>
+                    </div>
+                </div>
+            @endforeach
 
+            <p class="text-[10px] text-slate-400 mt-2 flex items-center">
+                <i data-lucide="info" class="w-3.5 h-3.5 mr-1 text-slate-300"></i> 
+                Dynamically calculated based on your platform interactions
+            </p>
+        </div>
+    </div>
+@endif   
                     {{-- Upcoming Quizzes Widget --}}
                     @if($upcomingQuizzes->isNotEmpty())
                     <div class="bg-white border border-[#E5E5E5]">
