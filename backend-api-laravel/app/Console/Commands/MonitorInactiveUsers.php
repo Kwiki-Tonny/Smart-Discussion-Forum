@@ -6,8 +6,8 @@ use App\Models\User;
 use App\Models\BlacklistLog;
 use App\Notifications\InactivityWarningOne;
 use App\Notifications\InactivityWarningTwo;
+use App\Notifications\AccountBlacklisted;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Mail;
 
 class ModerationMonitor extends Command
 {
@@ -25,9 +25,42 @@ class ModerationMonitor extends Command
 
             $this->line("User: {$user->email} | Status: {$user->status} | Days inactive: {$daysInactive}");
 
-            // State machine logic
+            // First Warning (7 days)
+            if ($daysInactive >= 7 && $user->status === 'active') {
+                $user->status = 'warned_once';
+                $user->save();
+
+                BlacklistLog::create([
+                    'user_id' => $user->id,
+                    'reason' => 'Inactivity breach: 7+ days without communication',
+                    'action_type' => 'issue_warning_1',
+                ]);
+
+                $this->info("User {$user->email} is now WARNED_ONCE.");
+
+                // Send notification
+                $user->notify(new InactivityWarningOne());
+            }
+
+            // Second Warning (14 days)
+            if ($daysInactive >= 14 && $user->status === 'warned_once') {
+                $user->status = 'warned_twice';
+                $user->save();
+
+                BlacklistLog::create([
+                    'user_id' => $user->id,
+                    'reason' => 'Inactivity breach: 14+ days without communication',
+                    'action_type' => 'issue_warning_2',
+                ]);
+
+                $this->info("User {$user->email} is now WARNED_TWICE.");
+
+                // Send notification
+                $user->notify(new InactivityWarningTwo());
+            }
+
+            // Blacklist (21 days)
             if ($daysInactive >= 21 && $user->status === 'warned_twice') {
-                // Blacklist
                 $user->status = 'blacklisted';
                 $user->blacklist_expires_at = now()->addDays(14);
                 $user->save();
@@ -41,40 +74,8 @@ class ModerationMonitor extends Command
 
                 $this->warn("User {$user->email} has been BLACKLISTED.");
 
-                // 🔄 INTEGRATED: Send notification
-                $user->notify(new \App\Notifications\InactivityWarningTwo());
-
-            } elseif ($daysInactive >= 14 && $user->status === 'warned_once') {
-                // Second warning
-                $user->status = 'warned_twice';
-                $user->save();
-
-                BlacklistLog::create([
-                    'user_id' => $user->id,
-                    'reason' => 'Inactivity breach: 14+ days without communication',
-                    'action_type' => 'issue_warning_2',
-                ]);
-
-                $this->info("User {$user->email} is now WARNED_TWICE.");
-
-                // 🔄 INTEGRATED: Send notification
-                $user->notify(new \App\Notifications\InactivityWarningTwo());
-
-            } elseif ($daysInactive >= 7 && $user->status === 'active') {
-                // First warning
-                $user->status = 'warned_once';
-                $user->save();
-
-                BlacklistLog::create([
-                    'user_id' => $user->id,
-                    'reason' => 'Inactivity breach: 7+ days without communication',
-                    'action_type' => 'issue_warning_1',
-                ]);
-
-                $this->info("User {$user->email} is now WARNED_ONCE.");
-
-                // 🔄 INTEGRATED: Send notification
-                $user->notify(new \App\Notifications\InactivityWarningOne());
+                // Send notification
+                $user->notify(new AccountBlacklisted($user->blacklist_expires_at));
             }
         }
 

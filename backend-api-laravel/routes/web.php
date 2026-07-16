@@ -132,6 +132,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/blacklist/{id}', [AdminController::class, 'removeBlacklist'])->name('admin.blacklist.remove');
         Route::get('/configuration', [AdminController::class, 'configuration'])->name('admin.configuration');
         Route::post('/configuration', [AdminController::class, 'updateConfiguration'])->name('admin.configuration.update');
+        Route::get('/group/{group}/statistics', [AdminController::class, 'groupStatistics'])->name('admin.group.statistics');
     });
 
 

@@ -36,7 +36,7 @@
                 <div class="flex items-center space-x-3">
                     {{-- Export PDF Button --}}
                     <a href="{{ route('topics.export', $topic->id) }}" 
-                    class="text-xs text-[#666666] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
+                       class="text-xs text-[#666666] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
                         📄 Export PDF
                     </a>
                     {{-- Share Button --}}
@@ -58,9 +58,9 @@
                 </div>
             @endforelse
 
-            {{-- Reply Form --}}
+            {{-- Reply Form (main) --}}
             <div class="bg-white border border-[#E5E5E5] p-4" id="main-reply-form">
-                <form method="POST" action="{{ route('posts.store') }}">
+                <form method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
                     @csrf
                     <input type="hidden" name="topic_id" value="{{ $topic->id }}">
                     <div class="space-y-3">
@@ -68,6 +68,16 @@
                         <textarea name="content" rows="3" required 
                                   class="w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors"
                                   placeholder="Share your thoughts..."></textarea>
+
+                        {{-- File attachment input --}}
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase tracking-wide text-[#666666]">Attach Files</label>
+                            <input type="file" name="attachments[]" multiple
+                                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                                   class="w-full bg-white border border-[#E5E5E5] px-3 py-1 text-sm">
+                            <p class="text-[9px] text-[#666666]">Max 5MB per file. Supported: images, PDF, Word, Excel, TXT</p>
+                        </div>
+
                         <div class="flex items-center justify-between">
                             <label class="flex items-center space-x-2 cursor-pointer">
                                 <input type="checkbox" name="is_private" value="1" class="accent-black">
@@ -134,18 +144,19 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.textContent = 'Posting...';
         submitBtn.disabled = true;
 
+        // Build FormData for file uploads
+        const formData = new FormData(this);
+        formData.append('topic_id', topicId);
+        formData.append('parent_id', parentId);
+        formData.append('content', content);
+        formData.append('is_private', isPrivate);
+
         fetch('{{ route("posts.reply") }}', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
             },
-            body: JSON.stringify({
-                topic_id: topicId,
-                parent_id: parentId,
-                content: content,
-                is_private: isPrivate
-            })
+            body: formData
         })
         .then(response => response.json())
         .then(data => {
@@ -274,6 +285,29 @@ document.addEventListener('DOMContentLoaded', function() {
     // ============================================================
     function createPostHTML(post) {
         const isLiked = post.is_liked ? '❤️' : '🤍';
+
+        // Build attachments HTML
+        let attachmentsHtml = '';
+        if (post.attachments && post.attachments.length > 0) {
+            attachmentsHtml = '<div class="mt-3 flex flex-wrap gap-2">';
+            post.attachments.forEach(file => {
+                if (file.is_image) {
+                    attachmentsHtml += `
+                        <a href="${file.url}" target="_blank" class="block border">
+                            <img src="${file.url}" class="max-w-xs max-h-48 object-contain">
+                        </a>
+                    `;
+                } else {
+                    attachmentsHtml += `
+                        <a href="${file.url}" target="_blank" class="text-xs text-[#2563EB] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
+                            📎 ${file.name}
+                        </a>
+                    `;
+                }
+            });
+            attachmentsHtml += '</div>';
+        }
+
         return `
             <div class="bg-white border border-[#E5E5E5] p-4" id="post-${post.id}" data-post-id="${post.id}">
                 <div class="flex items-center justify-between mb-2">
@@ -293,6 +327,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </div>
                 <p class="text-sm text-[#000000] leading-relaxed">${post.content}</p>
+                ${attachmentsHtml}
                 <div class="mt-3 hidden reply-form" id="reply-form-${post.id}">
                     <form class="reply-form-ajax" data-parent-id="${post.id}" data-topic-id="{{ $topic->id }}">
                         @csrf
@@ -300,6 +335,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             <textarea name="content" rows="2" required 
                                       class="w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors"
                                       placeholder="Write a reply..."></textarea>
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase tracking-wide text-[#666666]">Attach Files</label>
+                                <input type="file" name="attachments[]" multiple
+                                       accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                                       class="w-full bg-white border border-[#E5E5E5] px-3 py-1 text-sm">
+                                <p class="text-[9px] text-[#666666]">Max 5MB per file. Supported: images, PDF, Word, Excel, TXT</p>
+                            </div>
                             <div class="flex items-center justify-between">
                                 <label class="flex items-center space-x-2 cursor-pointer">
                                     <input type="checkbox" name="is_private" value="1" class="accent-black">
@@ -332,7 +374,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let lastPostId = {{ $posts->last()->id ?? 0 }};
     let isPolling = false;
     let longPollTimeout = null;
-    const userId = {{ Auth::id() }}; // ✅ Send user ID to exclude own posts
+    const userId = {{ Auth::id() }};
 
     function startLongPoll() {
         if (isPolling) return;
@@ -356,7 +398,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     lastPostId = Math.max(lastPostId, data.post.id);
                 }
             }
-            // Poll every 2 seconds to reduce server load
             longPollTimeout = setTimeout(startLongPoll, 2000);
         })
         .catch(error => {

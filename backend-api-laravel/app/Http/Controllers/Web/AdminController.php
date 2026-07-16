@@ -340,4 +340,52 @@ class AdminController extends Controller
         return redirect()->route('admin.configuration')
             ->with('success', 'Configuration updated successfully.');
     }
+
+    /**
+     * Group Statistics
+     */
+    public function groupStatistics($groupId)
+    {
+        $group = Group::withCount(['topics', 'users'])->findOrFail($groupId);
+
+        // Daily activity (last 30 days)
+        $dailyActivity = Post::whereHas('topic', function($q) use ($groupId) {
+            $q->where('group_id', $groupId);
+        })
+        ->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as count'))
+        ->where('created_at', '>=', now()->subDays(30))
+        ->groupBy('date')
+        ->orderBy('date')
+        ->get()
+        ->pluck('count', 'date');
+
+        // Top topics by posts
+        $topTopics = Topic::where('group_id', $groupId)
+            ->withCount('posts')
+            ->orderBy('posts_count', 'desc')
+            ->limit(5)
+            ->get();
+
+        // User engagement: posts per user
+        $userEngagement = User::whereHas('groups', function($q) use ($groupId) {
+            $q->where('group_id', $groupId);
+        })
+        ->withCount(['posts' => function($q) use ($groupId) {
+            $q->whereHas('topic', function($t) use ($groupId) {
+                $t->where('group_id', $groupId);
+            });
+        }])
+        ->orderBy('posts_count', 'desc')
+        ->limit(10)
+        ->get();
+
+        // Category distribution
+        $categories = Topic::where('group_id', $groupId)
+            ->whereNotNull('ml_category')
+            ->select('ml_category', DB::raw('count(*) as count'))
+            ->groupBy('ml_category')
+            ->get();
+
+        return view('admin.group-statistics', compact('group', 'dailyActivity', 'topTopics', 'userEngagement', 'categories'));
+    }
 }

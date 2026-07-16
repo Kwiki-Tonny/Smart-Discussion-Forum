@@ -202,31 +202,31 @@
                         </div>
                     </div>
 
-                    {{-- ML: Affinity Scores Widget --}}
+                    {{-- ML: Affinity Scores Widget (Text Only) --}}
                     @if(isset($affinityScores) && count($affinityScores) > 0)
-                    <div class="bg-white border border-[#E5E5E5]">
-                        <div class="border-b border-[#E5E5E5] px-4 py-3 flex items-center justify-between">
-                            <h2 class="text-sm font-bold uppercase tracking-wider text-[#000000]">Your Interests</h2>
-                            <span class="text-[8px] text-[#666666]">ML Powered</span>
-                        </div>
-                        <div class="p-4 space-y-2">
-                            @php $displayCategories = array_slice($affinityScores, 0, 5); @endphp
-                            @foreach($displayCategories as $category => $score)
-                                <div>
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-xs text-[#666666]">{{ $category }}</span>
-                                        <span class="text-[10px] text-[#666666]">{{ $score }}%</span>
+                        <div class="bg-white border border-[#E5E5E5]">
+                            <div class="border-b border-[#E5E5E5] px-4 py-3 flex items-center justify-between">
+                                <h2 class="text-sm font-bold uppercase tracking-wider text-[#000000]">Your Interests</h2>
+                                <span class="text-[8px] text-[#666666]">ML Powered</span>
+                            </div>
+                            <div class="p-4 space-y-2">
+                                @php $displayCategories = array_slice($affinityScores, 0, 5); @endphp
+                                @foreach($displayCategories as $category => $score)
+                                    <div>
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs text-[#666666]">{{ $category }}</span>
+                                            <span class="text-[10px] text-[#666666]">{{ $score }}%</span>
+                                        </div>
+                                        <div class="w-full h-1 bg-[#E5E5E5] mt-0.5">
+                                            <div class="h-full bg-[#000000] transition-all" style="width: {{ $score }}%;"></div>
+                                        </div>
                                     </div>
-                                    <div class="w-full h-1 bg-[#E5E5E5] mt-0.5">
-                                        <div class="h-full bg-[#000000] transition-all" style="width: {{ $score }}%;"></div>
-                                    </div>
-                                </div>
-                            @endforeach
-                            <p class="text-[9px] text-[#666666] mt-2">Based on your interactions</p>
+                                @endforeach
+                                <p class="text-[9px] text-[#666666] mt-2">Based on your interactions</p>
+                            </div>
                         </div>
-                    </div>
                     @endif
-
+                    
                     {{-- Upcoming Quizzes Widget --}}
                     @if($upcomingQuizzes->isNotEmpty())
                     <div class="bg-white border border-[#E5E5E5]">
@@ -287,3 +287,35 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('affinityChart');
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: {!! json_encode(array_keys($affinityScores)) !!},
+                    datasets: [{
+                        data: {!! json_encode(array_values($affinityScores)) !!},
+                        backgroundColor: '#000000',
+                        borderColor: '#000000',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { max: 100 }
+                    }
+                }
+            });
+        }
+    });
+</script>
+@endpush

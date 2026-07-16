@@ -8,14 +8,18 @@ class Post extends Model
 {
     protected $fillable = [
         'topic_id', 
-        'parent_id',    // <-- NEW
+        'parent_id',    
         'user_id', 
         'content', 
-        'is_private'
+        'is_private',
+        'is_pinned',
+        'attachments'
     ];
 
     protected $casts = [
         'is_private' => 'boolean',
+        'is_pinned' => 'boolean',
+        'attachments' => 'array',
     ];
 
     // Relationships

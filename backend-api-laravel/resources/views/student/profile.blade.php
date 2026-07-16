@@ -216,91 +216,102 @@
             @endif
         </div>
 
-        {{-- Tab Content: Insights --}}
-        <div class="tab-content flex-1 overflow-y-auto p-6 custom-scrollbar hidden" id="tab-insights">
-            <h2 class="text-sm font-bold uppercase tracking-wider text-[#000000] mb-4">ML-Powered Insights</h2>
+{{-- Tab Content: Insights --}}
+<div class="tab-content flex-1 overflow-y-auto p-6 custom-scrollbar hidden" id="tab-insights">
+    <h2 class="text-sm font-bold uppercase tracking-wider text-[#000000] mb-4">ML-Powered Insights</h2>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                {{-- Affinity Scores --}}
-                <div class="bg-white border border-[#E5E5E5] p-4">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-[#666666] mb-3">Your Interest Categories</h3>
-                    @if(isset($affinityScores) && count($affinityScores) > 0)
-                        <div class="space-y-2">
-                            @foreach($affinityScores as $category => $score)
-                                <div>
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-xs text-[#000000] truncate">{{ $category }}</span>
-                                        <span class="text-[10px] text-[#666666] flex-shrink-0 ml-2">{{ $score }}%</span>
-                                    </div>
-                                    <div class="w-full h-1.5 bg-[#E5E5E5] mt-0.5">
-                                        <div class="h-full bg-[#000000]" style="width: {{ $score }}%;"></div>
-                                    </div>
-                                </div>
-                            @endforeach
+        {{-- Chart (Graphical) --}}
+        <div class="bg-white border border-[#E5E5E5] p-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-[#666666] mb-3">Interest Categories</h3>
+            <canvas id="profileAffinityChart" height="200"></canvas>
+            <p class="text-[9px] text-[#666666] mt-2">* Based on your interactions (views, likes, comments)</p>
+        </div>
+
+        {{-- Text Breakdown --}}
+        <div class="bg-white border border-[#E5E5E5] p-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-[#666666] mb-3">Detailed Breakdown</h3>
+            @if(isset($affinityScores) && count($affinityScores) > 0)
+                <div class="space-y-2">
+                    @foreach($affinityScores as $category => $score)
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-[#000000]">{{ $category }}</span>
+                                <span class="text-[10px] text-[#666666]">{{ $score }}%</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-[#E5E5E5] mt-0.5">
+                                <div class="h-full bg-[#000000]" style="width: {{ $score }}%;"></div>
+                            </div>
                         </div>
-                    @else
-                        <p class="text-sm text-[#666666]">Not enough data yet.</p>
-                        <p class="text-xs text-[#666666]">Interact with more topics to build your profile.</p>
-                    @endif
+                    @endforeach
                 </div>
+            @else
+                <p class="text-sm text-[#666666]">Not enough data yet.</p>
+            @endif
+        </div>
 
-                {{-- Recommended Topics --}}
-                <div class="bg-white border border-[#E5E5E5] p-4">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-[#666666] mb-3">Recommended For You</h3>
-                    @if($recommendations->isNotEmpty())
-                        <div class="space-y-2">
-                            @foreach($recommendations->take(5) as $topic)
-                                <a href="{{ route('topics.show', [$topic->group_id, $topic->id]) }}" 
-                                   class="block hover:bg-[#F5F5F5] transition-colors p-2 -mx-2">
-                                    <p class="text-sm text-[#000000] truncate">{{ $topic->title }}</p>
-                                    <div class="flex items-center space-x-2 mt-0.5 flex-wrap">
-                                        <span class="text-[10px] text-[#666666]">{{ $topic->group->name }}</span>
-                                        @if($topic->ml_category)
-                                            <span class="text-[8px] font-bold uppercase tracking-wider border border-[#E5E5E5] px-1.5 py-0.5">
-                                                {{ $topic->ml_category }}
-                                            </span>
-                                        @endif
-                                    </div>
-                                </a>
-                            @endforeach
-                        </div>
-                    @else
-                        <p class="text-sm text-[#666666]">No recommendations available.</p>
-                        <p class="text-xs text-[#666666]">Keep exploring to get personalized suggestions.</p>
-                    @endif
+        {{-- Recommendations --}}
+        <div class="bg-white border border-[#E5E5E5] p-4 lg:col-span-2">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-[#666666] mb-3">Recommended For You</h3>
+            @if($recommendations->isNotEmpty())
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    @foreach($recommendations->take(4) as $topic)
+                        <a href="{{ route('topics.show', [$topic->group_id, $topic->id]) }}" 
+                           class="block hover:bg-[#F5F5F5] transition-colors p-2 border border-[#E5E5E5]">
+                            <p class="text-sm text-[#000000]">{{ $topic->title }}</p>
+                            <div class="flex items-center space-x-2 mt-0.5">
+                                <span class="text-[10px] text-[#666666]">{{ $topic->group->name }}</span>
+                                @if($topic->ml_category)
+                                    <span class="text-[8px] font-bold uppercase tracking-wider border border-[#E5E5E5] px-1.5 py-0.5">
+                                        {{ $topic->ml_category }}
+                                    </span>
+                                @endif
+                            </div>
+                        </a>
+                    @endforeach
                 </div>
+                @if($recommendations->count() > 4)
+                    <p class="text-[9px] text-[#666666] text-center mt-2">
+                        + {{ $recommendations->count() - 4 }} more
+                    </p>
+                @endif
+            @else
+                <p class="text-sm text-[#666666]">No recommendations available.</p>
+            @endif
+        </div>
 
+    </div>
+
+    {{-- Interaction Summary --}}
+    <div class="mt-4 bg-white border border-[#E5E5E5] p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-[#666666] mb-3">Interaction Breakdown</h3>
+        <div class="grid grid-cols-4 gap-4 text-center">
+            <div>
+                <p class="text-lg font-bold text-[#000000]">{{ $interactionCounts['views'] ?? 0 }}</p>
+                <p class="text-[8px] text-[#666666] uppercase tracking-wider">Views</p>
             </div>
-
-            {{-- Interaction Summary --}}
-            <div class="mt-4 bg-white border border-[#E5E5E5] p-4">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-[#666666] mb-3">Interaction Breakdown</h3>
-                <div class="grid grid-cols-4 gap-2 text-center">
-                    <div>
-                        <p class="text-lg font-bold text-[#000000]">{{ $interactionCounts['views'] ?? 0 }}</p>
-                        <p class="text-[7px] text-[#666666] uppercase tracking-wider">Views</p>
-                    </div>
-                    <div>
-                        <p class="text-lg font-bold text-[#000000]">{{ $interactionCounts['likes'] ?? 0 }}</p>
-                        <p class="text-[7px] text-[#666666] uppercase tracking-wider">Likes</p>
-                    </div>
-                    <div>
-                        <p class="text-lg font-bold text-[#000000]">{{ $interactionCounts['comments'] ?? 0 }}</p>
-                        <p class="text-[7px] text-[#666666] uppercase tracking-wider">Comments</p>
-                    </div>
-                    <div>
-                        <p class="text-lg font-bold text-[#000000]">{{ $interactionCounts['downloads'] ?? 0 }}</p>
-                        <p class="text-[7px] text-[#666666] uppercase tracking-wider">Downloads</p>
-                    </div>
-                </div>
+            <div>
+                <p class="text-lg font-bold text-[#000000]">{{ $interactionCounts['likes'] ?? 0 }}</p>
+                <p class="text-[8px] text-[#666666] uppercase tracking-wider">Likes</p>
+            </div>
+            <div>
+                <p class="text-lg font-bold text-[#000000]">{{ $interactionCounts['comments'] ?? 0 }}</p>
+                <p class="text-[8px] text-[#666666] uppercase tracking-wider">Comments</p>
+            </div>
+            <div>
+                <p class="text-lg font-bold text-[#000000]">{{ $interactionCounts['downloads'] ?? 0 }}</p>
+                <p class="text-[8px] text-[#666666] uppercase tracking-wider">Downloads</p>
             </div>
         </div>
+    </div>
+</div>
 
     </div>
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const tabs = document.querySelectorAll('.tab-btn');
@@ -337,6 +348,39 @@ document.addEventListener('DOMContentLoaded', function() {
     if (firstTab) {
         firstTab.click();
     }
+
+    // Chart.js for Affinity Scores
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Profile Affinity Chart
+        const ctx = document.getElementById('profileAffinityChart');
+        if (ctx) {
+            const scores = {!! json_encode($affinityScores) !!};
+            const labels = Object.keys(scores);
+            const data = Object.values(scores);
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: '#000000',
+                        borderColor: '#000000',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { max: 100 }
+                    }
+                }
+            });
+        }
+    });
 });
 </script>
 @endpush

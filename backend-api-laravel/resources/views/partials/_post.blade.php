@@ -24,7 +24,31 @@
             </button>
         </div>
     </div>
+
+    {{-- Post Content --}}
     <p class="text-sm text-[#000000] leading-relaxed">{{ $post->content }}</p>
+
+    {{-- 📎 Attachments --}}
+    @if($post->attachments && count($post->attachments) > 0)
+        <div class="mt-3 flex flex-wrap gap-2">
+            @foreach($post->attachments as $file)
+                @php
+                    $ext = pathinfo($file, PATHINFO_EXTENSION);
+                    $isImage = in_array(strtolower($ext), ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']);
+                    $url = asset('storage/' . $file);
+                @endphp
+                @if($isImage)
+                    <a href="{{ $url }}" target="_blank" class="block border">
+                        <img src="{{ $url }}" class="max-w-xs max-h-48 object-contain">
+                    </a>
+                @else
+                    <a href="{{ $url }}" target="_blank" class="text-xs text-[#2563EB] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
+                        📎 {{ basename($file) }}
+                    </a>
+                @endif
+            @endforeach
+        </div>
+    @endif
 
     {{-- Reply Form (hidden by default) --}}
     <div class="mt-3 hidden reply-form" id="reply-form-{{ $post->id }}">
@@ -34,6 +58,16 @@
                 <textarea name="content" rows="2" required 
                           class="w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors"
                           placeholder="Write a reply..."></textarea>
+
+                {{-- File attachment input for replies --}}
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-wide text-[#666666]">Attach Files</label>
+                    <input type="file" name="attachments[]" multiple
+                           accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                           class="w-full bg-white border border-[#E5E5E5] px-3 py-1 text-sm">
+                    <p class="text-[9px] text-[#666666]">Max 5MB per file. Supported: images, PDF, Word, Excel, TXT</p>
+                </div>
+
                 <div class="flex items-center justify-between">
                     <label class="flex items-center space-x-2 cursor-pointer">
                         <input type="checkbox" name="is_private" value="1" class="accent-black">

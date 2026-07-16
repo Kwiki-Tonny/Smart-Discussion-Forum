@@ -176,14 +176,14 @@
 
             </div>
 
-            {{-- Bottom – Settings (optional) --}}
+<!--             {{-- Bottom – Settings (optional) --}}
             <div class="flex flex-col space-y-6 w-full items-center border-t border-[#E5E5E5] pt-4">
                 <a href="#" 
                 class="flex flex-col items-center text-center text-[10px] font-medium w-full py-2 transition-colors text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]">
                     <span class="text-base mb-1">⚙</span>
                     <span>Settings</span>
                 </a>
-            </div>
+            </div> -->
         </nav>
 
         {{-- CONTEXT PANEL --}}
