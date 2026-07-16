@@ -465,6 +465,62 @@ document.addEventListener('DOMContentLoaded', function() {
         window.location.reload();
     }
 
+    // ─── SHARE: Copy Link to Clipboard ───
+    function showToast(message, type = 'success') {
+        // Remove existing toast
+        const existing = document.getElementById('toast-notification');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-notification';
+        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 border shadow-lg max-w-md text-center';
+        
+        if (type === 'success') {
+            toast.className += ' bg-[#000000] text-white border-[#000000]';
+        } else {
+            toast.className += ' bg-[#DC2626] text-white border-[#DC2626]';
+        }
+
+        toast.innerHTML = `
+            <div class="flex items-center space-x-3">
+                <span class="text-sm font-medium">${message}</span>
+            </div>
+        `;
+
+        document.body.appendChild(toast);
+
+        // Auto-dismiss after 3 seconds
+        setTimeout(() => {
+            if (toast) toast.remove();
+        }, 3000);
+    }
+
+// ─── SHARE: Copy Link to Clipboard ───
+    window.copyLink = function() {
+        const url = window.location.href;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url)
+                .then(() => alert('Link copied to clipboard!'))
+                .catch(() => fallbackCopy(url));
+        } else {
+            fallbackCopy(url);
+        }
+    };
+
+    function fallbackCopy(url) {
+        const input = document.createElement('input');
+        input.value = url;
+        document.body.appendChild(input);
+        input.select();
+        try {
+            document.execCommand('copy');
+            alert('Link copied to clipboard!');
+        } catch (e) {
+            alert('Failed to copy link. Please copy manually.');
+        }
+        input.remove();
+    }
     // ============================================================
     // 7. CLEANUP ON PAGE UNLOAD
     // ============================================================
