@@ -218,6 +218,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     const newPost = createPostHTML(data.post);
                     const postsContainer = document.getElementById('posts-container');
                     const mainReplyForm = document.getElementById('main-reply-form');
+                    
+                    // 🆕 Remove empty state if present
+                    const emptyState = postsContainer.querySelector('.bg-white.border.border-\\[\\#E5E5E5\\]\\.p-12\\.text-center');
+                    if (emptyState) emptyState.remove();
+
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = newPost;
                     postsContainer.insertBefore(tempDiv.firstElementChild, mainReplyForm);
