@@ -101,20 +101,22 @@ class AuthController extends Controller
             'terms' => 'required|accepted',
         ]);
 
+        $plainPassword = $validated['password']; // Store temporarily
+
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'password' => Hash::make($plainPassword),
             'role' => 'student',
             'status' => 'pending',
             'last_communicated_at' => null,
         ]);
 
-        // Log the user in
-        //Auth::login($user);
+        // Store password in session for admin approval email
+        session()->put('pending_password_' . $user->id, $plainPassword);
 
         return redirect()->route('login')
-            ->with('success', 'Account created successfully! Welcome to the Smart Discussion Forum. Please wait for admin approval before you can log in. You will receive an email notification once your account is approved.');
+            ->with('success', 'Account registered! Please wait for admin approval before logging in.');
     }
 
     /**

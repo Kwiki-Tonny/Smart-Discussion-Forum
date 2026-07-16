@@ -10,6 +10,7 @@ use App\Models\Post;
 use App\Models\Quiz;
 use App\Models\BlacklistLog;
 use App\Models\QuizSubmission;
+use App\Notifications\UserApproved;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -213,6 +214,12 @@ class AdminController extends Controller
         // Set status to active
         $user->status = 'active';
         $user->save();
+
+        // Get stored password from session
+        $password = session()->pull('pending_password_' . $user->id);
+
+        // Notify user of approval
+        $user->notify(new UserApproved($password));
 
         return redirect()->route('admin.registrations')
             ->with('success', 'User approved successfully. They can now log in.');
