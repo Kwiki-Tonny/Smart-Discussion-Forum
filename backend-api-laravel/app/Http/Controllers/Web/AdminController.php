@@ -33,11 +33,10 @@ class AdminController extends Controller
         $totalQuizzes = Quiz::count();
         $totalSubmissions = QuizSubmission::count();
 
-        // Pending registrations (users without groups or inactive)
+        // Pending registrations (users with status = 'pending')
         $pendingRegistrations = User::where('role', 'student')
-            ->whereDoesntHave('groups')
-            ->count();
-
+            ->where('status', 'pending')
+            ->count();    
         // Blacklisted users
         $blacklistedUsers = User::where('status', 'blacklisted')->count();
 
@@ -184,13 +183,15 @@ class AdminController extends Controller
      */
     public function registrations()
     {
+        // Pending = status = 'pending' AND role = 'student'
         $pendingUsers = User::where('role', 'student')
-            ->whereDoesntHave('groups')
+            ->where('status', 'pending')
             ->orderBy('created_at', 'asc')
             ->get();
 
+        // Approved = status = 'active' AND role = 'student'
         $approvedUsers = User::where('role', 'student')
-            ->whereHas('groups')
+            ->where('status', 'active')
             ->orderBy('created_at', 'desc')
             ->limit(20)
             ->get();
@@ -204,16 +205,14 @@ class AdminController extends Controller
     public function approveRegistration($id)
     {
         $user = User::findOrFail($id);
+        if ($user->status !== 'pending') {
+        return redirect()->route('admin.registrations')
+            ->with('info', 'User is not pending approval.');
+        }
 
         // Set status to active
         $user->status = 'active';
         $user->save();
-
-        // Assign to a default group (optional)
-        $defaultGroup = Group::first();
-        if ($defaultGroup) {
-            $user->groups()->attach($defaultGroup->id, ['has_agreed_rules' => false]);
-        }
 
         return redirect()->route('admin.registrations')
             ->with('success', 'User approved successfully. They can now log in.');

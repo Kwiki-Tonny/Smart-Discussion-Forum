@@ -102,12 +102,20 @@
                             <span>Dashboard</span>
                         </a>
 
-                        {{-- Groups link – same as student but lecturers can access --}}
+                        {{-- NEW: My Groups (management) --}}
+                        <a href="{{ route('lecturer.groups') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('lecturer.groups*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">▤</span>
+                            <span>My Groups</span>
+                        </a>
+
+                        {{-- Groups (participation – student view) --}}
                         <a href="{{ route('groups.index') }}" 
                         class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
-                                {{ request()->routeIs('groups.*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
-                            <span class="text-xl mb-1">▤</span>
-                            <span>Groups</span>
+                                {{ request()->routeIs('groups.*') && !request()->routeIs('lecturer.groups*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">🌐</span>
+                            <span>All Groups</span>
                         </a>
 
                         <a href="{{ route('lecturer.quizzes') }}" 
@@ -132,19 +140,43 @@
                         </a>
 
                     @elseif(Auth::user()->role === 'admin')
-                        {{-- Admin Menu (similar to lecturer but with extra) --}}
+                        {{-- Admin Menu --}}
                         <a href="{{ route('admin.dashboard') }}" 
-                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors">
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('admin.dashboard') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
                             <span class="text-xl mb-1">▣</span>
                             <span>Admin</span>
                         </a>
-                        {{-- Add other admin links as needed --}}
+                        <a href="{{ route('admin.users') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('admin.users*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">👥</span>
+                            <span>Users</span>
+                        </a>
+                        <a href="{{ route('admin.registrations') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('admin.registrations') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">📋</span>
+                            <span>Registrations</span>
+                        </a>
+                        <a href="{{ route('admin.blacklist') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('admin.blacklist') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">🚫</span>
+                            <span>Blacklist</span>
+                        </a>
+                        <a href="{{ route('admin.configuration') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('admin.configuration') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">⚙</span>
+                            <span>Config</span>
+                        </a>
                     @endif
                 @endauth
 
             </div>
 
-            {{-- Bottom – Settings/Logout (if needed) --}}
+            {{-- Bottom – Settings (optional) --}}
             <div class="flex flex-col space-y-6 w-full items-center border-t border-[#E5E5E5] pt-4">
                 <a href="#" 
                 class="flex flex-col items-center text-center text-[10px] font-medium w-full py-2 transition-colors text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]">

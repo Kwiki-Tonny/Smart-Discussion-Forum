@@ -40,8 +40,18 @@
 @section('content')
     <div class="flex flex-col h-full">
         <div class="bg-white border-b border-[#E5E5E5] px-8 py-6">
-            <h1 class="text-xl font-bold text-[#000000]">{{ $quiz->title }} – Results</h1>
-            <p class="text-sm text-[#666666] mt-1">{{ $quiz->group->name ?? 'N/A' }} • {{ $quiz->duration }} min</p>
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-xl font-bold text-[#000000]">{{ $quiz->title }} – Results</h1>
+                    <p class="text-sm text-[#666666] mt-1">{{ $quiz->group->name ?? 'N/A' }} • {{ $quiz->duration }} min</p>
+                </div>
+                <div>
+                    <a href="{{ route('lecturer.quiz.export', $quiz->id) }}"
+                       class="bg-[#000000] text-white px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#333333] transition-colors">
+                        📊 Export Results
+                    </a>
+                </div>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-6">
@@ -67,12 +77,16 @@
 
         <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
             <div class="bg-white border border-[#E5E5E5]">
-                <div class="border-b border-[#E5E5E5] px-4 py-3">
+                <div class="border-b border-[#E5E5E5] px-4 py-3 flex items-center justify-between">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-[#666666]">Student Results</h3>
+                    <a href="{{ route('lecturer.quiz.export', $quiz->id) }}"
+                       class="text-[10px] font-bold uppercase tracking-wider text-[#000000] border border-[#000000] px-2 py-1 hover:bg-[#000000] hover:text-white transition-colors">
+                        Export
+                    </a>
                 </div>
                 <div class="divide-y divide-[#E5E5E5]">
                     @forelse($submissions as $submission)
-                        <div class="px-4 py-3 flex justify-between items-center">
+                        <div class="px-4 py-3 flex justify-between items-center hover:bg-[#F5F5F5] transition-colors">
                             <div>
                                 <span class="text-sm font-bold text-[#000000]">{{ $submission->user->name ?? 'Unknown' }}</span>
                                 <div class="flex items-center space-x-2 mt-0.5">

@@ -985,4 +985,23 @@ class StudentController extends Controller
             'questionDetails'
         ));
     }
+
+    /**
+ * Leave a group
+ */
+    public function leaveGroup($groupId)
+    {
+        $user = Auth::user();
+        $group = Group::findOrFail($groupId);
+
+        if (!$user->groups()->where('group_id', $groupId)->exists()) {
+            return redirect()->route('groups.index')
+                ->with('error', 'You are not a member of this group.');
+        }
+
+        $user->groups()->detach($groupId);
+
+        return redirect()->route('groups.index')
+            ->with('success', "You have left the group '{$group->name}'.");
+    }
 }

@@ -38,6 +38,10 @@
            class="block w-full text-center bg-white border border-[#000000] px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#F5F5F5] transition-colors">
             Grading Matrix
         </a>
+        <a href="{{ route('lecturer.students.export') }}"
+           class="block w-full text-center bg-white border border-[#000000] px-4 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#F5F5F5] transition-colors">
+            📊 Export Students
+        </a>
     </div>
 
     <div class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
@@ -49,9 +53,17 @@
                     <span class="text-sm font-bold text-[#000000]">{{ $group->name }}</span>
                     <span class="text-[10px] text-[#666666]">{{ $group->topics_count ?? 0 }} topics</span>
                 </div>
-                <span class="text-[9px] text-[#666666]">{{ $group->users_count ?? 0 }} students</span>
+                <div class="flex items-center space-x-3 mt-1">
+                    <span class="text-[9px] text-[#666666]">{{ $group->users_count ?? 0 }} students</span>
+                    <span class="text-[9px] text-[#666666]">•</span>
+                    <span class="text-[9px] text-[#666666]">Admin</span>
+                </div>
             </a>
         @endforeach
+        <a href="{{ route('lecturer.groups') }}"
+           class="block px-3 py-2 text-center text-xs font-bold uppercase tracking-wider text-[#666666] hover:text-[#000000] transition-colors border border-[#E5E5E5] border-dashed">
+            View All My Groups →
+        </a>
     </div>
 @endsection
 
@@ -61,7 +73,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h1 class="text-xl font-bold text-[#000000]">Lecturer Dashboard</h1>
-                    <p class="text-sm text-[#666666] mt-1">Overview of all groups and student activity</p>
+                    <p class="text-sm text-[#666666] mt-1">Overview of your groups and student activity</p>
                 </div>
                 <span class="text-xs text-[#16A34A] border border-[#16A34A] px-2 py-1">● {{ $activeStudents }} active students</span>
             </div>
@@ -86,7 +98,7 @@
             <div class="bg-white border border-[#E5E5E5] p-4">
                 <p class="text-2xl font-bold text-[#000000]">{{ number_format($avgScore, 0) }}%</p>
                 <p class="text-xs text-[#666666] uppercase tracking-wider">Avg Score</p>
-                <p class="text-[10px] text-[#666666] mt-1">Across all quizzes</p>
+                <p class="text-[10px] text-[#666666] mt-1">Across your quizzes</p>
             </div>
         </div>
 

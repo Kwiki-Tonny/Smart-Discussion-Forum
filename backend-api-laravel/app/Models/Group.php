@@ -9,7 +9,7 @@ class Group extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'description'];
+    protected $fillable = ['name', 'description', 'created_by'];
 
     /**
      * Relationship: One-to-Many (Groups <-> Topics)
@@ -27,5 +27,29 @@ class Group extends Model
         return $this->belongsToMany(User::class, 'group_user')
                     ->withPivot('has_agreed_rules')
                     ->withTimestamps();
+    }
+
+    /**
+     * Relationship: The lecturer who created this group
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get all students in this group
+     */
+    public function students()
+    {
+        return $this->users()->where('role', 'student');
+    }
+
+    /**
+     * Check if a user is the creator/admin of this group
+     */
+    public function isCreatedBy($userId)
+    {
+        return $this->created_by == $userId;
     }
 }

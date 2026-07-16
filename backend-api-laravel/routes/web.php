@@ -4,8 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\StudentController;
 use App\Http\Controllers\Web\LecturerController;
-use App\Http\Controllers\Api\PollController;
 use App\Http\Controllers\Web\AdminController;
+use App\Http\Controllers\Api\PollController;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,6 +52,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/groups/{group}/agree', [StudentController::class, 'agreeRules'])->name('groups.agree');
     Route::post('/groups/{group}/decline', [StudentController::class, 'declineRules'])->name('groups.decline');
     Route::post('/groups/{group}/join', [StudentController::class, 'joinGroup'])->name('groups.join');
+    Route::post('/groups/{group}/leave', [StudentController::class, 'leaveGroup'])->name('groups.leave'); // NEW
 
     // ---------- Topics ----------
     Route::get('/topics/create', [StudentController::class, 'createTopic'])->name('topics.create');
@@ -85,35 +86,38 @@ Route::middleware(['auth'])->group(function () {
 
         // ---------- Lecturer Dashboard ----------
         Route::get('/dashboard', [LecturerController::class, 'index'])->name('lecturer.dashboard');
+
+        // ---------- Lecturer Profile ----------
         Route::get('/profile', [LecturerController::class, 'profile'])->name('lecturer.profile');
 
-        // ---------- Group Analytics ----------
+        // ---------- Group Management (Only own groups) ----------
+        Route::get('/groups', [LecturerController::class, 'groups'])->name('lecturer.groups');
+        Route::get('/groups/create', [LecturerController::class, 'createGroup'])->name('lecturer.groups.create');
+        Route::post('/groups/store', [LecturerController::class, 'storeGroup'])->name('lecturer.groups.store');
         Route::get('/group/{group}/analytics', [LecturerController::class, 'groupAnalytics'])->name('lecturer.group.analytics');
 
-        // ---------- Quiz Management ----------
+        // ---------- Quiz Management (Only own quizzes) ----------
         Route::get('/quizzes', [LecturerController::class, 'quizzes'])->name('lecturer.quizzes');
         Route::get('/quiz/create', [LecturerController::class, 'createQuiz'])->name('lecturer.quiz.create');
         Route::post('/quiz/store', [LecturerController::class, 'storeQuiz'])->name('lecturer.quiz.store');
-        Route::get('/quiz/{quiz}/results', [LecturerController::class, 'quizResults'])->name('lecturer.quiz.results');
-
-        // ---------- Quiz Edit & Questions ----------
         Route::get('/quiz/{quiz}/edit', [LecturerController::class, 'editQuiz'])->name('lecturer.quiz.edit');
         Route::post('/quiz/{quiz}/question', [LecturerController::class, 'storeQuestion'])->name('lecturer.quiz.question.store');
         Route::post('/quiz/{quiz}/questions/bulk', [LecturerController::class, 'storeBulkQuestions'])->name('lecturer.quiz.question.store.bulk');
         Route::delete('/quiz/{quiz}/question/{question}', [LecturerController::class, 'deleteQuestion'])->name('lecturer.quiz.question.delete');
         Route::post('/quiz/{quiz}/toggle', [LecturerController::class, 'toggleQuizStatus'])->name('lecturer.quiz.toggle');
+        Route::get('/quiz/{quiz}/results', [LecturerController::class, 'quizResults'])->name('lecturer.quiz.results');
 
-        // ---------- Grading Matrix ----------
+        // ---------- Grading Matrix (Only own students) ----------
         Route::get('/grading', [LecturerController::class, 'gradingMatrix'])->name('lecturer.grading');
+
+        // ---------- Excel Exports (Only own data) ----------
+        Route::get('/students/export', [LecturerController::class, 'exportStudents'])->name('lecturer.students.export');
+        Route::get('/quiz/{quiz}/export', [LecturerController::class, 'exportQuizResults'])->name('lecturer.quiz.export');
     });
 
 
-    // ==================== POLLING ROUTES ====================
+    // ==================== ADMIN ROUTES ====================
 
-    // Stateless polling route - no session blocking!
-    Route::get('/poll/topic/{topic}', [PollController::class, 'poll'])->name('topics.poll');
-
-    // ---------- Admin Routes ----------
     Route::middleware(['role:admin'])->prefix('admin')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
         Route::get('/users', [AdminController::class, 'users'])->name('admin.users');
@@ -129,6 +133,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/configuration', [AdminController::class, 'configuration'])->name('admin.configuration');
         Route::post('/configuration', [AdminController::class, 'updateConfiguration'])->name('admin.configuration.update');
     });
+
+
+    // ==================== POLLING ROUTES ====================
+
+    // Stateless polling route - no session blocking!
+    Route::get('/poll/topic/{topic}', [PollController::class, 'poll'])->name('topics.poll');
 });
 
 

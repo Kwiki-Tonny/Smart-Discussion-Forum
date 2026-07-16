@@ -11,21 +11,33 @@
 
     <div class="divide-y divide-[#E5E5E5]">
         @forelse($groups as $group)
-            <a href="{{ route('groups.topics', $group->id) }}" 
-               class="block p-4 bg-white hover:bg-[#F5F5F5] cursor-pointer transition-colors space-y-1 group">
-                <div class="flex justify-between items-baseline">
-                    <h3 class="text-sm font-bold text-[#000000]">{{ $group->name }}</h3>
-                    <span class="text-[10px] text-[#666666]">{{ $group->topics_count ?? 0 }} topics</span>
+            <div class="block p-4 bg-white hover:bg-[#F5F5F5] transition-colors space-y-1">
+                <div class="flex justify-between items-start">
+                    <a href="{{ route('groups.topics', $group->id) }}" class="flex-1 min-w-0">
+                        <div>
+                            <h3 class="text-sm font-bold text-[#000000]">{{ $group->name }}</h3>
+                            <span class="text-[10px] text-[#666666]">{{ $group->topics_count ?? 0 }} topics</span>
+                            @if($group->description)
+                                <p class="text-xs text-[#666666] line-clamp-1">{{ $group->description }}</p>
+                            @endif
+                            @if($group->latest_topic)
+                                <p class="text-[10px] text-[#666666] mt-1">
+                                    Latest: {{ $group->latest_topic->title }}
+                                </p>
+                            @endif
+                        </div>
+                    </a>
+                    <div class="flex-shrink-0 ml-4">
+                        <form action="{{ route('groups.leave', $group->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to leave this group?')">
+                            @csrf
+                            <button type="submit" 
+                                    class="text-[9px] font-bold uppercase tracking-wider text-[#DC2626] border border-[#DC2626] px-2 py-0.5 hover:bg-[#DC2626] hover:text-white transition-colors">
+                                Leave
+                            </button>
+                        </form>
+                    </div>
                 </div>
-                @if($group->description)
-                    <p class="text-xs text-[#666666] line-clamp-1">{{ $group->description }}</p>
-                @endif
-                @if($group->latest_topic)
-                    <p class="text-[10px] text-[#666666] mt-1">
-                        Latest: {{ $group->latest_topic->title }}
-                    </p>
-                @endif
-            </a>
+            </div>
         @empty
             <div class="p-6 text-center">
                 <p class="text-sm text-[#666666]">You haven't joined any groups yet.</p>

@@ -9,6 +9,7 @@ class Quiz extends Model
     protected $fillable = [
         'title',
         'group_id',
+        'created_by',
         'duration',
         'allowed_categories',
         'starts_at',
@@ -32,6 +33,14 @@ class Quiz extends Model
     }
 
     /**
+     * Get the lecturer who created this quiz.
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
      * Get the questions for the quiz.
      */
     public function questions()
@@ -45,6 +54,14 @@ class Quiz extends Model
     public function submissions()
     {
         return $this->hasMany(QuizSubmission::class);
+    }
+
+    /**
+     * Check if a user created this quiz.
+     */
+    public function isCreatedBy($userId)
+    {
+        return $this->created_by == $userId;
     }
 
     /**
