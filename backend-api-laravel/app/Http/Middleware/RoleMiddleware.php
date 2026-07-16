@@ -35,6 +35,13 @@ class RoleMiddleware
             ], 403);
         }
 
+        // **Pending Status Check:** If user is pending, block access to protected routes.
+        if ($user->status === 'pending') {
+            return response()->json([
+                'message' => 'Your account is pending approval. Please wait for an administrator.',
+            ], 403);
+        }
+
         return $next($request);
     }
 }

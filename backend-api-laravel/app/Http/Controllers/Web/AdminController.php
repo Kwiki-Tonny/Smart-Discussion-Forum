@@ -205,17 +205,18 @@ class AdminController extends Controller
     {
         $user = User::findOrFail($id);
 
-        // Assign to a default group (if exists)
+        // Set status to active
+        $user->status = 'active';
+        $user->save();
+
+        // Assign to a default group (optional)
         $defaultGroup = Group::first();
         if ($defaultGroup) {
             $user->groups()->attach($defaultGroup->id, ['has_agreed_rules' => false]);
         }
 
-        $user->status = 'active';
-        $user->save();
-
         return redirect()->route('admin.registrations')
-            ->with('success', 'User approved successfully.');
+            ->with('success', 'User approved successfully. They can now log in.');
     }
 
     /**

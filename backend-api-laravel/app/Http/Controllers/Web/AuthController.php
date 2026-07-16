@@ -51,6 +51,13 @@ class AuthController extends Controller
             }
         }
 
+        // Check if pending
+        if ($user->status === 'pending') {
+            return back()->withErrors([
+                'email' => 'Your account is pending approval. Please wait for an administrator to approve your registration.',
+            ])->onlyInput('email');
+        }
+
         // Attempt login
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
@@ -99,15 +106,15 @@ class AuthController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => 'student',
-            'status' => 'active',
-            'last_communicated_at' => now(),
+            'status' => 'pending',
+            'last_communicated_at' => null,
         ]);
 
         // Log the user in
-        Auth::login($user);
+        //Auth::login($user);
 
-        return redirect()->route('dashboard')
-            ->with('success', 'Account created successfully! Welcome to the Smart Discussion Forum.');
+        return redirect()->route('login')
+            ->with('success', 'Account created successfully! Welcome to the Smart Discussion Forum. Please wait for admin approval before you can log in. You will receive an email notification once your account is approved.');
     }
 
     /**
