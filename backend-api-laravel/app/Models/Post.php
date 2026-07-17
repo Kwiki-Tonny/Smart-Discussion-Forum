@@ -8,14 +8,22 @@ class Post extends Model
 {
     protected $fillable = [
         'topic_id', 
+<<<<<<< HEAD
         'parent_id',    // Threaded reply support
+=======
+        'parent_id',    
+>>>>>>> origin/main
         'user_id', 
         'content', 
-        'is_private'
+        'is_private',
+        'is_pinned',
+        'attachments'
     ];
 
     protected $casts = [
         'is_private' => 'boolean',
+        'is_pinned' => 'boolean',
+        'attachments' => 'array',
     ];
 
     // --- Relationships ---

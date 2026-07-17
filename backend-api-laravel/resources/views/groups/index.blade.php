@@ -60,7 +60,16 @@
                             </div>
                             @auth
                                 @if($group->isMember ?? false)
-                                    <span class="text-[10px] font-bold text-[#16A34A] border border-[#16A34A] px-3 py-1">Member</span>
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-[10px] font-bold text-[#16A34A] border border-[#16A34A] px-3 py-1">Member</span>
+                                        <form action="{{ route('groups.leave', $group->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to leave this group?')">
+                                            @csrf
+                                            <button type="submit" 
+                                                    class="text-[10px] font-bold uppercase tracking-wider text-[#DC2626] border border-[#DC2626] px-3 py-1 hover:bg-[#DC2626] hover:text-white transition-colors">
+                                                Leave
+                                            </button>
+                                        </form>
+                                    </div>
                                 @else
                                     <form action="{{ route('groups.join', $group->id) }}" method="POST">
                                         @csrf

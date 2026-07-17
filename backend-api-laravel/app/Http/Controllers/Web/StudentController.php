@@ -471,13 +471,25 @@ class StudentController extends Controller
             'content' => 'required|string|min:3',
             'is_private' => 'boolean',
             'excluded_user_ids' => 'nullable|array',
+            'attachments' => 'nullable|array',
+            'attachments.*' => 'file|mimes:jpg,jpeg,png,gif,svg,pdf,doc,docx,xls,xlsx,txt|max:5120', // 5MB max
         ]);
+
+        // Handle file attachments
+        $attachments = [];
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $path = $file->store('post_attachments', 'public');
+                $attachments[] = $path;
+            }
+        }
 
         $post = Post::create([
             'topic_id' => $validated['topic_id'],
             'user_id' => Auth::id(),
             'content' => $validated['content'],
             'is_private' => $validated['is_private'] ?? false,
+            'attachments' => $attachments,
         ]);
 
         if ($post->is_private && !empty($validated['excluded_user_ids'])) {
@@ -488,6 +500,18 @@ class StudentController extends Controller
 
         $post->load('author');
 
+        // Format attachments for response
+        $formattedAttachments = array_map(function($path) {
+            $ext = pathinfo($path, PATHINFO_EXTENSION);
+            $isImage = in_array(strtolower($ext), ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']);
+            return [
+                'path' => $path,
+                'url' => asset('storage/' . $path),
+                'name' => basename($path),
+                'is_image' => $isImage,
+            ];
+        }, $attachments);
+
         return response()->json([
             'success' => true,
             'message' => 'Post added successfully.',
@@ -496,6 +520,7 @@ class StudentController extends Controller
                 'content' => $post->content,
                 'created_at' => $post->created_at->diffForHumans(),
                 'is_private' => $post->is_private,
+                'attachments' => $formattedAttachments,
                 'author' => [
                     'name' => $post->author->name ?? 'Unknown',
                     'id' => $post->author->id ?? null,
@@ -635,7 +660,19 @@ class StudentController extends Controller
             'parent_id' => 'required|exists:posts,id',
             'content' => 'required|string|min:3',
             'is_private' => 'boolean',
+            'excluded_user_ids' => 'nullable|array',
+            'attachments' => 'nullable|array',
+            'attachments.*' => 'file|mimes:jpg,jpeg,png,gif,svg,pdf,doc,docx,xls,xlsx,txt|max:5120',
         ]);
+
+        // Handle file attachments
+        $attachments = [];
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $path = $file->store('post_attachments', 'public');
+                $attachments[] = $path;
+            }
+        }
 
         $post = Post::create([
             'topic_id' => $validated['topic_id'],
@@ -643,12 +680,29 @@ class StudentController extends Controller
             'user_id' => Auth::id(),
             'content' => $validated['content'],
             'is_private' => $validated['is_private'] ?? false,
+            'attachments' => $attachments,
         ]);
+
+        // If private, attach exclusions
+        if ($post->is_private && !empty($validated['excluded_user_ids'])) {
+            $post->excludedUsers()->attach($validated['excluded_user_ids']);
+        }
 
         Auth::user()->update(['last_communicated_at' => now()]);
 
-        // Load the author relationship
         $post->load('author');
+
+        // Format attachments for response
+        $formattedAttachments = array_map(function($path) {
+            $ext = pathinfo($path, PATHINFO_EXTENSION);
+            $isImage = in_array(strtolower($ext), ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']);
+            return [
+                'path' => $path,
+                'url' => asset('storage/' . $path),
+                'name' => basename($path),
+                'is_image' => $isImage,
+            ];
+        }, $attachments);
 
         return response()->json([
             'success' => true,
@@ -658,6 +712,7 @@ class StudentController extends Controller
                 'content' => $post->content,
                 'created_at' => $post->created_at->diffForHumans(),
                 'is_private' => $post->is_private,
+                'attachments' => $formattedAttachments,
                 'author' => [
                     'name' => $post->author->name ?? 'Unknown',
                     'id' => $post->author->id ?? null,
@@ -985,4 +1040,52 @@ class StudentController extends Controller
             'questionDetails'
         ));
     }
+
+    /**
+     * Leave a group
+     */
+    public function leaveGroup($groupId)
+    {
+        $user = Auth::user();
+        $group = Group::findOrFail($groupId);
+
+        if (!$user->groups()->where('group_id', $groupId)->exists()) {
+            return redirect()->route('groups.index')
+                ->with('error', 'You are not a member of this group.');
+        }
+
+        $user->groups()->detach($groupId);
+
+        return redirect()->route('groups.index')
+            ->with('success', "You have left the group '{$group->name}'.");
+    }
+
+    /**
+     * pinned message for a group      
+     */
+/**
+ * Toggle pin status of a post (any authenticated user)
+ */
+    public function togglePin($postId)
+    {
+        $user = Auth::user();
+
+        // Allow any authenticated user to pin/unpin
+        // (No role check – everyone can pin)
+
+        $post = Post::findOrFail($postId);
+
+        // Optional: Only allow pinning if the user is in the same group?
+        // You may add additional logic if needed.
+
+        $post->is_pinned = !$post->is_pinned;
+        $post->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $post->is_pinned ? 'Post pinned!' : 'Post unpinned.',
+            'is_pinned' => $post->is_pinned
+        ]);
+    }
+
 }

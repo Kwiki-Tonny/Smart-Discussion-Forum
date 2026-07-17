@@ -34,12 +34,10 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-3">
-                    {{-- Export PDF Button --}}
                     <a href="{{ route('topics.export', $topic->id) }}" 
-                    class="text-xs text-[#666666] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
+                       class="text-xs text-[#666666] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
                         📄 Export PDF
                     </a>
-                    {{-- Share Button --}}
                     <button onclick="copyLink()" 
                             class="text-xs text-[#666666] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
                         🔗 Share
@@ -50,17 +48,44 @@
 
         {{-- Posts Container --}}
         <div id="posts-container" class="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
+
+            {{-- 🔽 Compact Pinned Section (Sticky, only if there are pinned posts) --}}
+            @php
+                $pinnedPosts = $posts->where('is_pinned', true);
+            @endphp
+
+            @if($pinnedPosts->count() > 0)
+                <div class="sticky top-0 z-10 bg-[#FAFAFA] border-l-4 border-[#000000] p-4 shadow-sm -mx-6 px-6">
+                    <h4 class="text-[10px] font-bold uppercase tracking-wider text-[#666666] mb-2">📌 Pinned Messages</h4>
+                    <div class="space-y-2">
+                        @foreach($pinnedPosts as $post)
+                            <div class="flex items-center justify-between bg-white border border-[#E5E5E5] px-3 py-2 hover:bg-[#F5F5F5] transition-colors">
+                                <div class="flex items-center space-x-3 min-w-0 cursor-pointer jump-to-post" data-post-id="{{ $post->id }}">
+                                    <span class="text-sm font-bold text-[#000000]">{{ $post->author->name ?? 'Unknown' }}</span>
+                                    <span class="text-xs text-[#666666] truncate">{{ Str::limit($post->content, 60) }}</span>
+                                    <span class="text-[10px] text-[#2563EB] ml-2">↳ Jump</span>
+                                </div>
+                                <button class="text-[10px] text-[#DC2626] hover:underline pin-btn flex-shrink-0 ml-2" data-post-id="{{ $post->id }}">
+                                    Unpin
+                                </button>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            {{-- 🔽 All Posts (including pinned) – displayed in full --}}
             @forelse($posts as $post)
-                @include('partials._post', ['post' => $post])
+                @include('partials._post', ['post' => $post, 'inPinned' => false])
             @empty
-                <div class="bg-white border border-[#E5E5E5] p-12 text-center">
+                <div class="bg-white border border-[#E5E5E5] p-12 text-center" id="empty-state">
                     <p class="text-sm text-[#666666]">No posts yet. Be the first to reply!</p>
                 </div>
             @endforelse
 
-            {{-- Reply Form --}}
+            {{-- Reply Form (main) --}}
             <div class="bg-white border border-[#E5E5E5] p-4" id="main-reply-form">
-                <form method="POST" action="{{ route('posts.store') }}">
+                <form method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
                     @csrf
                     <input type="hidden" name="topic_id" value="{{ $topic->id }}">
                     <div class="space-y-3">
@@ -68,6 +93,15 @@
                         <textarea name="content" rows="3" required 
                                   class="w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors"
                                   placeholder="Share your thoughts..."></textarea>
+
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase tracking-wide text-[#666666]">Attach Files</label>
+                            <input type="file" name="attachments[]" multiple
+                                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                                   class="w-full bg-white border border-[#E5E5E5] px-3 py-1 text-sm">
+                            <p class="text-[9px] text-[#666666]">Max 5MB per file. Supported: images, PDF, Word, Excel, TXT</p>
+                        </div>
+
                         <div class="flex items-center justify-between">
                             <label class="flex items-center space-x-2 cursor-pointer">
                                 <input type="checkbox" name="is_private" value="1" class="accent-black">
@@ -134,18 +168,18 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.textContent = 'Posting...';
         submitBtn.disabled = true;
 
+        const formData = new FormData(this);
+        formData.append('topic_id', topicId);
+        formData.append('parent_id', parentId);
+        formData.append('content', content);
+        formData.append('is_private', isPrivate);
+
         fetch('{{ route("posts.reply") }}', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
             },
-            body: JSON.stringify({
-                topic_id: topicId,
-                parent_id: parentId,
-                content: content,
-                is_private: isPrivate
-            })
+            body: formData
         })
         .then(response => response.json())
         .then(data => {
@@ -166,6 +200,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.closest('.reply-form').classList.add('hidden');
 
                 bindLikeEvents();
+                bindPinEvents();
                 bindReplyToggles();
                 bindReplyForms();
             }
@@ -207,12 +242,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     const newPost = createPostHTML(data.post);
                     const postsContainer = document.getElementById('posts-container');
                     const mainReplyForm = document.getElementById('main-reply-form');
+
+                    const emptyState = postsContainer.querySelector('.bg-white.border.border-\\[\\#E5E5E5\\]\\.p-12\\.text-center');
+                    if (emptyState) emptyState.remove();
+
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = newPost;
                     postsContainer.insertBefore(tempDiv.firstElementChild, mainReplyForm);
                     this.querySelector('textarea[name="content"]').value = '';
                     updateReplyCount();
                     bindLikeEvents();
+                    bindPinEvents();
                     bindReplyToggles();
                     bindReplyForms();
                 }
@@ -270,10 +310,94 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // 5. HELPER FUNCTIONS
+    // 5. BIND PIN EVENTS (also handles "Unpin" from pinned section)
+    // ============================================================
+    function bindPinEvents() {
+        document.querySelectorAll('.pin-btn').forEach(button => {
+            button.removeEventListener('click', pinHandler);
+            button.addEventListener('click', pinHandler);
+        });
+    }
+
+    function pinHandler(e) {
+        const button = e.currentTarget;
+        const postId = button.dataset.postId;
+
+        button.disabled = true;
+
+        fetch('{{ url("/posts") }}/' + postId + '/pin', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Failed to pin/unpin.');
+            }
+        })
+        .catch(error => {
+            console.error('Error toggling pin:', error);
+            alert('An error occurred. Please try again.');
+        })
+        .finally(() => {
+            button.disabled = false;
+        });
+    }
+
+    // ============================================================
+    // 6. BIND JUMP TO POST
+    // ============================================================
+    function bindJumpToPost() {
+        document.querySelectorAll('.jump-to-post').forEach(el => {
+            el.removeEventListener('click', jumpToPostHandler);
+            el.addEventListener('click', jumpToPostHandler);
+        });
+    }
+
+    function jumpToPostHandler(e) {
+        const postId = this.dataset.postId;
+        const target = document.getElementById('post-' + postId);
+        if (target) {
+            document.querySelectorAll('.highlight-flash').forEach(el => el.classList.remove('highlight-flash'));
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.classList.add('highlight-flash');
+            setTimeout(() => target.classList.remove('highlight-flash'), 2000);
+        }
+    }
+
+    // ============================================================
+    // 7. HELPER FUNCTIONS
     // ============================================================
     function createPostHTML(post) {
         const isLiked = post.is_liked ? '❤️' : '🤍';
+
+        let attachmentsHtml = '';
+        if (post.attachments && post.attachments.length > 0) {
+            attachmentsHtml = '<div class="mt-3 flex flex-wrap gap-2">';
+            post.attachments.forEach(file => {
+                if (file.is_image) {
+                    attachmentsHtml += `
+                        <a href="${file.url}" target="_blank" class="block border">
+                            <img src="${file.url}" class="max-w-xs max-h-48 object-contain">
+                        </a>
+                    `;
+                } else {
+                    attachmentsHtml += `
+                        <a href="${file.url}" target="_blank" class="text-xs text-[#2563EB] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
+                            📎 ${file.name}
+                        </a>
+                    `;
+                }
+            });
+            attachmentsHtml += '</div>';
+        }
+
         return `
             <div class="bg-white border border-[#E5E5E5] p-4" id="post-${post.id}" data-post-id="${post.id}">
                 <div class="flex items-center justify-between mb-2">
@@ -290,9 +414,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         <button class="reply-toggle text-xs text-[#666666] hover:text-[#000000] transition-colors" data-post-id="${post.id}">
                             💬 Reply
                         </button>
+                        <button class="pin-btn text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center space-x-1" data-post-id="${post.id}">
+                            ${post.is_pinned ? '📌 Unpin' : '📌 Pin'}
+                        </button>
                     </div>
                 </div>
                 <p class="text-sm text-[#000000] leading-relaxed">${post.content}</p>
+                ${attachmentsHtml}
                 <div class="mt-3 hidden reply-form" id="reply-form-${post.id}">
                     <form class="reply-form-ajax" data-parent-id="${post.id}" data-topic-id="{{ $topic->id }}">
                         @csrf
@@ -300,6 +428,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             <textarea name="content" rows="2" required 
                                       class="w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors"
                                       placeholder="Write a reply..."></textarea>
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase tracking-wide text-[#666666]">Attach Files</label>
+                                <input type="file" name="attachments[]" multiple
+                                       accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                                       class="w-full bg-white border border-[#E5E5E5] px-3 py-1 text-sm">
+                                <p class="text-[9px] text-[#666666]">Max 5MB per file. Supported: images, PDF, Word, Excel, TXT</p>
+                            </div>
                             <div class="flex items-center justify-between">
                                 <label class="flex items-center space-x-2 cursor-pointer">
                                     <input type="checkbox" name="is_private" value="1" class="accent-black">
@@ -327,12 +462,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // 6. LONG POLLING - STATELESS (no session blocking)
+    // 8. LONG POLLING
     // ============================================================
     let lastPostId = {{ $posts->last()->id ?? 0 }};
     let isPolling = false;
     let longPollTimeout = null;
-    const userId = {{ Auth::id() }}; // ✅ Send user ID to exclude own posts
+    const userId = {{ Auth::id() }};
 
     function startLongPoll() {
         if (isPolling) return;
@@ -356,7 +491,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     lastPostId = Math.max(lastPostId, data.post.id);
                 }
             }
-            // Poll every 2 seconds to reduce server load
             longPollTimeout = setTimeout(startLongPoll, 2000);
         })
         .catch(error => {
@@ -419,8 +553,48 @@ document.addEventListener('DOMContentLoaded', function() {
         window.location.reload();
     }
 
+    // ─── SHARE ──────────────────────────────────────────────────
+    window.copyLink = function() {
+        const url = window.location.href;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url)
+                .then(() => alert('Link copied to clipboard!'))
+                .catch(() => fallbackCopy(url));
+        } else {
+            fallbackCopy(url);
+        }
+    };
+
+    function fallbackCopy(url) {
+        const input = document.createElement('input');
+        input.value = url;
+        document.body.appendChild(input);
+        input.select();
+        try {
+            document.execCommand('copy');
+            alert('Link copied to clipboard!');
+        } catch (e) {
+            alert('Failed to copy link. Please copy manually.');
+        }
+        input.remove();
+    }
+
+    // ─── CSS for Highlight Flash ──────────────────────────────
+    const style = document.createElement('style');
+    style.textContent = `
+        .highlight-flash {
+            animation: flashBg 2s ease;
+        }
+        @keyframes flashBg {
+            0% { background-color: #fef3c7; }
+            100% { background-color: transparent; }
+        }
+    `;
+    document.head.appendChild(style);
+
     // ============================================================
-    // 7. CLEANUP ON PAGE UNLOAD
+    // 9. CLEANUP
     // ============================================================
     window.addEventListener('beforeunload', function() {
         if (longPollTimeout) {
@@ -431,13 +605,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // ============================================================
-    // 8. INITIALIZATION
+    // 10. INITIALIZATION
     // ============================================================
     bindReplyToggles();
     bindReplyForms();
     bindLikeEvents();
+    bindPinEvents();
+    bindJumpToPost();
 
-    // Start long polling after 3 seconds
     setTimeout(startLongPoll, 3000);
 });
 </script>

@@ -47,13 +47,43 @@
             ⚙️ System Configuration
         </a>
     </div>
+
+    {{-- Groups List for Analytics --}}
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-[#666666] px-2 py-1">All Groups</p>
+        @forelse($groups as $group)
+            <a href="{{ route('admin.group.statistics', $group->id) }}"
+               class="block px-3 py-2 bg-white hover:bg-[#F5F5F5] transition-colors border border-[#E5E5E5]">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm font-bold text-[#000000]">{{ $group->name }}</span>
+                    <span class="text-[10px] text-[#666666]">{{ $group->topics_count ?? 0 }} topics</span>
+                </div>
+                <div class="flex items-center space-x-3 mt-1">
+                    <span class="text-[9px] text-[#666666]">{{ $group->users_count ?? 0 }} members</span>
+                    <span class="text-[9px] text-[#666666]">•</span>
+                    <span class="text-[9px] text-[#666666]">View Stats</span>
+                </div>
+            </a>
+        @empty
+            <div class="p-4 text-center">
+                <p class="text-sm text-[#666666]">No groups available.</p>
+            </div>
+        @endforelse
+    </div>
 @endsection
 
 @section('content')
     <div class="flex flex-col h-full">
         <div class="bg-white border-b border-[#E5E5E5] px-8 py-6">
-            <h1 class="text-xl font-bold text-[#000000]">Admin Dashboard</h1>
-            <p class="text-sm text-[#666666] mt-1">System-wide overview and management</p>
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-xl font-bold text-[#000000]">Admin Dashboard</h1>
+                    <p class="text-sm text-[#666666] mt-1">System-wide overview and management</p>
+                </div>
+                <span class="text-xs text-[#666666] border border-[#E5E5E5] px-2 py-1">
+                    {{ $groups->count() }} groups
+                </span>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-6">

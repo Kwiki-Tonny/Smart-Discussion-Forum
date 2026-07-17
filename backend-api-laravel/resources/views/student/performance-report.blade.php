@@ -125,35 +125,12 @@
                     </div>
                 </div>
 
-                {{-- Score Distribution (Center) --}}
+                {{-- Score Distribution & Charts (Center) --}}
                 <div class="lg:col-span-2 space-y-4">
-                    {{-- Answer Breakdown --}}
+                    {{-- Score Distribution Chart --}}
                     <div class="bg-white border border-[#E5E5E5] p-4">
                         <h3 class="text-xs font-bold uppercase tracking-wider text-[#666666] mb-3">Score Distribution</h3>
-                        <div class="space-y-2">
-                            @php
-                                $bins = [];
-                                foreach ($allSubmissions as $s) {
-                                    $bin = floor($s->score / 10) * 10;
-                                    $bins[$bin] = ($bins[$bin] ?? 0) + 1;
-                                }
-                                ksort($bins);
-                            @endphp
-                            @foreach($bins as $bin => $count)
-                                <div>
-                                    <div class="flex justify-between text-xs">
-                                        <span class="text-[#000000]">{{ $bin }}% - {{ $bin + 9 }}%</span>
-                                        <span class="text-[#666666]">{{ $count }} student{{ $count > 1 ? 's' : '' }}</span>
-                                    </div>
-                                    <div class="w-full h-3 bg-[#E5E5E5] mt-0.5">
-                                        @php $maxCount = max($bins) ?: 1; @endphp
-                                        <div class="h-full {{ $bin <= $submission->score && $submission->score <= $bin + 9 ? 'bg-[#000000]' : 'bg-[#999999]' }}"
-                                             style="width: {{ ($count / $maxCount) * 100 }}%;"></div>
-                                    </div>
-                                </div>
-                            @endforeach
-                            <p class="text-[9px] text-[#666666] mt-2">* Your score range is highlighted in black</p>
-                        </div>
+                        <canvas id="scoreDistribution" height="150"></canvas>
                     </div>
 
                     {{-- Question Breakdown --}}
@@ -200,3 +177,43 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const scores = {!! json_encode($allSubmissions->pluck('score')->filter()) !!};
+        if (scores.length > 0) {
+            const bins = [0,10,20,30,40,50,60,70,80,90,100];
+            const counts = bins.map((b, i) => {
+                if (i === bins.length-1) return scores.filter(s => s >= b).length;
+                return scores.filter(s => s >= b && s < bins[i+1]).length;
+            });
+            new Chart(document.getElementById('scoreDistribution'), {
+                type: 'bar',
+                data: {
+                    labels: bins.map((b,i) => i < bins.length-1 ? b+'-'+(bins[i+1]-1) : b+'+'),
+                    datasets: [{
+                        label: 'Students',
+                        data: counts,
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        borderColor: '#000',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+@endpush
