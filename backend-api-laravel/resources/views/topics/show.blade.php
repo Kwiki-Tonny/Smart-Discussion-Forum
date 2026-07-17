@@ -49,24 +49,26 @@
         {{-- Posts Container --}}
         <div id="posts-container" class="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
 
-            {{-- Split posts into pinned and normal --}}
             @php
                 $pinnedPosts = $posts->where('is_pinned', true);
                 $normalPosts = $posts->where('is_pinned', false);
             @endphp
 
-            {{-- Pinned Section (Sticky + Compact Links) --}}
+            {{-- Sticky Pinned Section with Unpin Button --}}
             @if($pinnedPosts->count() > 0)
                 <div class="sticky top-0 z-10 bg-[#FAFAFA] border-l-4 border-[#000000] p-4 shadow-sm -mx-6 px-6">
                     <h4 class="text-[10px] font-bold uppercase tracking-wider text-[#666666] mb-2">📌 Pinned Messages</h4>
                     <div class="space-y-2">
                         @foreach($pinnedPosts as $post)
-                            <div class="flex items-center justify-between bg-white border border-[#E5E5E5] px-3 py-2 hover:bg-[#F5F5F5] transition-colors cursor-pointer jump-to-post" data-post-id="{{ $post->id }}">
-                                <div class="flex items-center space-x-3 min-w-0">
+                            <div class="flex items-center justify-between bg-white border border-[#E5E5E5] px-3 py-2 hover:bg-[#F5F5F5] transition-colors">
+                                <div class="flex items-center space-x-3 min-w-0 cursor-pointer jump-to-post" data-post-id="{{ $post->id }}">
                                     <span class="text-sm font-bold text-[#000000]">{{ $post->author->name ?? 'Unknown' }}</span>
                                     <span class="text-xs text-[#666666] truncate">{{ Str::limit($post->content, 60) }}</span>
+                                    <span class="text-[10px] text-[#2563EB] ml-2">↳ Jump</span>
                                 </div>
-                                <span class="text-[10px] text-[#2563EB] flex-shrink-0">↳ Jump</span>
+                                <button class="text-[10px] text-[#DC2626] hover:underline pin-btn flex-shrink-0 ml-2" data-post-id="{{ $post->id }}">
+                                    Unpin
+                                </button>
                             </div>
                         @endforeach
                     </div>
@@ -309,7 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // 5. BIND PIN EVENTS
+    // 5. BIND PIN EVENTS (also handles "Unpin" from pinned section)
     // ============================================================
     function bindPinEvents() {
         document.querySelectorAll('.pin-btn').forEach(button => {
