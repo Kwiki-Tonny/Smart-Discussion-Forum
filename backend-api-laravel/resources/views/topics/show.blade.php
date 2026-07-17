@@ -50,10 +50,27 @@
 
         {{-- Posts Container --}}
         <div id="posts-container" class="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
-            @forelse($posts as $post)
-                @include('partials._post', ['post' => $post])
+            {{-- Split posts into pinned and normal --}}
+            @php
+                $pinnedPosts = $posts->where('is_pinned', true);
+                $normalPosts = $posts->where('is_pinned', false);
+            @endphp
+
+            {{-- Pinned Section --}}
+            @if($pinnedPosts->count() > 0)
+                <div class="mb-4 border-l-4 border-[#000000] bg-[#FAFAFA] p-4">
+                    <h4 class="text-[10px] font-bold uppercase tracking-wider text-[#666666] mb-2">📌 Pinned Posts</h4>
+                    @foreach($pinnedPosts as $post)
+                        @include('partials._post', ['post' => $post, 'inPinned' => true])
+                    @endforeach
+                </div>
+            @endif
+
+            {{-- Normal Posts --}}
+            @forelse($normalPosts as $post)
+                @include('partials._post', ['post' => $post, 'inPinned' => false])
             @empty
-                <div class="bg-white border border-[#E5E5E5] p-12 text-center">
+                <div class="bg-white border border-[#E5E5E5] p-12 text-center" id="empty-state">
                     <p class="text-sm text-[#666666]">No posts yet. Be the first to reply!</p>
                 </div>
             @endforelse
@@ -466,36 +483,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ─── SHARE: Copy Link to Clipboard ───
-    function showToast(message, type = 'success') {
-        // Remove existing toast
-        const existing = document.getElementById('toast-notification');
-        if (existing) existing.remove();
-
-        const toast = document.createElement('div');
-        toast.id = 'toast-notification';
-        toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 border shadow-lg max-w-md text-center';
-        
-        if (type === 'success') {
-            toast.className += ' bg-[#000000] text-white border-[#000000]';
-        } else {
-            toast.className += ' bg-[#DC2626] text-white border-[#DC2626]';
-        }
-
-        toast.innerHTML = `
-            <div class="flex items-center space-x-3">
-                <span class="text-sm font-medium">${message}</span>
-            </div>
-        `;
-
-        document.body.appendChild(toast);
-
-        // Auto-dismiss after 3 seconds
-        setTimeout(() => {
-            if (toast) toast.remove();
-        }, 3000);
-    }
-
-// ─── SHARE: Copy Link to Clipboard ───
     window.copyLink = function() {
         const url = window.location.href;
 
@@ -521,6 +508,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         input.remove();
     }
+
     // ============================================================
     // 7. CLEANUP ON PAGE UNLOAD
     // ============================================================
