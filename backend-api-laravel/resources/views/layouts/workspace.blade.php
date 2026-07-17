@@ -1,9 +1,6 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -17,7 +14,7 @@
 
     @stack('styles')
 </head>
-<body class="bg-[#F9F9F9] text-[#000000] min-h-screen flex flex-col">
+<body class="bg-[#F9F9F9] text-[#000000] h-screen flex flex-col overflow-hidden">
 
     {{-- TOP BAR --}}
     <header class="h-10 bg-white border-b border-[#E5E5E5] flex items-center justify-between px-6 z-10 flex-shrink-0">
@@ -65,84 +62,86 @@
             {{-- Top Navigation Items --}}
             <div class="flex flex-col space-y-6 w-full items-center">
 
-               @auth
-    @if(Auth::user()->role === 'student')
-        {{-- Student Menu --}}
-        <a href="{{ route('dashboard') }}" 
-        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
-                {{ request()->routeIs('dashboard') || request()->routeIs('groups.*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
-            <i data-lucide="users" class="w-5 h-5 mb-1 text-slate-800"></i>
-            <span>Groups</span>
-        </a>
+                @auth
+                    @if(Auth::user()->role === 'student')
+                        {{-- Student Menu --}}
+                        <a href="{{ route('dashboard') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('dashboard') || request()->routeIs('groups.*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">▣</span>
+                            <span>Groups</span>
+                        </a>
 
-        <a href="{{ route('profile') }}" 
-        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
-                {{ request()->routeIs('profile') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
-            <i data-lucide="user" class="w-5 h-5 mb-1 text-slate-800"></i>
-            <span>Profile</span>
-        </a>
+                        <a href="{{ route('profile') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('profile') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">◉</span>
+                            <span>Profile</span>
+                        </a>
 
-        <a href="{{ route('recommendations.index') }}" 
-        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
-                {{ request()->routeIs('recommendations.*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
-            <i data-lucide="sparkles" class="w-5 h-5 mb-1 text-slate-800"></i>
-            <span>Recs</span>
-        </a>
+                        <a href="{{ route('recommendations.index') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('recommendations.*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">◈</span>
+                            <span>Recs</span>
+                        </a>
 
-        <a href="{{ route('student.quizzes') }}" 
-        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
-                {{ request()->routeIs('student.quizzes*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
-            <i data-lucide="file-question" class="w-5 h-5 mb-1 text-slate-800"></i>
-            <span>Quizzes</span>
-        </a>
+                        <a href="{{ route('student.quizzes') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('student.quizzes*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">📝</span>
+                            <span>Quizzes</span>
+                        </a>
 
-    @elseif(Auth::user()->role === 'lecturer')
-        {{-- Lecturer Menu --}}
-        <a href="{{ route('lecturer.dashboard') }}" 
-        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
-                {{ request()->routeIs('lecturer.dashboard') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
-            <i data-lucide="layout-dashboard" class="w-5 h-5 mb-1 text-slate-800"></i>
-            <span>Dashboard</span>
-        </a>
+                    @elseif(Auth::user()->role === 'lecturer')
+                        {{-- Lecturer Menu --}}
+                        <a href="{{ route('lecturer.dashboard') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('lecturer.dashboard') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">▣</span>
+                            <span>Dashboard</span>
+                        </a>
 
-        {{-- Groups link – same as student but lecturers can access --}}
-        <a href="{{ route('groups.index') }}" 
-        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
-                {{ request()->routeIs('groups.*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
-            <i data-lucide="folder-git" class="w-5 h-5 mb-1 text-slate-800"></i>
-            <span>Groups</span>
-        </a>
+                        {{-- Groups link – same as student but lecturers can access --}}
+                        <a href="{{ route('groups.index') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('groups.*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">▤</span>
+                            <span>Groups</span>
+                        </a>
 
-        <a href="{{ route('lecturer.quizzes') }}" 
-        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
-                {{ request()->routeIs('lecturer.quizzes*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
-            <i data-lucide="file-check" class="w-5 h-5 mb-1 text-slate-800"></i>
-            <span>Quizzes</span>
-        </a>
+                        <a href="{{ route('lecturer.quizzes') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('lecturer.quizzes*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">📝</span>
+                            <span>Quizzes</span>
+                        </a>
 
-        <a href="{{ route('lecturer.grading') }}" 
-        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
-                {{ request()->routeIs('lecturer.grading') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
-            <i data-lucide="bar-chart-3" class="w-5 h-5 mb-1 text-slate-800"></i>
-            <span>Grading</span>
-        </a>
+                        <a href="{{ route('lecturer.grading') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('lecturer.grading') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">📊</span>
+                            <span>Grading</span>
+                        </a>
 
-        <a href="{{ route('lecturer.profile') }}" 
-        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
-                {{ request()->routeIs('lecturer.profile') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
-            <i data-lucide="user" class="w-5 h-5 mb-1 text-slate-800"></i>
-            <span>Profile</span>
-        </a>
+                        <a href="{{ route('lecturer.profile') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('lecturer.profile') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">◉</span>
+                            <span>Profile</span>
+                        </a>
 
-    @elseif(Auth::user()->role === 'admin')
-        {{-- Admin Menu --}}
-        <a href="{{ route('admin.dashboard') }}" 
-        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors">
-            <i data-lucide="shield-alert" class="w-5 h-5 mb-1 text-slate-800"></i>
-            <span>Admin</span>
-        </a>
-    @endif
-@endauth
+                    @elseif(Auth::user()->role === 'admin')
+                        {{-- Admin Menu (similar to lecturer but with extra) --}}
+                        <a href="{{ route('admin.dashboard') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors">
+                            <span class="text-xl mb-1">▣</span>
+                            <span>Admin</span>
+                        </a>
+                        {{-- Add other admin links as needed --}}
+                    @endif
+                @endauth
+
             </div>
 
             {{-- Bottom – Settings/Logout (if needed) --}}
@@ -160,26 +159,27 @@
             @yield('context_panel')
         </aside>
 
-       {{-- MAIN CONTENT WITH GRADIENT DEPTH --}}
-<main class="flex-1 bg-slate-50/70 overflow-y-auto custom-scrollbar relative min-h-screen">
-    
-    {{-- Decorative Ambient Glows (Adds subtle professional depth) --}}
-    <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-b from-indigo-50/40 via-transparent to-transparent rounded-full blur-3xl pointer-events-none z-0"></div>
-    <div class="absolute bottom-0 left-1/4 w-[600px] h-[600px] bg-gradient-to-t from-emerald-50/30 via-transparent to-transparent rounded-full blur-3xl pointer-events-none z-0"></div>
+        {{-- MAIN CONTENT --}}
+        <main class="flex-1 bg-[#F9F9F9] overflow-y-auto custom-scrollbar relative">
+            @yield('content')
+        </main>
 
-    {{-- Content Wrapper (Keeps your dashboard content on top of the background glows) --}}
-    <div class="relative z-10">
-        @yield('content')
     </div>
-    
-</main>
-    
+
+    {{-- FOOTER --}}
+    <footer class="h-6 bg-[#FAFAFA] border-t border-[#E5E5E5] flex items-center justify-between px-6 text-[11px] text-[#666666] font-medium flex-shrink-0">
+        <div>
+            <span class="inline-block w-1.5 h-1.5 bg-[#16A34A] rounded-full mr-2"></span>
+            System Status: <span class="text-[#000000] font-bold">Online</span>
+            <span class="mx-3">|</span>
+            Database: <span class="text-[#000000] font-bold">Connected</span>
+        </div>
+        <div class="space-x-4">
+            <a href="#" class="hover:underline">Privacy Policy</a>
+            <a href="#" class="hover:underline">Terms of Service</a>
+        </div>
+    </footer>
 
     @stack('scripts')
-
-    <script>
-  lucide.createIcons();
-</script>
 </body>
 </html>
-

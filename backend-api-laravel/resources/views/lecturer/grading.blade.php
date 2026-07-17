@@ -3,100 +3,66 @@
 @section('title', 'Grading Matrix')
 
 @section('context_panel')
-    <div class="p-4 border-b border-slate-200 flex items-center bg-white sticky top-0">
-        <a href="{{ route('lecturer.dashboard') }}" class="mr-3 text-slate-600 hover:text-blue-600 transition-colors">
-            <i data-lucide="arrow-left" class="size-5"></i>
-        </a>
-        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-800">Grading</h2>
+    <div class="p-4 border-b border-[#E5E5E5] flex items-center bg-white sticky top-0">
+        <a href="{{ route('lecturer.dashboard') }}" class="mr-3 font-bold text-sm hover:opacity-60">←</a>
+        <h2 class="text-sm font-bold uppercase tracking-wider text-[#000000]">Grading</h2>
     </div>
-
-    <div class="p-4 bg-white border-b border-slate-200">
-        <div class="grid grid-cols-2 gap-3">
-            <div class="bg-slate-50 rounded-lg p-3 text-center">
-                <p class="text-xl font-bold text-slate-800 flex items-center justify-center gap-1">
-                    <i data-lucide="users" class="size-4 text-blue-600"></i> {{ $students->count() }}
-                </p>
-                <p class="text-[10px] text-slate-500 uppercase tracking-wider">Students</p>
+    <div class="p-4 bg-white border-b border-[#E5E5E5]">
+        <p class="text-xs text-[#666666]">Participation marks based on activity</p>
+        <div class="grid grid-cols-2 gap-2 mt-3 text-center">
+            <div>
+                <p class="text-lg font-bold text-[#000000]">{{ $students->count() }}</p>
+                <p class="text-[8px] text-[#666666] uppercase tracking-wider">Students</p>
             </div>
-            <div class="bg-slate-50 rounded-lg p-3 text-center">
-                <p class="text-xl font-bold text-slate-800 flex items-center justify-center gap-1">
-                    <i data-lucide="percent" class="size-4 text-emerald-600"></i> {{ number_format($students->avg('participation_score') ?? 0, 0) }}%
-                </p>
-                <p class="text-[10px] text-slate-500 uppercase tracking-wider">Average Score</p>
+            <div>
+                <p class="text-lg font-bold text-[#000000]">{{ number_format($students->avg('participation_score') ?? 0, 0) }}%</p>
+                <p class="text-[8px] text-[#666666] uppercase tracking-wider">Average Score</p>
             </div>
         </div>
-        <div class="mt-3 flex items-center justify-center gap-2 text-xs text-slate-500 bg-slate-50 rounded-md px-3 py-1.5">
-            <i data-lucide="info" class="size-3"></i>
-            Scoring: Topics ×5 + Posts ×2
-        </div>
     </div>
-
-    <div class="flex-1 overflow-y-auto custom-scrollbar p-3">
-        {{-- Empty state or summary? We'll keep it simple --}}
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-2">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-[#666666] px-2 py-1">Scoring: Topics ×5 + Posts ×2</p>
     </div>
 @endsection
 
 @section('content')
-    <div class="flex flex-col h-full bg-slate-50">
-        {{-- Header --}}
-        <div class="bg-white border-b border-slate-200 px-8 py-6">
-            <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <i data-lucide="clipboard-check" class="size-6 text-blue-600"></i>
-                Grading Matrix
-            </h1>
-            <p class="text-sm text-slate-500 mt-1">Student participation scores</p>
+    <div class="flex flex-col h-full">
+        <div class="bg-white border-b border-[#E5E5E5] px-8 py-6">
+            <h1 class="text-xl font-bold text-[#000000]">Grading Matrix</h1>
+            <p class="text-sm text-[#666666] mt-1">Student participation scores</p>
         </div>
 
-        {{-- Student List --}}
         <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            <div class="max-w-4xl mx-auto space-y-3">
-                @forelse($students as $student)
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-md transition">
-                        {{-- Avatar + Name --}}
-                        <div class="flex items-center gap-3 flex-1 min-w-0">
-                            <div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-sm font-bold text-slate-700 flex-shrink-0">
-                                {{ strtoupper(substr($student->name, 0, 1)) }}
-                            </div>
-                            <div class="min-w-0">
-                                <p class="text-sm font-bold text-slate-800 truncate">{{ $student->name }}</p>
-                                <div class="flex items-center gap-3 text-xs text-slate-500">
-                                    <span class="flex items-center gap-1">
-                                        <i data-lucide="message-square" class="size-3"></i> {{ $student->topics_count }} topics
-                                    </span>
-                                    <span class="flex items-center gap-1">
-                                        <i data-lucide="message-circle" class="size-3"></i> {{ $student->posts_count }} posts
-                                    </span>
+            <div class="bg-white border border-[#E5E5E5]">
+                <div class="border-b border-[#E5E5E5] px-4 py-3 flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-[#666666]">Student Participation</h3>
+                    <span class="text-[10px] text-[#666666]">Topics ×5 + Posts ×2</span>
+                </div>
+                <div class="divide-y divide-[#E5E5E5]">
+                    @forelse($students as $student)
+                        <div class="px-4 py-3 flex items-center justify-between">
+                            <div class="flex-1 min-w-0">
+                                <span class="text-sm font-bold text-[#000000]">{{ $student->name }}</span>
+                                <div class="flex items-center space-x-3 mt-0.5">
+                                    <span class="text-[10px] text-[#666666]">{{ $student->topics_count }} topics</span>
+                                    <span class="text-[10px] text-[#666666]">•</span>
+                                    <span class="text-[10px] text-[#666666]">{{ $student->posts_count }} posts</span>
                                 </div>
                             </div>
-                        </div>
-
-                        {{-- Score bar --}}
-                        <div class="flex items-center gap-4 flex-shrink-0 w-full sm:w-auto">
-                            <div class="w-full sm:w-40 h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                                @php
-                                    $score = $student->participation_score;
-                                    $color = $score >= 70 ? 'bg-emerald-500' : ($score >= 40 ? 'bg-amber-500' : 'bg-red-500');
-                                @endphp
-                                <div class="h-full {{ $color }} rounded-full" style="width: {{ $score }}%;"></div>
+                            <div class="flex items-center space-x-4 flex-shrink-0 ml-4">
+                                <div class="w-24 h-2 bg-[#E5E5E5]">
+                                    <div class="h-full bg-[#000000]" style="width: {{ $student->participation_score }}%;"></div>
+                                </div>
+                                <span class="text-sm font-bold text-[#000000] w-8 text-right">{{ $student->participation_score }}%</span>
                             </div>
-                            <span class="text-sm font-bold text-slate-800 w-12 text-right tabular-nums">{{ $score }}%</span>
                         </div>
-                    </div>
-                @empty
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
-                        <i data-lucide="inbox" class="size-10 text-slate-300 mx-auto mb-3"></i>
-                        <p class="text-sm text-slate-500">No students found.</p>
-                    </div>
-                @endforelse
+                    @empty
+                        <div class="px-4 py-6 text-center">
+                            <p class="text-sm text-[#666666]">No students found.</p>
+                        </div>
+                    @endforelse
+                </div>
             </div>
         </div>
     </div>
 @endsection
-
-@push('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            lucide.createIcons();
-        });
-    </script>
-@endpush
