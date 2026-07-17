@@ -27,18 +27,16 @@
                 💬 Reply
             </button>
 
-            {{-- Pin Button (only for lecturers/admins) --}}
-            @if(in_array(Auth::user()->role, ['lecturer', 'admin']))
+            {{-- Pin Button (all authenticated users) --}}
+            @auth
                 <button class="pin-btn text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center space-x-1" data-post-id="{{ $post->id }}">
                     {{ $post->is_pinned ? '📌 Unpin' : '📌 Pin' }}
                 </button>
-            @endif
+            @endauth
 
-            {{-- Jump to thread (only visible when this post is displayed in the pinned section) --}}
+            {{-- Jump to thread (if in pinned section) --}}
             @if(isset($inPinned) && $inPinned)
-                <button class="jump-to-post text-xs text-[#2563EB] hover:underline transition-colors" data-post-id="{{ $post->id }}">
-                    ↳ Jump to thread
-                </button>
+                <button class="jump-to-post ...">↳ Jump to thread</button>
             @endif
         </div>
     </div>
