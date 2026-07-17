@@ -49,12 +49,11 @@
         {{-- Posts Container --}}
         <div id="posts-container" class="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
 
+            {{-- 🔽 Compact Pinned Section (Sticky, only if there are pinned posts) --}}
             @php
                 $pinnedPosts = $posts->where('is_pinned', true);
-                $normalPosts = $posts->where('is_pinned', false);
             @endphp
 
-            {{-- Sticky Pinned Section with Unpin Button --}}
             @if($pinnedPosts->count() > 0)
                 <div class="sticky top-0 z-10 bg-[#FAFAFA] border-l-4 border-[#000000] p-4 shadow-sm -mx-6 px-6">
                     <h4 class="text-[10px] font-bold uppercase tracking-wider text-[#666666] mb-2">📌 Pinned Messages</h4>
@@ -75,8 +74,8 @@
                 </div>
             @endif
 
-            {{-- Normal Posts --}}
-            @forelse($normalPosts as $post)
+            {{-- 🔽 All Posts (including pinned) – displayed in full --}}
+            @forelse($posts as $post)
                 @include('partials._post', ['post' => $post, 'inPinned' => false])
             @empty
                 <div class="bg-white border border-[#E5E5E5] p-12 text-center" id="empty-state">
