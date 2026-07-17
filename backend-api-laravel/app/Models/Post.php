@@ -6,14 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Post extends Model
 {
-    protected $fillable = [
-        'topic_id', 
-<<<<<<< HEAD
-        'parent_id',    // Threaded reply support
-=======
-        'parent_id',    
->>>>>>> origin/main
-        'user_id', 
+    protected $fillable = [        '
+       
         'content', 
         'is_private',
         'is_pinned',
