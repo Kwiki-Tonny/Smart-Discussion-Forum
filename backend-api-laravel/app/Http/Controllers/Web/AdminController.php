@@ -33,6 +33,7 @@ class AdminController extends Controller
         $totalPosts = Post::count();
         $totalQuizzes = Quiz::count();
         $totalSubmissions = QuizSubmission::count();
+        $groups = Group::withCount(['topics', 'users'])->get(); 
 
         // Pending registrations (users with status = 'pending')
         $pendingRegistrations = User::where('role', 'student')
@@ -70,7 +71,8 @@ class AdminController extends Controller
             'recentUsers',
             'recentTopics',
             'recentBlacklistLogs',
-            'userGrowth'
+            'userGrowth',
+            'groups'
         ));
     }
 
@@ -342,22 +344,23 @@ class AdminController extends Controller
     }
 
     /**
-     * Group Statistics
+     * Group Statistics – Detailed analytics for a single group (Admin)
      */
     public function groupStatistics($groupId)
     {
         $group = Group::withCount(['topics', 'users'])->findOrFail($groupId);
 
         // Daily activity (last 30 days)
-        $dailyActivity = Post::whereHas('topic', function($q) use ($groupId) {
-            $q->where('group_id', $groupId);
+        $dailyActivity = Post::whereHas('topic', function($query) use ($groupId) {
+            $query->where('group_id', $groupId);
         })
         ->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as count'))
         ->where('created_at', '>=', now()->subDays(30))
         ->groupBy('date')
         ->orderBy('date')
         ->get()
-        ->pluck('count', 'date');
+        ->pluck('count', 'date')
+        ->toArray();
 
         // Top topics by posts
         $topTopics = Topic::where('group_id', $groupId)
@@ -366,18 +369,19 @@ class AdminController extends Controller
             ->limit(5)
             ->get();
 
-        // User engagement: posts per user
-        $userEngagement = User::whereHas('groups', function($q) use ($groupId) {
-            $q->where('group_id', $groupId);
-        })
-        ->withCount(['posts' => function($q) use ($groupId) {
-            $q->whereHas('topic', function($t) use ($groupId) {
-                $t->where('group_id', $groupId);
-            });
-        }])
-        ->orderBy('posts_count', 'desc')
-        ->limit(10)
-        ->get();
+        // ✅ Top students (by posts) – ADD THIS
+        $topStudents = User::where('role', 'student')
+            ->whereHas('groups', function($query) use ($groupId) {
+                $query->where('group_id', $groupId);
+            })
+            ->withCount(['posts' => function($query) use ($groupId) {
+                $query->whereHas('topic', function($q) use ($groupId) {
+                    $q->where('group_id', $groupId);
+                });
+            }])
+            ->orderBy('posts_count', 'desc')
+            ->limit(10)
+            ->get();
 
         // Category distribution
         $categories = Topic::where('group_id', $groupId)
@@ -386,6 +390,25 @@ class AdminController extends Controller
             ->groupBy('ml_category')
             ->get();
 
-        return view('admin.group-statistics', compact('group', 'dailyActivity', 'topTopics', 'userEngagement', 'categories'));
+        // Lecturer who created the group
+        $lecturer = User::find($group->created_by);
+
+        return view('admin.group-statistics', compact(
+            'group',
+            'dailyActivity',
+            'topTopics',
+            'topStudents',   // ✅ ADD THIS
+            'categories',
+            'lecturer'
+        ));
+    }
+
+    /**
+     * List all groups with analytics links (Admin)
+     */
+    public function groupsList()
+    {
+        $groups = Group::withCount(['topics', 'users'])->orderBy('name')->get();
+        return view('admin.groups-list', compact('groups'));
     }
 }

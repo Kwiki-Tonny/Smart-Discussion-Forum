@@ -52,7 +52,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/groups/{group}/agree', [StudentController::class, 'agreeRules'])->name('groups.agree');
     Route::post('/groups/{group}/decline', [StudentController::class, 'declineRules'])->name('groups.decline');
     Route::post('/groups/{group}/join', [StudentController::class, 'joinGroup'])->name('groups.join');
-    Route::post('/groups/{group}/leave', [StudentController::class, 'leaveGroup'])->name('groups.leave'); // NEW
+    Route::post('/groups/{group}/leave', [StudentController::class, 'leaveGroup'])->name('groups.leave');
 
     // ---------- Topics ----------
     Route::get('/topics/create', [StudentController::class, 'createTopic'])->name('topics.create');
@@ -134,6 +134,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/configuration', [AdminController::class, 'configuration'])->name('admin.configuration');
         Route::post('/configuration', [AdminController::class, 'updateConfiguration'])->name('admin.configuration.update');
         Route::get('/group/{group}/statistics', [AdminController::class, 'groupStatistics'])->name('admin.group.statistics');
+        Route::get('/groups', [AdminController::class, 'groupsList'])->name('admin.groups');
     });
 
 

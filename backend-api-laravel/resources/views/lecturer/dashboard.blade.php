@@ -47,7 +47,7 @@
     <div class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
         <p class="text-[10px] font-bold uppercase tracking-wider text-[#666666] px-2 py-1">Your Groups</p>
         @foreach($groups as $group)
-            <a href="{{ route('lecturer.group.analytics', $group->id) }}"
+            <a href="{{ route('groups.topics', $group->id) }}"
                class="block px-3 py-2 bg-white hover:bg-[#F5F5F5] transition-colors border border-[#E5E5E5]">
                 <div class="flex justify-between items-center">
                     <span class="text-sm font-bold text-[#000000]">{{ $group->name }}</span>

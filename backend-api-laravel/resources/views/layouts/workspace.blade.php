@@ -102,7 +102,7 @@
                             <span>Dashboard</span>
                         </a>
 
-                        {{-- NEW: My Groups (management) --}}
+                        {{-- My Groups (management) --}}
                         <a href="{{ route('lecturer.groups') }}" 
                         class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
                                 {{ request()->routeIs('lecturer.groups*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
@@ -110,7 +110,7 @@
                             <span>My Groups</span>
                         </a>
 
-                        {{-- Groups (participation – student view) --}}
+                        {{-- All Groups (participation) --}}
                         <a href="{{ route('groups.index') }}" 
                         class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
                                 {{ request()->routeIs('groups.*') && !request()->routeIs('lecturer.groups*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
@@ -145,26 +145,38 @@
                         class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
                                 {{ request()->routeIs('admin.dashboard') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
                             <span class="text-xl mb-1">▣</span>
-                            <span>Admin</span>
+                            <span>Dashboard</span>
                         </a>
+
+                        {{-- ✅ Analytics (Groups List) --}}
+                        <a href="{{ route('admin.groups') }}" 
+                        class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
+                                {{ request()->routeIs('admin.groups*') || request()->routeIs('admin.group.statistics*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
+                            <span class="text-xl mb-1">▤</span>
+                            <span>Analytics</span>
+                        </a>
+
                         <a href="{{ route('admin.users') }}" 
                         class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
                                 {{ request()->routeIs('admin.users*') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
                             <span class="text-xl mb-1">👥</span>
                             <span>Users</span>
                         </a>
+
                         <a href="{{ route('admin.registrations') }}" 
                         class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
                                 {{ request()->routeIs('admin.registrations') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
                             <span class="text-xl mb-1">📋</span>
                             <span>Registrations</span>
                         </a>
+
                         <a href="{{ route('admin.blacklist') }}" 
                         class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
                                 {{ request()->routeIs('admin.blacklist') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
                             <span class="text-xl mb-1">🚫</span>
                             <span>Blacklist</span>
                         </a>
+
                         <a href="{{ route('admin.configuration') }}" 
                         class="flex flex-col items-center text-center text-[10px] font-medium w-full py-3 transition-colors
                                 {{ request()->routeIs('admin.configuration') ? 'bg-white border-y border-[#E5E5E5] text-[#000000] font-bold' : 'text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]' }}">
@@ -176,14 +188,10 @@
 
             </div>
 
-<!--             {{-- Bottom – Settings (optional) --}}
+            {{-- Bottom – Settings (optional) --}}
             <div class="flex flex-col space-y-6 w-full items-center border-t border-[#E5E5E5] pt-4">
-                <a href="#" 
-                class="flex flex-col items-center text-center text-[10px] font-medium w-full py-2 transition-colors text-[#666666] hover:text-[#000000] hover:bg-[#F0F0F0]">
-                    <span class="text-base mb-1">⚙</span>
-                    <span>Settings</span>
-                </a>
-            </div> -->
+                <!-- Removed dummy settings button -->
+            </div>
         </nav>
 
         {{-- CONTEXT PANEL --}}

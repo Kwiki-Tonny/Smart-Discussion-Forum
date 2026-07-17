@@ -15,7 +15,7 @@
     </div>
     <div class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
         @forelse($groups as $group)
-            <a href="{{ route('lecturer.group.analytics', $group->id) }}"
+            <a href="{{ route('groups.topics', $group->id) }}"
                class="block px-3 py-2 bg-white hover:bg-[#F5F5F5] transition-colors border border-[#E5E5E5]">
                 <div class="flex justify-between items-center">
                     <span class="text-sm font-bold text-[#000000]">{{ $group->name }}</span>
@@ -67,6 +67,10 @@
                             <span>{{ $group->topics_count ?? 0 }} topics</span>
                         </div>
                         <div class="flex items-center space-x-2 mt-3">
+                            <a href="{{ route('groups.topics', $group->id) }}"
+                               class="flex-1 text-center text-[10px] font-bold uppercase tracking-wider border border-[#000000] px-2 py-1 hover:bg-[#000000] hover:text-white transition-colors">
+                                Topics
+                            </a>
                             <a href="{{ route('lecturer.group.analytics', $group->id) }}"
                                class="flex-1 text-center text-[10px] font-bold uppercase tracking-wider border border-[#000000] px-2 py-1 hover:bg-[#000000] hover:text-white transition-colors">
                                 Analytics

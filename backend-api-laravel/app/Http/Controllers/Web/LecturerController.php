@@ -33,7 +33,7 @@ class LecturerController extends Controller
             ->orderBy('name')
             ->get();
 
-        $totalGroups = $groups->count(); 
+        $totalGroups = $groups->count();
 
         // Only students in lecturer's groups
         $studentIds = DB::table('group_user')
@@ -96,7 +96,7 @@ class LecturerController extends Controller
 
         return view('lecturer.dashboard', compact(
             'groups',
-            'totalGroups', 
+            'totalGroups',
             'totalStudents',
             'totalTopics',
             'totalPosts',
