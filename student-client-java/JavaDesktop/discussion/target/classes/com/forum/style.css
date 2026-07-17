@@ -1,0 +1,7 @@
+.container{
+    -fx-display: flex;
+    -fx-background-color:blue;
+}
+.pane{
+    -fx-alignment: center;
+}
