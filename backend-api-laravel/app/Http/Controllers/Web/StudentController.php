@@ -1063,18 +1063,29 @@ class StudentController extends Controller
     /**
      * pinned message for a group      
      */
+/**
+ * Toggle pin status of a post (any authenticated user)
+ */
     public function togglePin($postId)
     {
+        $user = Auth::user();
+
+        // Allow any authenticated user to pin/unpin
+        // (No role check – everyone can pin)
+
         $post = Post::findOrFail($postId);
-        // Authorization: only the topic creator or lecturer/admin can pin
-        $topic = $post->topic;
-        if (!Auth::user()->can('pin', $post)) { // define policy or check role
-            abort(403);
-        }
+
+        // Optional: Only allow pinning if the user is in the same group?
+        // You may add additional logic if needed.
+
         $post->is_pinned = !$post->is_pinned;
         $post->save();
 
-        return redirect()->back()->with('success', $post->is_pinned ? 'Post pinned!' : 'Post unpinned.');
+        return response()->json([
+            'success' => true,
+            'message' => $post->is_pinned ? 'Post pinned!' : 'Post unpinned.',
+            'is_pinned' => $post->is_pinned
+        ]);
     }
 
 }

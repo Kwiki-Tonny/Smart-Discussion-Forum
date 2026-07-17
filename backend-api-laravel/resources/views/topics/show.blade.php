@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const postsContainer = document.getElementById('posts-container');
                     const mainReplyForm = document.getElementById('main-reply-form');
                     
-                    // 🆕 Remove empty state if present
+                    // Remove empty state if present
                     const emptyState = postsContainer.querySelector('.bg-white.border.border-\\[\\#E5E5E5\\]\\.p-12\\.text-center');
                     if (emptyState) emptyState.remove();
 
@@ -345,6 +345,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         </button>
                         <button class="reply-toggle text-xs text-[#666666] hover:text-[#000000] transition-colors" data-post-id="${post.id}">
                             💬 Reply
+                        </button>
+                        <button class="pin-btn text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center space-x-1" data-post-id="${post.id}">
+                        ${post.is_pinned ? '📌 Unpin' : '📌 Pin'}
                         </button>
                     </div>
                 </div>
@@ -510,6 +513,49 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
+    //PIN/UNPIN POST HANDLER
+    // ============================================================
+    function bindPinEvents() {
+    document.querySelectorAll('.pin-btn').forEach(button => {
+        button.removeEventListener('click', pinHandler);
+        button.addEventListener('click', pinHandler);
+    });
+}
+
+function pinHandler(e) {
+    const button = e.currentTarget;
+    const postId = button.dataset.postId;
+
+    button.disabled = true;
+    const originalText = button.textContent;
+
+    fetch('{{ url("/posts") }}/' + postId + '/pin', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload the page to reorder posts
+            window.location.reload();
+        } else {
+            alert(data.message || 'Failed to pin/unpin.');
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling pin:', error);
+        alert('An error occurred. Please try again.');
+    })
+    .finally(() => {
+        button.disabled = false;
+    });
+}
+
+    // ============================================================
     // 7. CLEANUP ON PAGE UNLOAD
     // ============================================================
     window.addEventListener('beforeunload', function() {
@@ -526,6 +572,7 @@ document.addEventListener('DOMContentLoaded', function() {
     bindReplyToggles();
     bindReplyForms();
     bindLikeEvents();
+    bindPinEvents();
 
     // Start long polling after 3 seconds
     setTimeout(startLongPoll, 3000);

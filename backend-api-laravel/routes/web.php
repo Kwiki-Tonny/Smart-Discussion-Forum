@@ -64,6 +64,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/posts', [StudentController::class, 'storePost'])->name('posts.store');
     Route::post('/posts/{post}/like', [StudentController::class, 'toggleLike'])->name('posts.like');
     Route::post('/posts/reply', [StudentController::class, 'storeReply'])->name('posts.reply');
+    Route::post('/posts/{post}/pin', [StudentController::class, 'togglePin'])->name('posts.pin');
 
     // ---------- Student Quizzes ----------
     Route::get('/quizzes', [StudentController::class, 'quizIndex'])->name('student.quizzes');
