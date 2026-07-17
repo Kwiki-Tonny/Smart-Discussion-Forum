@@ -1,0 +1,89 @@
+[33m1f15438[m[33m ([m[1;31morigin/web-client-and-analytics[m[33m)[m style: transform dashboard layout and recent topics feed with premium design
+[33md9b03ea[m chore: resolve merge conflicts in show template
+[33m8790b11[m chore: update Web-analytics.md to add dashboard color change note
+[33m7d3601b[m chore: update Web-analytics.md to include UI button styling notes
+[33m5dd202f[m chore: add Web-analytics.md for tracking system changes
+[33ma0d4fba[m Merge branch origin/main and resolve final login view template conflicts
+[33m63d4779[m feat: fix model relationships, add TopicController, and update topic views
+[33m42db382[m[33m ([m[1;32mmain[m[33m)[m Merge pull request #7 from Kwiki-Tonny/JavaUI
+[33m929138d[m new changes
+[33mddc412e[m Merge pull request #5 from Kwiki-Tonny/revert-4-JavaUI
+[33m451e4a7[m Sprint 2: Added Rules Gate, Access Denied page, Student Dashboard with groups and topics
+[33m1822a87[m changed
+[33mb431be7[m icon added
+[33m188540c[m black n white
+[33m9771336[m Remove page numbering from PDF footer
+[33m35aec85[m Implement CSS-based page numbering for PDF export, removing PHP script for page count
+[33m77ae9cb[m Add page numbering to PDF footer with dynamic page script
+[33m69e2e1a[m Enhance PDF export functionality to include nested replies for discussion topics
+[33m67c701d[m Add PDF view template for discussion post with nested replies
+[33m1a37755[m Enhance PDF layout and styling for discussion topic, improving readability and visual consistency
+[33m9387fbe[m Refactor PDF export filename generation to use Str::slug for consistency
+[33ma008e69[m Add PDF view for discussion topic with post details and private post indication
+[33mcce9c07[m Implement PDF export for topic using DomPDF
+[33m5ff752c[m Update timezone configuration to use environment variable
+[33mcdfaef3[m Refactor Quiz model: enhance documentation, add methods for status label and color, and improve remaining time calculation
+[33m8e01e5d[m Refactor quiz submission: optimize quiz retrieval, add auto submission flag, and clean up answer saving logic
+[33m830b992[m Enhance quiz submission: support text input answers, improve error handling, and add CSRF token validation
+[33m6b55bb0[m Refactor quiz retrieval logic: enhance quiz filtering to include only active quizzes and adjust ordering by start date
+[33m1a69696[m Add QuizQuestion and QuizAnswer models import in LecturerController
+[33mb8b63ab[m Add quiz results link: implement "View Results" button for completed quizzes
+[33m4099c84[m Add performance report view: implement score display, question summary, and answer breakdown
+[33m1cefb37[m Add performance report functionality for quizzes: implement user submission retrieval, statistics calculation, and answer breakdown
+[33m622ce3a[m Add System Configuration view: implement inactivity settings and blacklist management functionalities
+[33m2060f37[m Add System Configuration view: implement inactivity settings and blacklist management functionalities
+[33m737d473[m Add Blacklist Management view: implement user blacklisting and logs functionalities
+[33m92e161e[m Add Registration Queue view: implement pending and approved user management functionalities
+[33m6e4661c[m Add User Management view: implement user statistics, filters, and user list functionalities
+[33mf7a7c40[m Add Admin Dashboard view: implement overview and management functionalities
+[33m2c2077c[m Add Admin routes: implement user management and configuration functionalities
+[33mf9b8eea[m Add AdminController: implement user management and dashboard functionalities
+[33m9495f13[m Enhance login functionality: update last communication timestamp and redirect users based on role
+[33m8199f85[m Add lecturer profile view: implement user statistics and account details
+[33m9d553d2[m Add lecturer profile route: implement profile view functionality
+[33m553e8bf[m Add lecturer profile view: implement profile stats and group management
+[33md242840[m Enhance sidebar navigation: add role-based menu items for students, lecturers, and admins
+[33m478d1c2[m Add bulk question addition feature for quizzes and update related UI
+[33mf61598d[m css file
+[33m289e373[m UI changes
+[33m8615c78[m Add quiz status update command and enhance quiz display logic
+[33m63e88f4[m Implement quiz management features: add edit, store question, delete question, and toggle status functionality
+[33m5d4d274[m Add quiz take and available quizzes views: implement quiz interface and display logic
+[33m5319a1e[m Refactor quiz handling: improve eligibility checks and enhance submission response
+[33mb8029e7[m Add student quiz routes: list quizzes, take quiz, and submit quiz responses
+[33m490906b[m Add quiz management features: display available quizzes, handle quiz attempts, and submit quiz responses
+[33mfe15633[m Refactor quiz creation to cast duration to integer and calculate end time based on start time
+[33m98018e7[m Add grading matrix, quiz creation, and results views for lecturer management
+[33mc80ec27[m Add lecturer dashboard and group analytics views with routing
+[33m996c60a[m Add LecturerController for managing lecturer dashboard and analytics
+[33m2a8ad5d[m Add stateless long polling implementation for topic updates
+[33m4b4c267[m Comment out SSE route for topic updates in web.php
+[33m085da1c[m Refactor storePost and sseStream methods for improved clarity and performance
+[33m913de96[m Refactor long polling implementation and cleanup event bindings
+[33me1f674a[m Add long polling functionality for new posts in topic discussions
+[33mbd03813[m Add long polling route for topic updates in StudentController
+[33med3637c[m Add long polling support for new posts in topic discussions
+[33mfdb9d1d[m Add SSE support for real-time topic updates and notifications
+[33md2f88c6[m Add SSE stream for topic updates in StudentController
+[33mc956b01[m Add SSE route for topic streaming in StudentController
+[33m4175f1a[m Refactor show view: improve event binding for reply toggles and forms, and enhance like functionality
+[33m4631882[m Refactor post view: enhance AJAX handling for likes and replies, and improve reply form structure
+[33m533b0cb[m Refactor show view: enhance AJAX handling for replies and likes, and improve post creation logic
+[33m1edbc3e[m Refactor storePost method: update to return JSON response with post details
+[33mb4fc355[m Refactor storeReply method: update to return JSON response with post details
+[33m024fc65[m Refactor toggleLike method: update to use AJAX response and return like count
+[33m9fd57e8[m Add reply functionality to posts: implement route for storing replies
+[33m67724eb[m Refactor topic creation: update ML classifier comment and fix redirect to group topics list
+[33m77b4843[m Fix profile link in sidebar: update href to use route for user profile
+[33m1dd4477[m Add missing model imports: include BlacklistLog and UserInteraction in StudentController
+[33m8da80df[m Refactor profile layout: enhance user info display, adjust quick stats styling, and improve navigation tab design
+[33m94478a5[m Add student profile page: implement user stats, recent activity, and recommendations
+[33m6e7470a[m Add profile route: implement route for user profile access in the student dashboard
+[33m5d874b3[m Add user profile view: implement profile layout, user info display, quick stats, and activity tabs
+[33md205c42[m Enhance dashboard layout: update group navigation, add available groups section, and improve recommendations display with affinity scores.
+[33med7c774[m Add link to recommendations in sidebar navigation
+[33m2c18f0b[m Add daily schedule for moderation monitoring command
+[33mea6bb32[m Add recommendations view: implement personalized topic suggestions and display affinity scores based on user activity
+[33mad00a2a[m Refactor ModerationMonitor command: enhance user inactivity monitoring logic, integrate detailed logging for warnings and blacklisting, and improve notification handling.
+[33m23fe400[m Add route for recommendations in StudentController
+[33md32e28f[m Add recommendations method to d
