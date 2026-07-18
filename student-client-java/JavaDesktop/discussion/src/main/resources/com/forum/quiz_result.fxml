@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx/17"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.demo.QuizResultController"
+      spacing="0"
+      style="-fx-background-color: #f5f5f5;">
+
+    <HBox style="-fx-padding: 12px 16px; -fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0;">
+        <Label text="📊 Quiz Results" style="-fx-font-size: 14px; -fx-font-weight: 700; -fx-text-fill: #000000;"/>
+    </HBox>
+
+    <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent; -fx-background: transparent;">
+        <VBox fx:id="resultsList" spacing="1" style="-fx-background-color: #f5f5f5;"/>
+    </ScrollPane>
+
+</VBox>
