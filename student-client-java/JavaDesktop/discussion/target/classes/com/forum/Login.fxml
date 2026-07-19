@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Text?>
+
+<VBox xmlns="http://javafx.com/javafx/17"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.forum.LoginController"
+      stylesheets="/com/forum/style.css"
+      styleClass="login-screen"
+      alignment="CENTER"
+      spacing="0">
+
+    <VBox styleClass="login-card" maxWidth="420" minWidth="350">
+        <!-- Header -->
+        <VBox alignment="CENTER" spacing="4">
+            <Text styleClass="logo">Smart Discussion</Text>
+            <Text styleClass="sub">Java Client Workspace</Text>
+        </VBox>
+
+        <VBox spacing="16" styleClass="login-fields">
+            <!-- Email -->
+            <VBox spacing="4">
+                <Label styleClass="field-label">WORKSPACE EMAIL</Label>
+                <TextField fx:id="emailField" styleClass="field-input" text="" promptText="Enter your workspace email"/>
+            </VBox>
+
+            <!-- Password -->
+            <VBox spacing="4">
+                <Label styleClass="field-label">PASSWORD</Label>
+                <PasswordField fx:id="passwordField" styleClass="field-input" text="**********" promptText="••••••••"/>
+            </VBox>
+
+            <!-- Options Row: Remember me + Forgot password -->
+            <HBox alignment="CENTER_LEFT" spacing="12">
+                <CheckBox fx:id="rememberCheck" text="Remember me" styleClass="remember-check"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Hyperlink text="Forgot password?" onAction="#handleForgotPassword" styleClass="forgot-link"/>
+            </HBox>
+
+            <!-- Error label -->
+            <Label fx:id="errorLabel" styleClass="login-error" visible="false" text="Invalid credentials. Please try again." wrapText="true"/>
+
+            <!-- Login Button – use maxWidth="Infinity" or simply set maxWidth to a large number -->
+            <Button fx:id="loginButton" styleClass="login-btn" text="ACCESS WORKSPACE" onAction="#handleLogin" maxWidth="Infinity"/>
+
+            <!-- Additional links -->
+            <HBox alignment="CENTER" spacing="4" styleClass="register-link">
+                <Text>Don't have an account?</Text>
+                <Hyperlink text="Register" onAction="#handleRegister"/>
+            </HBox>
+            <HBox alignment="CENTER" spacing="4" styleClass="trouble-link">
+                <Hyperlink text="Trouble logging in? Contact Administrator" onAction="#handleContactAdmin"/>
+            </HBox>
+        </VBox>
+
+        <!-- Footer -->
+        <HBox alignment="CENTER" spacing="16" styleClass="login-footer">
+            <HBox alignment="CENTER" spacing="8">
+                <Text styleClass="footer-icon">🔒</Text>
+                <Text styleClass="footer-label">Secure</Text>
+            </HBox>
+            <HBox alignment="CENTER" spacing="8">
+                <Text styleClass="footer-icon">🔐</Text>
+                <Text styleClass="footer-label">Encrypted</Text>
+            </HBox>
+            <HBox alignment="CENTER" spacing="8">
+                <Text styleClass="footer-icon">🟢</Text>
+                <Text styleClass="footer-label">Online</Text>
+            </HBox>
+        </HBox>
+
+        <HBox alignment="CENTER" spacing="16" styleClass="login-footer-links">
+            <Hyperlink text="Privacy Policy" onAction="#handlePrivacyPolicy"/>
+            <Text styleClass="separator-dot">•</Text>
+            <Hyperlink text="Terms of Service" onAction="#handleTermsOfService"/>
+        </HBox>
+    </VBox>
+</VBox>

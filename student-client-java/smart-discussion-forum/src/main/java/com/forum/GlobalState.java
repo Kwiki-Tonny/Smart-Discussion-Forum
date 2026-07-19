@@ -1,3 +1,4 @@
+package com.forum;
 public class GlobalState{
 
     private static volatile boolean isOnline = false;
