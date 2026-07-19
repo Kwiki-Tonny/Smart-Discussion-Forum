@@ -7,8 +7,8 @@
 
 <VBox xmlns="http://javafx.com/javafx/17"
       xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.demo.LoginController"
-      stylesheets="/com/demo/style.css"
+      fx:controller="com.forum.LoginController"
+      stylesheets="/com/forum/style.css"
       styleClass="login-screen"
       alignment="CENTER"
       spacing="0">

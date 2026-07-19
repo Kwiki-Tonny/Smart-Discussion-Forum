@@ -8,8 +8,8 @@
 
 <BorderPane xmlns="http://javafx.com/javafx/17"
             xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="com.demo.MainController"
-            stylesheets="/com/demo/style.css"
+            fx:controller="com.forum.MainController"
+            stylesheets="/com/forum/style.css"
             styleClass="main-window">
 
     <!-- TOP BAR -->
