@@ -1,4 +1,4 @@
-package com.forum;
+package com.forum.Controllers;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;

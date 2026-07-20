@@ -206,7 +206,7 @@
 
 /* Sidebar */
 .sidebar {
-    -fx-background-color: #ffffff;
+    -fx-background-color:purple;
     -fx-padding: 16px 0 12px 0;
     -fx-min-width: 72px;
     -fx-pref-width: 72px;
