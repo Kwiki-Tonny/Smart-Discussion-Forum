@@ -7,8 +7,8 @@
 
 <VBox xmlns="http://javafx.com/javafx/17"
       xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.forum.QuizController"
-      stylesheets="/com/forum/style.css"
+      fx:controller="com.forum.Controllers.QuizController"
+      stylesheets="/com/forum/CSS files/style.css"
       styleClass="quiz-embedded"
       spacing="0"
       VBox.vgrow="ALWAYS">

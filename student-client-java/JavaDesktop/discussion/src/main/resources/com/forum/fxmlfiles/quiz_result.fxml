@@ -6,7 +6,7 @@
 
 <VBox xmlns="http://javafx.com/javafx/17"
       xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.forum.QuizResultsController"
+      fx:controller="com.forum.Controllers.QuizResultsController"
       spacing="0"
       style="-fx-background-color: #f5f5f5;">
 

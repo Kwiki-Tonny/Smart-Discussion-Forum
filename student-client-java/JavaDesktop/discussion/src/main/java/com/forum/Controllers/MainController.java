@@ -391,7 +391,7 @@ public void showResults() {
 
     // Load the quiz result list into the left panel
     try {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/quiz_result.fxml"));
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/fxmlfiles/quiz_result.fxml"));
         Parent listView = loader.load();
 
         QuizResultsController controller = loader.getController();
@@ -570,7 +570,7 @@ public void showResults() {
             root.getChildren().addAll(header, body, footer);
 
             Scene scene = new Scene(root);
-            scene.getStylesheets().add(getClass().getResource("/com/demo/style.css").toExternalForm());
+            scene.getStylesheets().add(getClass().getResource("/com/forum/css/style.css").toExternalForm());
             rulesStage.setScene(scene);
             rulesStage.showAndWait();
 
@@ -1113,7 +1113,7 @@ public void showResults() {
             root.getChildren().addAll(header, body, footer);
 
             Scene scene = new Scene(root);
-            scene.getStylesheets().add(getClass().getResource("/com/demo/style.css").toExternalForm());
+            scene.getStylesheets().add(getClass().getResource("/com/forum/css/style.css").toExternalForm());
             createStage.setScene(scene);
             createStage.showAndWait();
 
@@ -1157,7 +1157,7 @@ public void showResults() {
      */
    private void startQuiz(int quizIndex, String quizTitle) {
     try {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/Quiz.fxml"));
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/fxmlfiles/Quiz.fxml"));
         Parent quizView = loader.load();
         QuizController controller = loader.getController();
 
@@ -1186,9 +1186,9 @@ public void showResults() {
     public void handleLogout() {
         javafx.stage.Stage stage = (javafx.stage.Stage) contextTitle.getScene().getWindow();
         try {
-            Parent loginRoot = FXMLLoader.load(getClass().getResource("/com/forum/Login.fxml"));
+            Parent loginRoot = FXMLLoader.load(getClass().getResource("/com/forum/fxmlfiles/Login.fxml"));
             Scene loginScene = new Scene(loginRoot, 400, 500);
-            loginScene.getStylesheets().add(getClass().getResource("/com/forum/style.css").toExternalForm());
+            loginScene.getStylesheets().add(getClass().getResource("/com/forum/css/style.css").toExternalForm());
             stage.setScene(loginScene);
             stage.setResizable(true);
             stage.setTitle("Smart Discussion Forum");
