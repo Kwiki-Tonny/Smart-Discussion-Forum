@@ -11,6 +11,7 @@ use App\Models\Quiz;
 use App\Models\BlacklistLog;
 use App\Models\QuizSubmission;
 use App\Notifications\UserApproved;
+use App\Notifications\AccountBlacklisted;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -269,8 +270,11 @@ class AdminController extends Controller
 
         $user = User::findOrFail($validated['user_id']);
 
+        // ✅ Force cast to integer
+        $duration = (int) $validated['duration'];
+        $user->blacklist_expires_at = now()->addDays($duration);
+
         $user->status = 'blacklisted';
-        $user->blacklist_expires_at = now()->addDays($validated['duration']);
         $user->save();
 
         // Revoke all tokens
@@ -283,6 +287,9 @@ class AdminController extends Controller
             'expires_at' => $user->blacklist_expires_at,
         ]);
 
+        //send email
+        $user->notify(new AccountBlacklisted($user->blacklist_expires_at));
+        
         return redirect()->route('admin.blacklist')
             ->with('success', 'User blacklisted successfully.');
     }
