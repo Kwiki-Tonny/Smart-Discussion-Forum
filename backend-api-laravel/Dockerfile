@@ -31,8 +31,11 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy application files
+# Copy application files (including storage/certs/ca.pem)
 COPY . .
+
+# ✅ Copy SSL certificate explicitly (if it exists)
+COPY storage/certs/ca.pem /var/www/html/storage/certs/ca.pem 2>/dev/null || true
 
 # Install PHP dependencies (production only)
 RUN composer install --no-interaction --optimize-autoloader --no-dev
