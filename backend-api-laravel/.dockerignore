@@ -12,6 +12,13 @@ rr
 frankenphp
 vendor
 
+/node_modules
+/vendor
+/public/storage
+.env
+.git
+storage/*.key
+
 # 2. Ignore common files/directories we don't need
 fly.toml
 .vscode
