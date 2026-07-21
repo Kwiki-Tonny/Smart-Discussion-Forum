@@ -1,4 +1,3 @@
-
 /* ───────────── RESET & BASE ───────────── */
 * {
     -fx-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -9,7 +8,6 @@
     -fx-text-fill: #1e293b;
 }
 
-/* ───────────── LOGIN SCREEN ───────────── */
 /* ───────────── LOGIN SCREEN ───────────── */
 .login-screen {
     -fx-background-color: #f0f2f5;
@@ -60,7 +58,7 @@
 }
 
 .field-input:focused {
-    -fx-border-color: #000000;
+    -fx-border-color: #1A7A64; /* teal border on focus */
     -fx-border-width: 2px;
 }
 
@@ -83,8 +81,9 @@
     -fx-text-fill: #1d4ed8;
 }
 
+/* LOGIN BUTTON – changed to dark teal green */
 .login-btn {
-    -fx-background-color: #000000;
+    -fx-background-color: #1A7A64;
     -fx-text-fill: #ffffff;
     -fx-font-size: 14px;
     -fx-font-weight: 700;
@@ -96,7 +95,7 @@
 }
 
 .login-btn:hover {
-    -fx-background-color: #333333;
+    -fx-background-color: #135f4e; /* darker teal on hover */
 }
 
 .register-link {
@@ -155,7 +154,7 @@
 }
 
 .login-footer-links .hyperlink:hover {
-    -fx-text-fill: #000000;
+    -fx-text-fill: #1A7A64;
 }
 
 .separator-dot {
@@ -196,7 +195,7 @@
 }
 
 .logout-btn:hover {
-    -fx-text-fill: #000000;
+    -fx-text-fill: #1A7A64;
 }
 
 /* Body Area */
@@ -206,7 +205,7 @@
 
 /* Sidebar */
 .sidebar {
-    -fx-background-color:purple;
+    -fx-background-color: #ffffff;
     -fx-padding: 16px 0 12px 0;
     -fx-min-width: 72px;
     -fx-pref-width: 72px;
@@ -225,12 +224,12 @@
 }
 
 .sidebar .nav-btn:hover {
-    -fx-background-color: #2a2a2a;
+    -fx-background-color: #1A7A64;
     -fx-text-fill: #ffffff;
 }
 
 .sidebar .nav-btn.active {
-    -fx-background-color: #2a2a2a;
+    -fx-background-color: #1A7A64;  /* changed from #2a2a2a to teal */
     -fx-text-fill: #ffffff;
 }
 
@@ -292,7 +291,7 @@
 }
 
 .context-panel .header .action-btn:hover {
-    -fx-text-fill: #000000;
+    -fx-text-fill: #1A7A64;
 }
 
 .context-list {
@@ -369,7 +368,7 @@
 }
 
 .thread-area .back-link:hover {
-    -fx-text-fill: #000000;
+    -fx-text-fill: #1A7A64;
 }
 
 .thread-area .thread-title {
@@ -398,7 +397,8 @@
 }
 
 .thread-area .thread-actions .action-btn:hover {
-    -fx-background-color: #f0f0f0;
+    -fx-background-color: #1A7A64;
+    -fx-text-fill: #ffffff;
 }
 
 /* Posts */
@@ -481,7 +481,8 @@
 }
 
 .post .post-actions .action-btn:hover {
-    -fx-background-color: #f0f0f0;
+    -fx-background-color: #1A7A64;
+    -fx-text-fill: #ffffff;
 }
 
 .post .replies {
@@ -517,7 +518,7 @@
 }
 
 .reply-form .reply-text:focused {
-    -fx-border-color: #000000;
+    -fx-border-color: #1A7A64;
     -fx-background-color: #ffffff;
 }
 
@@ -533,7 +534,7 @@
 }
 
 .reply-form .actions .post-btn {
-    -fx-background-color: #000000;
+    -fx-background-color: #1A7A64;
     -fx-text-fill: #ffffff;
     -fx-font-size: 13px;
     -fx-font-weight: 600;
@@ -544,7 +545,7 @@
 }
 
 .reply-form .actions .post-btn:hover {
-    -fx-background-color: #333333;
+    -fx-background-color: #135f4e;
 }
 
 /* Footer */
@@ -585,7 +586,7 @@
 }
 
 .quiz-modal .modal-header {
-    -fx-background-color: #000000;
+    -fx-background-color: #1A7A64; /* changed from black to teal */
     -fx-padding: 16px 20px;
     -fx-border-radius: 16px 16px 0 0;
     -fx-background-radius: 16px 16px 0 0;
@@ -641,7 +642,7 @@
 
 .quiz-modal .modal-body .options .option .radio,
 .quiz-modal .modal-body .options .option .checkbox {
-    -fx-accent-color: #000000;
+    -fx-accent-color: #1A7A64;
 }
 
 .quiz-modal .modal-body .progress {
@@ -657,7 +658,7 @@
 }
 
 .quiz-modal .modal-body .progress .bar .fill {
-    -fx-background-color: #000000;
+    -fx-background-color: #1A7A64; /* changed to teal */
     -fx-background-radius: 4px;
 }
 
@@ -690,7 +691,7 @@
 }
 
 .quiz-modal .modal-footer .btn-primary {
-    -fx-background-color: #000000;
+    -fx-background-color: #1A7A64; /* changed from black to teal */
     -fx-text-fill: #ffffff;
     -fx-font-size: 13px;
     -fx-font-weight: 600;
@@ -701,7 +702,7 @@
 }
 
 .quiz-modal .modal-footer .btn-primary:hover {
-    -fx-background-color: #333333;
+    -fx-background-color: #135f4e;
 }
 
 .quiz-modal .modal-footer .btn-success {
@@ -749,7 +750,7 @@
 }
 
 .rules-modal .rules-header {
-    -fx-background-color: #000000;
+    -fx-background-color: #1A7A64; /* changed to teal */
     -fx-padding: 16px 20px;
     -fx-border-radius: 16px 16px 0 0;
     -fx-background-radius: 16px 16px 0 0;
@@ -770,7 +771,7 @@
 }
 
 .rules-modal .rules-body .rule-item .rule-icon {
-    -fx-text-fill: #000000;
+    -fx-text-fill: #1A7A64;
     -fx-font-size: 14px;
 }
 
@@ -788,7 +789,7 @@
 }
 
 .rules-modal .rules-footer .accept-btn {
-    -fx-background-color: #000000;
+    -fx-background-color: #1A7A64; /* changed to teal */
     -fx-text-fill: #ffffff;
     -fx-font-size: 13px;
     -fx-font-weight: 600;
@@ -799,7 +800,7 @@
 }
 
 .rules-modal .rules-footer .accept-btn:hover {
-    -fx-background-color: #333333;
+    -fx-background-color: #135f4e;
 }
 
 .rules-modal .rules-footer .decline-btn {
@@ -832,7 +833,7 @@
 }
 
 .create-topic-modal .modal-header {
-    -fx-background-color: #000000;
+    -fx-background-color: #1A7A64; /* changed to teal */
     -fx-padding: 16px 20px;
     -fx-border-radius: 16px 16px 0 0;
     -fx-background-radius: 16px 16px 0 0;
@@ -868,7 +869,7 @@
 }
 
 .create-topic-modal .modal-body .field-input:focused {
-    -fx-border-color: #000000;
+    -fx-border-color: #1A7A64;
 }
 
 .create-topic-modal .modal-body .visibility-group {
@@ -877,7 +878,7 @@
 }
 
 .create-topic-modal .modal-body .visibility-group .radio {
-    -fx-accent-color: #000000;
+    -fx-accent-color: #1A7A64;
 }
 
 .create-topic-modal .modal-body .member-select {
@@ -912,7 +913,7 @@
 }
 
 .create-topic-modal .modal-footer .create-btn {
-    -fx-background-color: #000000;
+    -fx-background-color: #1A7A64; /* changed to teal */
     -fx-text-fill: #ffffff;
     -fx-font-size: 13px;
     -fx-font-weight: 600;
@@ -923,7 +924,7 @@
 }
 
 .create-topic-modal .modal-footer .create-btn:hover {
-    -fx-background-color: #333333;
+    -fx-background-color: #135f4e;
 }
 
 /* ───────────── SCROLLBARS ───────────── */
@@ -946,7 +947,7 @@
 }
 
 .scroll-bar:vertical .thumb:hover {
-    -fx-background-color: #b0bccd;
+    -fx-background-color: #1A7A64;
 }
 
 .scroll-bar:horizontal {
@@ -960,8 +961,9 @@
 }
 
 .scroll-bar:horizontal .thumb:hover {
-    -fx-background-color: #b0bccd;
+    -fx-background-color: #1A7A64;
 }
+
 /* Quiz Results */
 .results-main {
     -fx-background-color: #f9f9f9;
@@ -1040,11 +1042,11 @@
 .detail-card .score-big {
     -fx-font-size: 32px;
     -fx-font-weight: 700;
-    -fx-text-fill: #000000;
+    -fx-text-fill: #1A7A64; /* changed to teal */
 }
 
 .detail-card .progress-bar {
-    -fx-accent: #16a34a;
+    -fx-accent: #1A7A64;
 }
 
 .detail-card .stat-row {
@@ -1059,5 +1061,5 @@
 .detail-card .stat-row .value {
     -fx-font-size: 13px;
     -fx-font-weight: 600;
-    -fx-text-fill: #000000;
+    -fx-text-fill: #1A7A64; /* changed to teal */
 }

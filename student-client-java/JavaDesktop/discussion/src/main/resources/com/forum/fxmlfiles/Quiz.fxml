@@ -8,12 +8,12 @@
 <VBox xmlns="http://javafx.com/javafx/17"
       xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.forum.Controllers.QuizController"
-      stylesheets="/com/forum/CSS files/style.css"
+      stylesheets="/com/forum/css/style.css"
       styleClass="quiz-embedded"
       spacing="0"
       VBox.vgrow="ALWAYS">
 
-    <!-- Header: Title and Timer (static) -->
+    <!-- Header: Title and Timer (static) – Close button removed -->
     <HBox styleClass="quiz-header" alignment="CENTER_LEFT" spacing="12"
           style="-fx-padding: 12px 16px; -fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0;">
         <Text fx:id="quizTitleText" text="Quiz Title"
@@ -21,8 +21,7 @@
         <Region HBox.hgrow="ALWAYS"/>
         <Text fx:id="timerText" text="⏱️ 05:00"
               style="-fx-font-size: 16px; -fx-font-weight: 700; -fx-text-fill: #000000;"/>
-        <Button text="✕" onAction="#handleCloseQuiz"
-                style="-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 14px; -fx-cursor: hand;"/>
+        <!-- Close button removed -->
     </HBox>
 
     <!-- Progress -->
@@ -31,8 +30,8 @@
         <Region HBox.hgrow="ALWAYS"/>
         <VBox styleClass="progress-bar" prefWidth="200" minHeight="4" maxHeight="4"
               style="-fx-background-color: #e5e5e5; -fx-background-radius: 4px;">
-            <Region fx:id="progressFill" prefWidth="100" minHeight="4" maxHeight="4"
-                    style="-fx-background-color: #000000; -fx-background-radius: 4px;"/>
+            <Region fx:id="progressFill" prefWidth="10" minHeight="4" maxHeight="4"
+                    style="-fx-background-color: #1A7A64; -fx-background-radius: 4px;"/>
         </VBox>
         <Text fx:id="progressText" text="1/10" style="-fx-font-size: 12px; -fx-text-fill: #666666;"/>
     </HBox>
@@ -53,7 +52,7 @@
                 <Button fx:id="nextBtn" text="Next" onAction="#handleNext"
                         style="-fx-background-color: #000000; -fx-text-fill: #ffffff; -fx-padding: 6px 16px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;"/>
                 <Button fx:id="submitBtn" text="📤 Submit Quiz" onAction="#handleSubmit"
-                        style="-fx-background-color: #16a34a; -fx-text-fill: #ffffff; -fx-padding: 6px 16px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;"
+                        style="-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-padding: 6px 16px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;"
                         visible="false" managed="false"/>
             </HBox>
         </VBox>
