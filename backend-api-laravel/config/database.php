@@ -60,13 +60,9 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => array_merge(
-                extension_loaded('pdo_mysql') ? array_filter([
-                    PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-                ]) : [],
-                [
-                    // Forces SSL connection and bypasses strict hostname/cert checks if CA is not provided
-                    PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => env('MYSQL_SSL_VERIFY_SERVER_CERT', false),
-                ]
+                extension_loaded('pdo_mysql') ? [
+                    PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
+                ] : [],
             ),
         ],
 
