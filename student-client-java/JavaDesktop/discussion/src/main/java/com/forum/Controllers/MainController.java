@@ -203,7 +203,7 @@ public class MainController {
         statsBox.setPadding(new Insets(16));
         statsBox.setStyle("-fx-background-color: #ffffff;");
         Label statsTitle = new Label("📊 Performance");
-        statsTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: 700; -fx-text-fill: #000000;");
+        statsTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: 700; -fx-text-fill: #1A7A64;");
         String[][] stats = {
             {"📝", "Total Posts", "42"},
             {"💬", "Total Replies", "78"},
@@ -298,7 +298,7 @@ public class MainController {
             Label iconLabel = new Label(profileStats[i][0]);
             iconLabel.setStyle("-fx-font-size: 20px;");
             Label numLabel = new Label(profileStats[i][2]);
-            numLabel.setStyle("-fx-font-size: 26px; -fx-font-weight: 700; -fx-text-fill: #000000;");
+            numLabel.setStyle("-fx-font-size: 26px; -fx-font-weight: 700; -fx-text-fill: #1A7A64;");
             Label descLabel = new Label(profileStats[i][1]);
             descLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #666666;");
             statBox.getChildren().addAll(iconLabel, numLabel, descLabel);
@@ -351,7 +351,7 @@ public class MainController {
             infoLabel.setStyle("-fx-text-fill: #666666; -fx-font-size: 12px;");
 
             Button startBtn = new Button("▶ Start Quiz");
-            startBtn.setStyle("-fx-background-color: #000000; -fx-text-fill: #ffffff; -fx-padding: 4px; " +
+            startBtn.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-padding: 4px; " +
                     "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
             startBtn.setMaxWidth(Double.MAX_VALUE);
             final int quizIndex = i;
@@ -470,7 +470,7 @@ public class MainController {
             HBox.setHgrow(spacer, Priority.ALWAYS);
 
             Button joinBtn = new Button(group.joined ? "Leave" : "Join");
-            joinBtn.setStyle("-fx-background-color: " + (group.joined ? "#dc2626" : "#000000") + "; " +
+            joinBtn.setStyle("-fx-background-color: " + (group.joined ? "#dc3545" : "#1A7A64") + "; " +
                     "-fx-text-fill: #ffffff; -fx-font-size: 11px; -fx-font-weight: 600; -fx-padding: 2px 14px; " +
                     "-fx-border-radius: 12px; -fx-background-radius: 12px;");
             joinBtn.setOnAction(e -> {
@@ -511,7 +511,7 @@ public class MainController {
 
             HBox header = new HBox(10);
             header.setAlignment(Pos.CENTER_RIGHT);
-            header.setStyle("-fx-background-color: #000000; -fx-padding: 16px 20px; " +
+            header.setStyle("-fx-background-color: #1A7A64; -fx-padding: 16px 20px; " +
                     "-fx-border-radius: 16px 16px 0 0; -fx-background-radius: 16px 16px 0 0;");
             Label title = new Label("Community Rules");
             title.setStyle("-fx-font-size: 16px; -fx-font-weight: 700; -fx-text-fill: #ffffff;");
@@ -552,7 +552,7 @@ public class MainController {
             HBox.setHgrow(footerSpacer, Priority.ALWAYS);
 
             Button acceptBtn = new Button("Accept to Continue");
-            acceptBtn.setStyle("-fx-background-color: #000000; -fx-text-fill: #ffffff; -fx-font-size: 13px; " +
+            acceptBtn.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-font-size: 13px; " +
                     "-fx-font-weight: 600; -fx-padding: 10px 30px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;");
             acceptBtn.setOnAction(e -> {
                 group.joined = true;
@@ -680,13 +680,13 @@ public class MainController {
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Button shareBtn = new Button("📤 Share");
-        shareBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #e5e5e5; -fx-border-radius: 6px; " +
-                "-fx-padding: 4px 14px; -fx-font-size: 12px; -fx-text-fill: #333333; -fx-cursor: hand;");
+        shareBtn.setStyle("-fx-background-color: #87cefa ; -fx-border-color: #e5e5e5; -fx-border-radius: 6px; " +
+                "-fx-padding: 4px 14px; -fx-font-size: 12px; -fx-text-fill: #000000; -fx-cursor: hand;");
         shareBtn.setOnAction(e -> shareTopic(topic));
 
         Button exportBtn = new Button("📄 Export PDF");
-        exportBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #e5e5e5; -fx-border-radius: 6px; " +
-                "-fx-padding: 4px 14px; -fx-font-size: 12px; -fx-text-fill: #333333; -fx-cursor: hand;");
+        exportBtn.setStyle("-fx-background-color: #1A7A64; -fx-border-color: #e5e5e5; -fx-border-radius: 6px; " +
+                "-fx-padding: 4px 14px; -fx-font-size: 12px; -fx-text-fill: #000000; -fx-cursor: hand;");
         exportBtn.setOnAction(e -> exportToPDF(topic));
 
         topBar.getChildren().addAll(backBtn, spacer, shareBtn, exportBtn);
@@ -728,11 +728,11 @@ public class MainController {
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
     }
 
-    // ==================== CREATE POST VIEW (FIXED) ====================
+    // ==================== CREATE POST VIEW ====================
 
     private VBox createPostView(PostData post, TopicData topic) {
         VBox postBox = new VBox(6);
-        postBox.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-radius: 8px; " +
+        postBox.setStyle("-fx-background-color: #ffffff; -fx-border-color: #1A7A64; -fx-border-radius: 8px; " +
                 "-fx-background-radius: 8px; -fx-padding: 14px 18px;");
 
         // Header
@@ -777,13 +777,13 @@ public class MainController {
         actions.setPadding(new Insets(8, 0, 0, 0));
 
         Button replyBtn = new Button("💬 Reply");
-        replyBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 12px; " +
+        replyBtn.setStyle("-fx-background-color: #87cefa; -fx-text-fill: #000000; -fx-font-size: 12px; " +
                 "-fx-padding: 4px 8px; -fx-border-radius: 4px; -fx-cursor: hand;");
         replyBtn.setUserData(postBox);
         replyBtn.setOnAction(e -> showInlineReply(post, topic, postBox));
 
         Button sharePostBtn = new Button("📤 Share");
-        sharePostBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 12px; " +
+        sharePostBtn.setStyle("-fx-background-color: #87cefa  ; -fx-text-fill: #000000; -fx-font-size: 12px; " +
                 "-fx-padding: 4px 8px; -fx-border-radius: 4px; -fx-cursor: hand;");
         sharePostBtn.setOnAction(e -> sharePost(post));
 
@@ -794,11 +794,11 @@ public class MainController {
         if (!post.replies.isEmpty()) {
             VBox repliesBox = new VBox(6);
             repliesBox.setPadding(new Insets(8, 0, 0, 16));
-            repliesBox.setStyle("-fx-border-color: #e5e5e5; -fx-border-width: 0 0 0 2px;");
+            repliesBox.setStyle("-fx-border-color: #1A7A64; -fx-border-width: 0 0 0 2px;");
 
             for (PostData reply : post.replies) {
                 VBox replyView = createPostView(reply, topic);
-                replyView.setStyle("-fx-border-color: #e5e5e5; -fx-border-width: 0 0 0 2px; " +
+                replyView.setStyle("-fx-border-color: #1A7A64; -fx-border-width: 0 0 0 2px; " +
                         "-fx-border-radius: 0 8px 8px 0; -fx-background-radius: 0 8px 8px 0; " +
                         "-fx-padding: 10px 14px; -fx-background-color: #ffffff;");
                 repliesBox.getChildren().add(replyView);
@@ -830,7 +830,7 @@ public class MainController {
         replyArea.setPromptText("Write a reply…");
         replyArea.setPrefRowCount(2);
         replyArea.setPrefWidth(400);
-        replyArea.setStyle("-fx-border-color: #e5e5e5; -fx-border-radius: 6px; -fx-background-radius: 6px; " +
+        replyArea.setStyle("-fx-border-color: #1A7A64; -fx-border-radius: 6px; -fx-background-radius: 6px; " +
                 "-fx-padding: 8px 12px; -fx-font-size: 13px;");
 
         CheckBox privateReply = new CheckBox("🔒 Private");
@@ -947,7 +947,7 @@ public class MainController {
 
             HBox header = new HBox(10);
             header.setAlignment(Pos.CENTER_RIGHT);
-            header.setStyle("-fx-background-color: #000000; -fx-padding: 16px 20px; " +
+            header.setStyle("-fx-background-color: #1A7A64; -fx-padding: 16px 20px; " +
                     "-fx-border-radius: 16px 16px 0 0; -fx-background-radius: 16px 16px 0 0;");
             Label title = new Label("Create New Topic");
             title.setStyle("-fx-font-size: 16px; -fx-font-weight: 700; -fx-text-fill: #ffffff;");
@@ -1026,7 +1026,7 @@ public class MainController {
             cancelBtn.setOnAction(e -> createStage.close());
 
             Button createBtn = new Button("Create Topic");
-            createBtn.setStyle("-fx-background-color: #000000; -fx-text-fill: #ffffff; -fx-font-size: 13px; " +
+            createBtn.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-font-size: 13px; " +
                     "-fx-font-weight: 600; -fx-padding: 8px 30px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;");
             createBtn.setOnAction(e -> {
                 String topicTitle = titleInput.getText().trim();
@@ -1090,10 +1090,6 @@ public class MainController {
 
     // ==================== LOCKDOWN ====================
 
-    /**
-     * Enables or disables lockdown mode, which blocks all UI elements outside the quiz.
-     * @param enabled true to lock, false to unlock.
-     */
     private void setLockdown(boolean enabled) {
         lockdownActive = enabled;
         navGroups.setDisable(enabled);
@@ -1112,7 +1108,7 @@ public class MainController {
         }
     }
 
-    // ==================== QUIZ (Embedded) – UPDATED ====================
+    // ==================== QUIZ (Embedded) ====================
 
     private void startQuiz(int quizIndex, String quizTitle) {
         try {

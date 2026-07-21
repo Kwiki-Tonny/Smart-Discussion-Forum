@@ -4,7 +4,6 @@ import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.fxml.FXML;
-import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -34,10 +33,30 @@ public class QuizController {
     private String quizTitle;
     private int quizIndex;
     private Runnable onClose;
+    private boolean submitted = false; // prevents warnings after submit
 
-    // Questions list (unchanged – 10 questions)
+    // 10 sample questions
     private List<Question> questions = Arrays.asList(
-            // ... your 10 questions ...
+            new Question("What is the pH of pure water at 25°C?",
+                    Arrays.asList("5", "6", "7", "8"), 2, QuestionType.SINGLE),
+            new Question("Which of the following are noble gases? (Select all that apply)",
+                    Arrays.asList("Helium", "Neon", "Argon", "Oxygen"), Arrays.asList(0, 1, 2), QuestionType.MULTIPLE),
+            new Question("What is the chemical symbol for Gold?",
+                    Arrays.asList("Au", "Ag", "Fe", "Cu"), 0, QuestionType.SINGLE),
+            new Question("Which of these are units of force? (Select all that apply)",
+                    Arrays.asList("Newton", "Joule", "Pascal", "Dyne"), Arrays.asList(0, 3), QuestionType.MULTIPLE),
+            new Question("What is the speed of light in vacuum (approx)?",
+                    Arrays.asList("3×10⁸ m/s", "3×10⁶ m/s", "3×10¹⁰ m/s", "3×10⁴ m/s"), 0, QuestionType.SINGLE),
+            new Question("Which planets are gas giants? (Select all that apply)",
+                    Arrays.asList("Jupiter", "Saturn", "Mars", "Venus"), Arrays.asList(0, 1), QuestionType.MULTIPLE),
+            new Question("What is the atomic number of Carbon?",
+                    Arrays.asList("4", "6", "8", "12"), 1, QuestionType.SINGLE),
+            new Question("Which of these are renewable energy sources? (Select all that apply)",
+                    Arrays.asList("Solar", "Wind", "Coal", "Geothermal"), Arrays.asList(0, 1, 3), QuestionType.MULTIPLE),
+            new Question("What is the SI unit of electric current?",
+                    Arrays.asList("Volt", "Ampere", "Ohm", "Watt"), 1, QuestionType.SINGLE),
+            new Question("Which elements are halogens? (Select all that apply)",
+                    Arrays.asList("Fluorine", "Chlorine", "Bromine", "Sodium"), Arrays.asList(0, 1, 2), QuestionType.MULTIPLE)
     );
 
     public void setQuizData(String title, int index, Runnable onClose) {
@@ -50,7 +69,7 @@ public class QuizController {
 
     @FXML
     public void initialize() {
-        // Delayed initialization
+        // Delayed initialization via setQuizData
     }
 
     private void initializeQuiz() {
@@ -60,7 +79,74 @@ public class QuizController {
     }
 
     private void showQuestion(int index) {
-        // ... (unchanged – same as your existing code) ...
+        if (index < 0 || index >= questions.size()) return;
+
+        currentQuestion = index;
+        Question q = questions.get(index);
+
+        qNumText.setText("Question " + (index + 1) + " of " + questions.size());
+        qText.setText(q.text);
+
+        double progress = ((double) (index + 1) / questions.size()) * 100;
+        progressFill.setPrefWidth(progress);
+        progressText.setText((index + 1) + "/" + questions.size());
+
+        optionsContainer.getChildren().clear();
+        Object selected = answers.get(index);
+
+        if (q.type == QuestionType.SINGLE) {
+            ToggleGroup group = new ToggleGroup();
+            for (int i = 0; i < q.options.size(); i++) {
+                final int optionIndex = i;
+                RadioButton rb = new RadioButton(q.options.get(optionIndex));
+                rb.setToggleGroup(group);
+                rb.setUserData(optionIndex);
+                if (selected != null && selected.equals(optionIndex)) {
+                    rb.setSelected(true);
+                }
+                rb.setStyle("-fx-padding: 8px 12px; -fx-border-color: #1A7A64; -fx-border-radius: 6px; " +
+                        "-fx-background-radius: 6px; -fx-cursor: hand; -fx-background-color: #ffffff;");
+                rb.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                    if (newVal) answers.put(index, optionIndex);
+                });
+                optionsContainer.getChildren().add(rb);
+            }
+        } else if (q.type == QuestionType.MULTIPLE) {
+            List<Integer> selectedList = selected != null ? (List<Integer>) selected : new ArrayList<>();
+            for (int i = 0; i < q.options.size(); i++) {
+                CheckBox cb = new CheckBox(q.options.get(i));
+                cb.setUserData(i);
+                if (selectedList.contains(i)) {
+                    cb.setSelected(true);
+                }
+                cb.setStyle("-fx-padding: 8px 12px; -fx-border-color: #e5e5e5; -fx-border-radius: 6px; " +
+                        "-fx-background-radius: 6px; -fx-cursor: hand; -fx-background-color: #ffffff;");
+                int finalI = i;
+                cb.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                    List<Integer> currentList = (List<Integer>) answers.getOrDefault(index, new ArrayList<>());
+                    if (newVal && !currentList.contains(finalI)) {
+                        currentList.add(finalI);
+                    } else if (!newVal) {
+                        currentList.remove(Integer.valueOf(finalI));
+                    }
+                    answers.put(index, currentList);
+                });
+                optionsContainer.getChildren().add(cb);
+            }
+        }
+
+        prevBtn.setDisable(index == 0);
+        if (index == questions.size() - 1) {
+            nextBtn.setVisible(false);
+            nextBtn.setManaged(false);
+            submitBtn.setVisible(true);
+            submitBtn.setManaged(true);
+        } else {
+            nextBtn.setVisible(true);
+            nextBtn.setManaged(true);
+            submitBtn.setVisible(false);
+            submitBtn.setManaged(false);
+        }
     }
 
     @FXML
@@ -75,6 +161,7 @@ public class QuizController {
 
     @FXML
     public void handleSubmit() {
+        submitted = true; // prevent focus warnings during alert
         int score = calculateScore();
         int total = questions.size();
         double percentage = (score * 100.0) / total;
@@ -90,9 +177,27 @@ public class QuizController {
     }
 
     private int calculateScore() {
-        return quizIndex;
-        
-        // ... (unchanged – same as your existing code) ...
+        int score = 0;
+        for (int i = 0; i < questions.size(); i++) {
+            Question q = questions.get(i);
+            Object ans = answers.get(i);
+            if (q.type == QuestionType.SINGLE) {
+                if (ans != null && ans.equals(q.correctSingle)) {
+                    score++;
+                }
+            } else if (q.type == QuestionType.MULTIPLE) {
+                if (ans != null && ans instanceof List) {
+                    List<Integer> userAnswers = (List<Integer>) ans;
+                    List<Integer> correctAnswers = (List<Integer>) q.correctMultiple;
+                    Collections.sort(userAnswers);
+                    Collections.sort(correctAnswers);
+                    if (userAnswers.equals(correctAnswers)) {
+                        score++;
+                    }
+                }
+            }
+        }
+        return score;
     }
 
     private void saveQuizResult(int score, int total, boolean autoSubmitted) {
@@ -136,10 +241,10 @@ public class QuizController {
             }
         });
 
-        // Focus loss detection
+        // Focus loss detection – only warn if quiz is still running and not submitted
         Stage stage = (Stage) quizTitleText.getScene().getWindow();
         stage.focusedProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal && timer != null && timer.getStatus() == Animation.Status.RUNNING) {
+            if (!newVal && timer != null && timer.getStatus() == Animation.Status.RUNNING && !submitted) {
                 focusLossCount++;
                 if (focusLossCount >= 3) {
                     autoSubmit("⚠️ Focus lost 3 times. Quiz auto-submitted.");
@@ -155,6 +260,8 @@ public class QuizController {
     }
 
     private void autoSubmit(String reason) {
+        if (submitted) return; // already submitted
+        submitted = true;
         if (timer != null) timer.stop();
         int score = calculateScore();
         int total = questions.size();
@@ -172,10 +279,33 @@ public class QuizController {
 
     private void closeQuiz() {
         if (timer != null) timer.stop();
-        if (onClose != null) onClose.run(); // This releases the lockdown via the callback
+        if (onClose != null) onClose.run();
     }
 
-    // Question classes (unchanged)
-    private static class Question { /* ... */ }
-    private enum QuestionType { SINGLE, MULTIPLE }
+    // ---------- Inner Question classes ----------
+    private static class Question {
+        String text;
+        List<String> options;
+        QuestionType type;
+        Integer correctSingle;
+        List<Integer> correctMultiple;
+
+        Question(String text, List<String> options, int correct, QuestionType type) {
+            this.text = text;
+            this.options = options;
+            this.type = type;
+            this.correctSingle = correct;
+        }
+
+        Question(String text, List<String> options, List<Integer> correct, QuestionType type) {
+            this.text = text;
+            this.options = options;
+            this.type = type;
+            this.correctMultiple = correct;
+        }
+    }
+
+    private enum QuestionType {
+        SINGLE, MULTIPLE
+    }
 }
