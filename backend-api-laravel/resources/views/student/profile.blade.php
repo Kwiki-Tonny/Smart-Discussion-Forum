@@ -29,11 +29,11 @@
                         </span>
                     @elseif(Auth::user()->status === 'warned_once' || Auth::user()->status === 'warned_twice')
                         <span class="text-[8px] font-bold uppercase tracking-wider text-[#D97706] border border-[#D97706] px-2 py-0.5 rounded-full">
-                            ⚠️ {{ str_replace('_', ' ', Auth::user()->status) }}
+                             {{ str_replace('_', ' ', Auth::user()->status) }}
                         </span>
                     @elseif(Auth::user()->status === 'blacklisted')
                         <span class="text-[8px] font-bold uppercase tracking-wider text-[#DC2626] border border-[#DC2626] px-2 py-0.5 rounded-full">
-                            🚫 Blacklisted
+                             Blacklisted
                         </span>
                     @endif
                 </div>
@@ -243,7 +243,7 @@
                 <div class="bg-white rounded-lg border border-dashed border-[#16A34A] p-12 text-center">
                     <i data-lucide="shield-check" style="width:48px;height:48px;color:#16A34A;margin:0 auto 0.75rem;display:block;"></i>
                     <p class="text-sm font-medium text-[#16A34A]">No warnings on your account</p>
-                    <p class="text-xs text-[#666666] mt-1">You're in good standing! ✅</p>
+                    <p class="text-xs text-[#666666] mt-1">You're in good standing!</p>
                 </div>
             @else
                 <div class="space-y-3">
@@ -429,25 +429,6 @@
                         <p class="text-[8px] text-[#666666] uppercase tracking-wider font-medium">Downloads</p>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        {{-- Footer Status --}}
-        <div class="border-t border-[#E5E5E5] bg-white px-8 py-3 flex items-center justify-between text-[11px] text-[#666666]">
-            <div class="flex items-center gap-6">
-                <span class="flex items-center gap-1">
-                    <i data-lucide="circle" style="width:8px;height:8px;fill:#16A34A;color:#16A34A;"></i>
-                    System Status: <span class="text-[#000000] font-medium">Online</span>
-                </span>
-                <span class="flex items-center gap-1">
-                    <i data-lucide="database" style="width:12px;height:12px;color:#2563EB;"></i>
-                    Database: <span class="text-[#000000] font-medium">Connected</span>
-                </span>
-            </div>
-            <div class="flex items-center gap-4">
-                <a href="#" class="hover:text-[#0A574F] transition">Privacy Policy</a>
-                <span class="text-[#D1D5DB]">·</span>
-                <a href="#" class="hover:text-[#0A574F] transition">Terms of Service</a>
             </div>
         </div>
 
