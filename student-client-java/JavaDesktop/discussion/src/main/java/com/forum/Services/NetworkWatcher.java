@@ -1,4 +1,5 @@
 package com.forum;
+
 import java.net.HttpURLConnection;
 import java.net.URL;
 
@@ -7,6 +8,8 @@ public class NetworkWatcher implements Runnable {
     private static final String SERVER_PING_URL = "http://localhost:8000/api/v1/health-check";
     private static final int CHECK_INTERVAL_MS = 10000;
     private static final int CONNECTION_TIMEOUT_MS = 3000;
+    
+    private final GlobalState state = GlobalState.getInstance();
 
     @Override
     public void run() {
@@ -29,6 +32,8 @@ public class NetworkWatcher implements Runnable {
     private void checkConnection() {
         HttpURLConnection connection = null;
         try {
+            state.setConnectionAttempting(true);
+            
             URL url = new URL(SERVER_PING_URL);
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
@@ -38,16 +43,20 @@ public class NetworkWatcher implements Runnable {
             int responseCode = connection.getResponseCode();
 
             if (responseCode == HttpURLConnection.HTTP_OK) {
-                GlobalState.setOnline(true);
+                state.setOnline(true);
+                state.setLastError(null);
                 System.out.println("[NetworkWatcher] Status: ONLINE");
             } else {
-                GlobalState.setOnline(false);
+                state.setOnline(false);
+                state.setLastError("Server returned: " + responseCode);
                 System.out.println("[NetworkWatcher] Status: OFFLINE (Server returned: " + responseCode + ")");
             }
         } catch (Exception e) {
-            GlobalState.setOnline(false);
+            state.setOnline(false);
+            state.setLastError(e.getMessage());
             System.out.println("[NetworkWatcher] Status: OFFLINE (" + e.getMessage() + ")");
         } finally {
+            state.setConnectionAttempting(false);
             if (connection != null) {
                 connection.disconnect();
             }
