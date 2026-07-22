@@ -1,4 +1,6 @@
-package com.forum;
+package com.forum.Controllers;
+
+import com.forum.MainApp;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.CheckBox;

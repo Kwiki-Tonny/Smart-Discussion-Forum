@@ -24,7 +24,7 @@ public class MainApp extends Application {
         });
         
         // Load Login Screen
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/Login.fxml"));
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/fxmlfiles/Login.fxml"));
         Parent root;
         try {
             root = loader.load();
@@ -49,7 +49,7 @@ public class MainApp extends Application {
                 }
             }
         });
-        scene.getStylesheets().add(getClass().getResource("/com/forum/style.css").toExternalForm());
+        scene.getStylesheets().add(getClass().getResource("/com/forum/css/style.css").toExternalForm());
         
         primaryStage.setTitle("Smart Discussion Forum");
         primaryStage.setScene(scene);
@@ -62,7 +62,7 @@ public class MainApp extends Application {
     public static void switchToMain() {
         try {
             System.out.println("switchToMain: loading Main.fxml");
-            FXMLLoader loader = new FXMLLoader(MainApp.class.getResource("/com/forum/Main.fxml"));
+            FXMLLoader loader = new FXMLLoader(MainApp.class.getResource("/com/forum/fxmlfiles/Main.fxml"));
             Parent root = loader.load();
             
             Scene scene = new Scene(root, 1200, 800);
@@ -80,7 +80,7 @@ public class MainApp extends Application {
                     }
                 }
             });
-            scene.getStylesheets().add(MainApp.class.getResource("/com/forum/style.css").toExternalForm());
+            scene.getStylesheets().add(MainApp.class.getResource("/com/forum/css/style.css").toExternalForm());
             
             primaryStage.setScene(scene);
             primaryStage.setResizable(true);

@@ -1,10 +1,9 @@
-package com.forum;
+package com.forum.Controllers;
 
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.fxml.FXML;
-import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -33,9 +32,10 @@ public class QuizController {
     private int secondsRemaining = 300;
     private String quizTitle;
     private int quizIndex;
-    private Runnable onClose; // callback to close the quiz view and return to quizzes
+    private Runnable onClose;
+    private boolean submitted = false; // prevents warnings after submit
 
-    // Sample questions (10 questions)
+    // 10 sample questions
     private List<Question> questions = Arrays.asList(
             new Question("What is the pH of pure water at 25°C?",
                     Arrays.asList("5", "6", "7", "8"), 2, QuestionType.SINGLE),
@@ -59,12 +59,6 @@ public class QuizController {
                     Arrays.asList("Fluorine", "Chlorine", "Bromine", "Sodium"), Arrays.asList(0, 1, 2), QuestionType.MULTIPLE)
     );
 
-    /**
-     * Called by MainController to set quiz data and close callback.
-     * @param title quiz title
-     * @param index quiz index (0,1,2) for timer duration
-     * @param onClose callback to run when quiz is closed
-     */
     public void setQuizData(String title, int index, Runnable onClose) {
         this.quizTitle = title;
         this.quizIndex = index;
@@ -94,7 +88,7 @@ public class QuizController {
         qText.setText(q.text);
 
         double progress = ((double) (index + 1) / questions.size()) * 100;
-        
+        progressFill.setPrefWidth(progress);
         progressText.setText((index + 1) + "/" + questions.size());
 
         optionsContainer.getChildren().clear();
@@ -110,12 +104,10 @@ public class QuizController {
                 if (selected != null && selected.equals(optionIndex)) {
                     rb.setSelected(true);
                 }
-                rb.setStyle("-fx-padding: 8px 12px; -fx-border-color: #e5e5e5; -fx-border-radius: 6px; " +
+                rb.setStyle("-fx-padding: 8px 12px; -fx-border-color: #1A7A64; -fx-border-radius: 6px; " +
                         "-fx-background-radius: 6px; -fx-cursor: hand; -fx-background-color: #ffffff;");
                 rb.selectedProperty().addListener((obs, oldVal, newVal) -> {
-                    if (newVal) {
-                        answers.put(index, optionIndex);
-                    }
+                    if (newVal) answers.put(index, optionIndex);
                 });
                 optionsContainer.getChildren().add(rb);
             }
@@ -159,20 +151,17 @@ public class QuizController {
 
     @FXML
     public void handlePrevious() {
-        if (currentQuestion > 0) {
-            showQuestion(currentQuestion - 1);
-        }
+        if (currentQuestion > 0) showQuestion(currentQuestion - 1);
     }
 
     @FXML
     public void handleNext() {
-        if (currentQuestion < questions.size() - 1) {
-            showQuestion(currentQuestion + 1);
-        }
+        if (currentQuestion < questions.size() - 1) showQuestion(currentQuestion + 1);
     }
 
     @FXML
     public void handleSubmit() {
+        submitted = true; // prevent focus warnings during alert
         int score = calculateScore();
         int total = questions.size();
         double percentage = (score * 100.0) / total;
@@ -185,18 +174,6 @@ public class QuizController {
         alert.showAndWait();
 
         closeQuiz();
-    }
-
-    @FXML
-    public void handleCloseQuiz() {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Close Quiz");
-        confirm.setHeaderText("Are you sure you want to close the quiz?");
-        confirm.setContentText("Your progress will be lost.");
-        if (confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
-            if (timer != null) timer.stop();
-            closeQuiz();
-        }
     }
 
     private int calculateScore() {
@@ -227,14 +204,14 @@ public class QuizController {
         String status = autoSubmitted ? "Auto-Submitted" : "Completed";
         String date = java.time.LocalDateTime.now().format(
                 java.time.format.DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm"));
-        
+        System.out.println("Quiz result saved: " + quizTitle + " " + score + "/" + total + " " + status);
+        // Optionally store in database
     }
 
     private void startTimer() {
-        // Set timer based on quiz index
-        if (quizIndex == 0) secondsRemaining = 180;   // Physics: 3 min
-        else if (quizIndex == 1) secondsRemaining = 120; // Chemistry: 2 min
-        else secondsRemaining = 240;                  // Math: 4 min
+        if (quizIndex == 0) secondsRemaining = 180;   // Physics
+        else if (quizIndex == 1) secondsRemaining = 120; // Chemistry
+        else secondsRemaining = 240;                  // Math
 
         timer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
             secondsRemaining--;
@@ -256,7 +233,7 @@ public class QuizController {
     }
 
     private void setupLockdown() {
-        // Disable copy/paste on the entire quiz root
+        // Disable copy/paste
         quizTitleText.getScene().getRoot().setOnKeyPressed(e -> {
             if (e.isControlDown() && (e.getCode() == javafx.scene.input.KeyCode.C ||
                     e.getCode() == javafx.scene.input.KeyCode.V)) {
@@ -264,10 +241,10 @@ public class QuizController {
             }
         });
 
-        // Focus loss detection on the main window
+        // Focus loss detection – only warn if quiz is still running and not submitted
         Stage stage = (Stage) quizTitleText.getScene().getWindow();
         stage.focusedProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal && timer != null && timer.getStatus() == Animation.Status.RUNNING) {
+            if (!newVal && timer != null && timer.getStatus() == Animation.Status.RUNNING && !submitted) {
                 focusLossCount++;
                 if (focusLossCount >= 3) {
                     autoSubmit("⚠️ Focus lost 3 times. Quiz auto-submitted.");
@@ -283,6 +260,8 @@ public class QuizController {
     }
 
     private void autoSubmit(String reason) {
+        if (submitted) return; // already submitted
+        submitted = true;
         if (timer != null) timer.stop();
         int score = calculateScore();
         int total = questions.size();
@@ -294,6 +273,7 @@ public class QuizController {
         alert.setHeaderText(reason);
         alert.setContentText(String.format("Your Score: %d / %d (%.1f%%)", score, total, percentage));
         alert.showAndWait();
+
         closeQuiz();
     }
 
@@ -302,7 +282,7 @@ public class QuizController {
         if (onClose != null) onClose.run();
     }
 
-    // ---------- Inner classes for Question ----------
+    // ---------- Inner Question classes ----------
     private static class Question {
         String text;
         List<String> options;

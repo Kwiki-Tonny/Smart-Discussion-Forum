@@ -1,4 +1,4 @@
-package com.forum;
+package com.forum.Controllers;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -49,7 +49,8 @@ public class MainController {
     private TopicData currentTopic;
     private boolean isGroupJoined = false;
     private List<GroupData> groups = new ArrayList<>();
-    private boolean quizActive = false;  // NEW: track if a quiz is currently displayed
+    private boolean quizActive = false;
+    private boolean lockdownActive = false;
 
     // Data classes
     private static class GroupData {
@@ -185,131 +186,130 @@ public class MainController {
         threadArea.getChildren().add(placeholder);
     }
 
-   @FXML
-public void showProfile() {
-    currentView = "profile";
-    setActiveNav(navProfile);
-    contextTitle.setText("Profile");
-    contextActionBtn.setVisible(false);
-    contextActionBtn.setManaged(false);
-    replyForm.setVisible(false);
-    replyForm.setManaged(false);
+    @FXML
+    public void showProfile() {
+        currentView = "profile";
+        setActiveNav(navProfile);
+        contextTitle.setText("Profile");
+        contextActionBtn.setVisible(false);
+        contextActionBtn.setManaged(false);
+        replyForm.setVisible(false);
+        replyForm.setManaged(false);
 
-    contextList.getChildren().clear();
-    
-    // Show performance stats in left panel
-    VBox statsBox = new VBox(16);
-    statsBox.setPadding(new Insets(16));
-    statsBox.setStyle("-fx-background-color: #ffffff;");
-    Label statsTitle = new Label("📊 Performance");
-    statsTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: 700; -fx-text-fill: #000000;");
-    String[][] stats = {
-        {"📝", "Total Posts", "42"},
-        {"💬", "Total Replies", "78"},
-        {"📈", "Insights", "+12% this week"},
-        {"📊", "Analytics", "Active in 4 groups"}
-    };
-    for (String[] stat : stats) {
-        HBox row = new HBox(12);
-        row.setAlignment(Pos.CENTER_LEFT);
-        row.setStyle("-fx-padding: 8px 0; -fx-border-color: #f0f0f0; -fx-border-width: 0 0 1px 0;");
-        Label iconLabel = new Label(stat[0]);
-        iconLabel.setStyle("-fx-font-size: 16px;");
-        Label nameLabel = new Label(stat[1]);
-        nameLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #333333;");
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        Label valueLabel = new Label(stat[2]);
-        valueLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: 600; -fx-text-fill: #000000;");
-        row.getChildren().addAll(iconLabel, nameLabel, spacer, valueLabel);
-        statsBox.getChildren().add(row);
+        contextList.getChildren().clear();
+        
+        // Show performance stats in left panel
+        VBox statsBox = new VBox(16);
+        statsBox.setPadding(new Insets(16));
+        statsBox.setStyle("-fx-background-color: #ffffff;");
+        Label statsTitle = new Label("📊 Performance");
+        statsTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: 700; -fx-text-fill: #1A7A64;");
+        String[][] stats = {
+            {"📝", "Total Posts", "42"},
+            {"💬", "Total Replies", "78"},
+            {"📈", "Insights", "+12% this week"},
+            {"📊", "Analytics", "Active in 4 groups"}
+        };
+        for (String[] stat : stats) {
+            HBox row = new HBox(12);
+            row.setAlignment(Pos.CENTER_LEFT);
+            row.setStyle("-fx-padding: 8px 0; -fx-border-color: #f0f0f0; -fx-border-width: 0 0 1px 0;");
+            Label iconLabel = new Label(stat[0]);
+            iconLabel.setStyle("-fx-font-size: 16px;");
+            Label nameLabel = new Label(stat[1]);
+            nameLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #333333;");
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+            Label valueLabel = new Label(stat[2]);
+            valueLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: 600; -fx-text-fill: #000000;");
+            row.getChildren().addAll(iconLabel, nameLabel, spacer, valueLabel);
+            statsBox.getChildren().add(row);
+        }
+        contextList.getChildren().add(statsBox);
+
+        // --- PROFILE CARD (Main right panel) ---
+        threadArea.getChildren().clear();
+
+        // Outer container to center the card
+        VBox outerWrapper = new VBox();
+        outerWrapper.setAlignment(Pos.CENTER);
+        outerWrapper.setPadding(new Insets(20));
+        outerWrapper.setFillWidth(true);
+
+        // Main card (bigger and centered)
+        VBox profileBox = new VBox(20);
+        profileBox.setPadding(new Insets(30));
+        profileBox.setStyle("-fx-background-color: #ffffff; " +
+                            "-fx-border-color: #e5e5e5; " +
+                            "-fx-border-radius: 12px; " +
+                            "-fx-background-radius: 12px;");
+        profileBox.setMaxWidth(700);
+        profileBox.setAlignment(Pos.CENTER);
+
+        // --- Avatar row ---
+        HBox avatarRow = new HBox(16);
+        avatarRow.setAlignment(Pos.CENTER_LEFT);
+        Label avatar = new Label("JS");
+        avatar.setStyle("-fx-min-width: 64px; -fx-min-height: 64px; -fx-background-radius: 50%; " +
+                        "-fx-background-color: #000000; -fx-text-fill: #ffffff; " +
+                        "-fx-font-size: 28px; -fx-font-weight: 600; -fx-alignment: center;");
+        VBox infoBox = new VBox(4);
+        Label nameLabel = new Label("Dr. Jane Smith");
+        nameLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: 700;");
+        Label emailLabel = new Label("jane.smith@university.edu");
+        emailLabel.setStyle("-fx-text-fill: #666666;");
+        Label roleLabel = new Label("Lecturer");
+        roleLabel.setStyle("-fx-background-color: #dbeafe; -fx-text-fill: #1d4ed8; " +
+                           "-fx-font-size: 11px; -fx-font-weight: 600; -fx-padding: 2px 12px; " +
+                           "-fx-background-radius: 12px;");
+        infoBox.getChildren().addAll(nameLabel, emailLabel, roleLabel);
+        avatarRow.getChildren().addAll(avatar, infoBox);
+
+        // --- Stats Grid (evenly spread) ---
+        GridPane statsGrid = new GridPane();
+        statsGrid.setHgap(20);
+        statsGrid.setVgap(12);
+        statsGrid.setPadding(new Insets(20, 0, 0, 0));
+        statsGrid.setAlignment(Pos.CENTER);
+
+        ColumnConstraints col1 = new ColumnConstraints();
+        col1.setPercentWidth(25);
+        col1.setHalignment(HPos.CENTER);
+        ColumnConstraints col2 = new ColumnConstraints();
+        col2.setPercentWidth(25);
+        col2.setHalignment(HPos.CENTER);
+        ColumnConstraints col3 = new ColumnConstraints();
+        col3.setPercentWidth(25);
+        col3.setHalignment(HPos.CENTER);
+        ColumnConstraints col4 = new ColumnConstraints();
+        col4.setPercentWidth(25);
+        col4.setHalignment(HPos.CENTER);
+        statsGrid.getColumnConstraints().addAll(col1, col2, col3, col4);
+
+        String[][] profileStats = {
+            {"📚", "Topics", "15"},
+            {"📝", "Posts", "42"},
+            {"💬", "Replies", "78"},
+            {"📊", "Quizzes", "5"}
+        };
+        for (int i = 0; i < profileStats.length; i++) {
+            VBox statBox = new VBox(4);
+            statBox.setAlignment(Pos.CENTER);
+            Label iconLabel = new Label(profileStats[i][0]);
+            iconLabel.setStyle("-fx-font-size: 20px;");
+            Label numLabel = new Label(profileStats[i][2]);
+            numLabel.setStyle("-fx-font-size: 26px; -fx-font-weight: 700; -fx-text-fill: #1A7A64;");
+            Label descLabel = new Label(profileStats[i][1]);
+            descLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #666666;");
+            statBox.getChildren().addAll(iconLabel, numLabel, descLabel);
+            statsGrid.add(statBox, i, 0);
+        }
+
+        profileBox.getChildren().addAll(avatarRow, statsGrid);
+        outerWrapper.getChildren().add(profileBox);
+        threadArea.getChildren().add(outerWrapper);
     }
-    contextList.getChildren().add(statsBox);
 
-    // --- PROFILE CARD (Main right panel) ---
-    threadArea.getChildren().clear();
-
-    // Outer container to center the card
-    VBox outerWrapper = new VBox();
-    outerWrapper.setAlignment(Pos.CENTER);
-    outerWrapper.setPadding(new Insets(20));
-    outerWrapper.setFillWidth(true);
-
-    // Main card (bigger and centered)
-    VBox profileBox = new VBox(20);                 // increased spacing
-    profileBox.setPadding(new Insets(30));          // more padding inside
-    profileBox.setStyle("-fx-background-color: #ffffff; " +
-                        "-fx-border-color: #e5e5e5; " +
-                        "-fx-border-radius: 12px; " +
-                        "-fx-background-radius: 12px;");
-    profileBox.setMaxWidth(700);                    // larger max width
-    profileBox.setAlignment(Pos.CENTER);
-
-    // --- Avatar row (unchanged content) ---
-    HBox avatarRow = new HBox(16);
-    avatarRow.setAlignment(Pos.CENTER_LEFT);
-    Label avatar = new Label("JS");
-    avatar.setStyle("-fx-min-width: 64px; -fx-min-height: 64px; -fx-background-radius: 50%; " +
-                    "-fx-background-color: #000000; -fx-text-fill: #ffffff; " +
-                    "-fx-font-size: 28px; -fx-font-weight: 600; -fx-alignment: center;");
-    VBox infoBox = new VBox(4);
-    Label nameLabel = new Label("Dr. Jane Smith");
-    nameLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: 700;");
-    Label emailLabel = new Label("jane.smith@university.edu");
-    emailLabel.setStyle("-fx-text-fill: #666666;");
-    Label roleLabel = new Label("Lecturer");
-    roleLabel.setStyle("-fx-background-color: #dbeafe; -fx-text-fill: #1d4ed8; " +
-                       "-fx-font-size: 11px; -fx-font-weight: 600; -fx-padding: 2px 12px; " +
-                       "-fx-background-radius: 12px;");
-    infoBox.getChildren().addAll(nameLabel, emailLabel, roleLabel);
-    avatarRow.getChildren().addAll(avatar, infoBox);
-
-    // --- Stats Grid (evenly spread) ---
-    GridPane statsGrid = new GridPane();
-    statsGrid.setHgap(20);
-    statsGrid.setVgap(12);
-    statsGrid.setPadding(new Insets(20, 0, 0, 0));
-    statsGrid.setAlignment(Pos.CENTER);
-
-    // Make each column take 25% of the available width for even spread
-    ColumnConstraints col1 = new ColumnConstraints();
-    col1.setPercentWidth(25);
-    col1.setHalignment(HPos.CENTER);
-    ColumnConstraints col2 = new ColumnConstraints();
-    col2.setPercentWidth(25);
-    col2.setHalignment(HPos.CENTER);
-    ColumnConstraints col3 = new ColumnConstraints();
-    col3.setPercentWidth(25);
-    col3.setHalignment(HPos.CENTER);
-    ColumnConstraints col4 = new ColumnConstraints();
-    col4.setPercentWidth(25);
-    col4.setHalignment(HPos.CENTER);
-    statsGrid.getColumnConstraints().addAll(col1, col2, col3, col4);
-
-    String[][] profileStats = {
-        {"📚", "Topics", "15"},
-        {"📝", "Posts", "42"},
-        {"💬", "Replies", "78"},
-        {"📊", "Quizzes", "5"}
-    };
-    for (int i = 0; i < profileStats.length; i++) {
-        VBox statBox = new VBox(4);
-        statBox.setAlignment(Pos.CENTER);
-        Label iconLabel = new Label(profileStats[i][0]);
-        iconLabel.setStyle("-fx-font-size: 20px;");
-        Label numLabel = new Label(profileStats[i][2]);
-        numLabel.setStyle("-fx-font-size: 26px; -fx-font-weight: 700; -fx-text-fill: #000000;");
-        Label descLabel = new Label(profileStats[i][1]);
-        descLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #666666;");
-        statBox.getChildren().addAll(iconLabel, numLabel, descLabel);
-        statsGrid.add(statBox, i, 0);
-    }
-
-    // Assemble card
-    profileBox.getChildren().addAll(avatarRow, statsGrid);
-    outerWrapper.getChildren().add(profileBox);
-    threadArea.getChildren().add(outerWrapper);
-}
     @FXML
     public void showQuizzes() {
         currentView = "quizzes";
@@ -320,7 +320,6 @@ public void showProfile() {
         replyForm.setVisible(false);
         replyForm.setManaged(false);
 
-        // Show quizzes in left panel
         contextList.getChildren().clear();
         
         VBox quizzesBox = new VBox(8);
@@ -352,7 +351,7 @@ public void showProfile() {
             infoLabel.setStyle("-fx-text-fill: #666666; -fx-font-size: 12px;");
 
             Button startBtn = new Button("▶ Start Quiz");
-            startBtn.setStyle("-fx-background-color: #000000; -fx-text-fill: #ffffff; -fx-padding: 4px; " +
+            startBtn.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-padding: 4px; " +
                     "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
             startBtn.setMaxWidth(Double.MAX_VALUE);
             final int quizIndex = i;
@@ -364,7 +363,6 @@ public void showProfile() {
         
         contextList.getChildren().add(quizzesBox);
 
-        // Show placeholder in right panel if no quiz active
         if (!quizActive) {
             threadArea.getChildren().clear();
             VBox placeholder = new VBox(12);
@@ -379,47 +377,45 @@ public void showProfile() {
         }
     }
     
-@FXML
-public void showResults() {
-    currentView = "results";
-    setActiveNav(navResults);
-    contextTitle.setText("Quiz Results");
-    contextActionBtn.setVisible(false);
-    contextActionBtn.setManaged(false);
-    replyForm.setVisible(false);
-    replyForm.setManaged(false);
+    @FXML
+    public void showResults() {
+        currentView = "results";
+        setActiveNav(navResults);
+        contextTitle.setText("Quiz Results");
+        contextActionBtn.setVisible(false);
+        contextActionBtn.setManaged(false);
+        replyForm.setVisible(false);
+        replyForm.setManaged(false);
 
-    // Load the quiz result list into the left panel
-    try {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/quiz_result.fxml"));
-        Parent listView = loader.load();
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/fxmlfiles/quiz_result.fxml"));
+            Parent listView = loader.load();
 
-        QuizResultsController controller = loader.getController();
-        controller.setRightPanel(threadArea); // Pass the right panel reference
+            QuizResultsController controller = loader.getController();
+            controller.setRightPanel(threadArea);
 
-        contextList.getChildren().clear();
-        contextList.getChildren().add(listView);
-        VBox.setVgrow(listView, Priority.ALWAYS);
+            contextList.getChildren().clear();
+            contextList.getChildren().add(listView);
+            VBox.setVgrow(listView, Priority.ALWAYS);
 
-    } catch (Exception e) {
-        e.printStackTrace();
-        Label error = new Label("Could not load quiz results.");
-        error.setStyle("-fx-padding: 20px; -fx-text-fill: #dc2626;");
-        contextList.getChildren().add(error);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Label error = new Label("Could not load quiz results.");
+            error.setStyle("-fx-padding: 20px; -fx-text-fill: #dc2626;");
+            contextList.getChildren().add(error);
+        }
+
+        threadArea.getChildren().clear();
+        VBox placeholder = new VBox(12);
+        placeholder.setAlignment(Pos.CENTER);
+        placeholder.setPadding(new Insets(60, 20, 60, 20));
+        Label icon = new Label("📊");
+        icon.setStyle("-fx-font-size: 32px; -fx-text-fill: #999999;");
+        Label msg = new Label("Select a quiz result to view detailed analytics");
+        msg.setStyle("-fx-text-fill: #999999; -fx-font-size: 14px;");
+        placeholder.getChildren().addAll(icon, msg);
+        threadArea.getChildren().add(placeholder);
     }
-
-    // Clear right panel and show placeholder
-    threadArea.getChildren().clear();
-    VBox placeholder = new VBox(12);
-    placeholder.setAlignment(Pos.CENTER);
-    placeholder.setPadding(new Insets(60, 20, 60, 20));
-    Label icon = new Label("📊");
-    icon.setStyle("-fx-font-size: 32px; -fx-text-fill: #999999;");
-    Label msg = new Label("Select a quiz result to view detailed analytics");
-    msg.setStyle("-fx-text-fill: #999999; -fx-font-size: 14px;");
-    placeholder.getChildren().addAll(icon, msg);
-    threadArea.getChildren().add(placeholder);
-}
 
     @FXML
     public void handleCreateTopic() {
@@ -474,7 +470,7 @@ public void showResults() {
             HBox.setHgrow(spacer, Priority.ALWAYS);
 
             Button joinBtn = new Button(group.joined ? "Leave" : "Join");
-            joinBtn.setStyle("-fx-background-color: " + (group.joined ? "#dc2626" : "#000000") + "; " +
+            joinBtn.setStyle("-fx-background-color: " + (group.joined ? "#dc3545" : "#1A7A64") + "; " +
                     "-fx-text-fill: #ffffff; -fx-font-size: 11px; -fx-font-weight: 600; -fx-padding: 2px 14px; " +
                     "-fx-border-radius: 12px; -fx-background-radius: 12px;");
             joinBtn.setOnAction(e -> {
@@ -515,7 +511,7 @@ public void showResults() {
 
             HBox header = new HBox(10);
             header.setAlignment(Pos.CENTER_RIGHT);
-            header.setStyle("-fx-background-color: #000000; -fx-padding: 16px 20px; " +
+            header.setStyle("-fx-background-color: #1A7A64; -fx-padding: 16px 20px; " +
                     "-fx-border-radius: 16px 16px 0 0; -fx-background-radius: 16px 16px 0 0;");
             Label title = new Label("Community Rules");
             title.setStyle("-fx-font-size: 16px; -fx-font-weight: 700; -fx-text-fill: #ffffff;");
@@ -543,7 +539,6 @@ public void showResults() {
                 body.getChildren().add(ruleBox);
             }
 
-            // Footer - Decline on left, Accept on right
             HBox footer = new HBox(8);
             footer.setAlignment(Pos.CENTER);
             footer.setStyle("-fx-padding: 12px 20px 20px 20px; -fx-border-color: #e5e5e5; -fx-border-width: 1px 0 0 0;");
@@ -557,7 +552,7 @@ public void showResults() {
             HBox.setHgrow(footerSpacer, Priority.ALWAYS);
 
             Button acceptBtn = new Button("Accept to Continue");
-            acceptBtn.setStyle("-fx-background-color: #000000; -fx-text-fill: #ffffff; -fx-font-size: 13px; " +
+            acceptBtn.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-font-size: 13px; " +
                     "-fx-font-weight: 600; -fx-padding: 10px 30px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;");
             acceptBtn.setOnAction(e -> {
                 group.joined = true;
@@ -570,7 +565,7 @@ public void showResults() {
             root.getChildren().addAll(header, body, footer);
 
             Scene scene = new Scene(root);
-            scene.getStylesheets().add(getClass().getResource("/com/demo/style.css").toExternalForm());
+            scene.getStylesheets().add(getClass().getResource("/com/forum/css/style.css").toExternalForm());
             rulesStage.setScene(scene);
             rulesStage.showAndWait();
 
@@ -595,7 +590,6 @@ public void showResults() {
         
         renderTopics(group);
         
-        // Show placeholder in thread area
         threadArea.getChildren().clear();
         VBox placeholder = new VBox(12);
         placeholder.setAlignment(Pos.CENTER);
@@ -674,7 +668,6 @@ public void showResults() {
     private void renderThread(GroupData group, TopicData topic) {
         threadArea.getChildren().clear();
 
-        // Top bar with Back arrow and Share button
         HBox topBar = new HBox(12);
         topBar.setAlignment(Pos.CENTER_LEFT);
         topBar.setStyle("-fx-padding: 0 0 12 0;");
@@ -687,18 +680,17 @@ public void showResults() {
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Button shareBtn = new Button("📤 Share");
-        shareBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #e5e5e5; -fx-border-radius: 6px; " +
-                "-fx-padding: 4px 14px; -fx-font-size: 12px; -fx-text-fill: #333333; -fx-cursor: hand;");
+        shareBtn.setStyle("-fx-background-color: #87cefa ; -fx-border-color: #e5e5e5; -fx-border-radius: 6px; " +
+                "-fx-padding: 4px 14px; -fx-font-size: 12px; -fx-text-fill: #000000; -fx-cursor: hand;");
         shareBtn.setOnAction(e -> shareTopic(topic));
 
         Button exportBtn = new Button("📄 Export PDF");
-        exportBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #e5e5e5; -fx-border-radius: 6px; " +
-                "-fx-padding: 4px 14px; -fx-font-size: 12px; -fx-text-fill: #333333; -fx-cursor: hand;");
+        exportBtn.setStyle("-fx-background-color: #1A7A64; -fx-border-color: #e5e5e5; -fx-border-radius: 6px; " +
+                "-fx-padding: 4px 14px; -fx-font-size: 12px; -fx-text-fill: #000000; -fx-cursor: hand;");
         exportBtn.setOnAction(e -> exportToPDF(topic));
 
         topBar.getChildren().addAll(backBtn, spacer, shareBtn, exportBtn);
 
-        // Thread header
         Label title = new Label(topic.title);
         title.setStyle("-fx-font-size: 20px; -fx-font-weight: 700; -fx-text-fill: #000000;");
 
@@ -707,7 +699,6 @@ public void showResults() {
         Label authorLabel = new Label("by " + topic.author + " • " + topic.date);
         authorLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #666666;");
 
-        // Posts container with ScrollPane for scrolling
         VBox postsContainer = new VBox(10);
         postsContainer.setPadding(new Insets(0, 0, 16, 0));
 
@@ -728,20 +719,20 @@ public void showResults() {
             }
         }
 
-        // Wrap posts in ScrollPane
         ScrollPane scrollPane = new ScrollPane(postsContainer);
         scrollPane.setFitToWidth(true);
         scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
         scrollPane.getStyleClass().add("thread-scroll");
 
-        // Add all to thread area (header stays static, scrollable content below)
         threadArea.getChildren().addAll(topBar, title, metaRow, scrollPane);
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
     }
 
+    // ==================== CREATE POST VIEW ====================
+
     private VBox createPostView(PostData post, TopicData topic) {
         VBox postBox = new VBox(6);
-        postBox.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-radius: 8px; " +
+        postBox.setStyle("-fx-background-color: #ffffff; -fx-border-color: #1A7A64; -fx-border-radius: 8px; " +
                 "-fx-background-radius: 8px; -fx-padding: 14px 18px;");
 
         // Header
@@ -786,33 +777,32 @@ public void showResults() {
         actions.setPadding(new Insets(8, 0, 0, 0));
 
         Button replyBtn = new Button("💬 Reply");
-        replyBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 12px; " +
+        replyBtn.setStyle("-fx-background-color: #87cefa; -fx-text-fill: #000000; -fx-font-size: 12px; " +
                 "-fx-padding: 4px 8px; -fx-border-radius: 4px; -fx-cursor: hand;");
-        replyBtn.setOnAction(e -> showInlineReply(post, topic));
+        replyBtn.setUserData(postBox);
+        replyBtn.setOnAction(e -> showInlineReply(post, topic, postBox));
 
         Button sharePostBtn = new Button("📤 Share");
-        sharePostBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 12px; " +
+        sharePostBtn.setStyle("-fx-background-color: #87cefa  ; -fx-text-fill: #000000; -fx-font-size: 12px; " +
                 "-fx-padding: 4px 8px; -fx-border-radius: 4px; -fx-cursor: hand;");
         sharePostBtn.setOnAction(e -> sharePost(post));
 
         actions.getChildren().addAll(replyBtn, sharePostBtn);
-
         postBox.getChildren().addAll(header, body, actions);
 
         // Replies (nested)
         if (!post.replies.isEmpty()) {
             VBox repliesBox = new VBox(6);
             repliesBox.setPadding(new Insets(8, 0, 0, 16));
-            repliesBox.setStyle("-fx-border-color: #e5e5e5; -fx-border-width: 0 0 0 2px;");
+            repliesBox.setStyle("-fx-border-color: #1A7A64; -fx-border-width: 0 0 0 2px;");
 
             for (PostData reply : post.replies) {
                 VBox replyView = createPostView(reply, topic);
-                replyView.setStyle("-fx-border-color: #e5e5e5; -fx-border-width: 0 0 0 2px; " +
+                replyView.setStyle("-fx-border-color: #1A7A64; -fx-border-width: 0 0 0 2px; " +
                         "-fx-border-radius: 0 8px 8px 0; -fx-background-radius: 0 8px 8px 0; " +
                         "-fx-padding: 10px 14px; -fx-background-color: #ffffff;");
                 repliesBox.getChildren().add(replyView);
             }
-
             postBox.getChildren().add(repliesBox);
         }
 
@@ -821,20 +811,16 @@ public void showResults() {
 
     // ==================== INLINE REPLY ====================
 
-    private void showInlineReply(PostData parentPost, TopicData topic) {
-        // Find the post box
-        VBox postBox = findParentPostBox(parentPost);
+    private void showInlineReply(PostData parentPost, TopicData topic, VBox postBox) {
         if (postBox == null) return;
 
-        // Check if reply input already exists
         for (var child : postBox.getChildren()) {
             if (child instanceof HBox && ((HBox) child).getStyleClass().contains("reply-input")) {
                 postBox.getChildren().remove(child);
-                return; // Toggle off
+                return;
             }
         }
 
-        // Create reply input area
         HBox replyInput = new HBox(8);
         replyInput.setPadding(new Insets(8, 0, 0, 0));
         replyInput.setAlignment(Pos.CENTER_RIGHT);
@@ -844,14 +830,14 @@ public void showResults() {
         replyArea.setPromptText("Write a reply…");
         replyArea.setPrefRowCount(2);
         replyArea.setPrefWidth(400);
-        replyArea.setStyle("-fx-border-color: #e5e5e5; -fx-border-radius: 6px; -fx-background-radius: 6px; " +
+        replyArea.setStyle("-fx-border-color: #1A7A64; -fx-border-radius: 6px; -fx-background-radius: 6px; " +
                 "-fx-padding: 8px 12px; -fx-font-size: 13px;");
 
         CheckBox privateReply = new CheckBox("🔒 Private");
         privateReply.setStyle("-fx-font-size: 12px;");
 
         Button submitReply = new Button("Post");
-        submitReply.setStyle("-fx-background-color: #000000; -fx-text-fill: #ffffff; -fx-padding: 6px 20px; " +
+        submitReply.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-padding: 6px 20px; " +
                 "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px; -fx-font-weight: 600; -fx-cursor: hand;");
         submitReply.setOnAction(e -> {
             String text = replyArea.getText().trim();
@@ -869,13 +855,10 @@ public void showResults() {
 
         Button cancelReply = new Button("Cancel");
         cancelReply.setStyle("-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 12px; -fx-cursor: hand;");
-        cancelReply.setOnAction(e -> {
-            postBox.getChildren().remove(replyInput);
-        });
+        cancelReply.setOnAction(e -> postBox.getChildren().remove(replyInput));
 
         replyInput.getChildren().addAll(replyArea, privateReply, submitReply, cancelReply);
 
-        // Find where to insert (before replies if any)
         int insertIndex = postBox.getChildren().size();
         for (int i = postBox.getChildren().size() - 1; i >= 0; i--) {
             if (postBox.getChildren().get(i) instanceof VBox) {
@@ -883,49 +866,6 @@ public void showResults() {
             }
         }
         postBox.getChildren().add(insertIndex, replyInput);
-    }
-
-    private VBox findParentPostBox(PostData post) {
-        // Search in thread area
-        for (var node : threadArea.getChildren()) {
-            if (node instanceof ScrollPane) {
-                ScrollPane sp = (ScrollPane) node;
-                if (sp.getContent() instanceof VBox) {
-                    VBox container = (VBox) sp.getContent();
-                    for (var child : container.getChildren()) {
-                        VBox found = findPostInVBox(child, post);
-                        if (found != null) return found;
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    private VBox findPostInVBox(javafx.scene.Node node, PostData post) {
-        if (node instanceof VBox) {
-            VBox vbox = (VBox) node;
-            // Check if this is the post we're looking for
-            for (var child : vbox.getChildren()) {
-                if (child instanceof HBox) {
-                    HBox header = (HBox) child;
-                    for (var inner : header.getChildren()) {
-                        if (inner instanceof Label) {
-                            Label label = (Label) inner;
-                            if (label.getText().equals(post.author) && label.getStyleClass().contains("name")) {
-                                return vbox;
-                            }
-                        }
-                    }
-                }
-            }
-            // Recursively search children
-            for (var child : vbox.getChildren()) {
-                VBox found = findPostInVBox(child, post);
-                if (found != null) return found;
-            }
-        }
-        return null;
     }
 
     // ==================== LIKE ====================
@@ -1007,7 +947,7 @@ public void showResults() {
 
             HBox header = new HBox(10);
             header.setAlignment(Pos.CENTER_RIGHT);
-            header.setStyle("-fx-background-color: #000000; -fx-padding: 16px 20px; " +
+            header.setStyle("-fx-background-color: #1A7A64; -fx-padding: 16px 20px; " +
                     "-fx-border-radius: 16px 16px 0 0; -fx-background-radius: 16px 16px 0 0;");
             Label title = new Label("Create New Topic");
             title.setStyle("-fx-font-size: 16px; -fx-font-weight: 700; -fx-text-fill: #ffffff;");
@@ -1060,7 +1000,7 @@ public void showResults() {
 
             ListView<String> memberList = new ListView<>();
             memberList.getItems().addAll(group.members);
-            memberList.getSelectionModel().setSelectionMode(javafx.scene.control.SelectionMode.MULTIPLE);
+            memberList.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
             memberList.setPrefHeight(80);
             memberList.setStyle("-fx-border-color: #e5e5e5; -fx-border-radius: 6px; -fx-background-radius: 6px;");
 
@@ -1086,7 +1026,7 @@ public void showResults() {
             cancelBtn.setOnAction(e -> createStage.close());
 
             Button createBtn = new Button("Create Topic");
-            createBtn.setStyle("-fx-background-color: #000000; -fx-text-fill: #ffffff; -fx-font-size: 13px; " +
+            createBtn.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-font-size: 13px; " +
                     "-fx-font-weight: 600; -fx-padding: 8px 30px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;");
             createBtn.setOnAction(e -> {
                 String topicTitle = titleInput.getText().trim();
@@ -1113,7 +1053,7 @@ public void showResults() {
             root.getChildren().addAll(header, body, footer);
 
             Scene scene = new Scene(root);
-            scene.getStylesheets().add(getClass().getResource("/com/demo/style.css").toExternalForm());
+            scene.getStylesheets().add(getClass().getResource("/com/forum/css/style.css").toExternalForm());
             createStage.setScene(scene);
             createStage.showAndWait();
 
@@ -1148,47 +1088,62 @@ public void showResults() {
         renderTopics(currentGroup);
     }
 
+    // ==================== LOCKDOWN ====================
+
+    private void setLockdown(boolean enabled) {
+        lockdownActive = enabled;
+        navGroups.setDisable(enabled);
+        navProfile.setDisable(enabled);
+        navQuizzes.setDisable(enabled);
+        navResults.setDisable(enabled);
+        contextActionBtn.setDisable(enabled);
+        replyForm.setDisable(enabled);
+        replyText.setDisable(enabled);
+        privateCheck.setDisable(enabled);
+        contextList.setMouseTransparent(enabled);
+        if (enabled) {
+            contextList.setStyle("-fx-cursor: default;");
+        } else {
+            contextList.setStyle("-fx-cursor: hand;");
+        }
+    }
+
     // ==================== QUIZ (Embedded) ====================
 
-    /**
-     * Starts a quiz and displays it embedded in the right panel.
-     * @param quizIndex index of the quiz (0,1,2)
-     * @param quizTitle title of the quiz
-     */
-   private void startQuiz(int quizIndex, String quizTitle) {
-    try {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/Quiz.fxml"));
-        Parent quizView = loader.load();
-        QuizController controller = loader.getController();
+    private void startQuiz(int quizIndex, String quizTitle) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/fxmlfiles/Quiz.fxml"));
+            Parent quizView = loader.load();
+            QuizController controller = loader.getController();
 
-        // === NEW ORDER ===
-        // 1. Clear and add the view to the container (this attaches the Scene)
-        quizActive = true;
-        threadArea.getChildren().clear();
-        threadArea.getChildren().add(quizView);
-        VBox.setVgrow(quizView, Priority.ALWAYS);
+            quizActive = true;
+            setLockdown(true); // Lock UI
 
-        // 2. Now call the data setup – the view is already in a Scene
-        controller.setQuizData(quizTitle, quizIndex, () -> {
-            quizActive = false;
-            showQuizzes(); // callback when quiz is closed
-        });
+            threadArea.getChildren().clear();
+            threadArea.getChildren().add(quizView);
+            VBox.setVgrow(quizView, Priority.ALWAYS);
 
-    } catch (Exception e) {
-        e.printStackTrace();
-        showToast("Error starting quiz: " + e.getMessage());
+            controller.setQuizData(quizTitle, quizIndex, () -> {
+                quizActive = false;
+                setLockdown(false); // Unlock UI
+                showQuizzes();
+            });
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            showToast("Error starting quiz: " + e.getMessage());
+        }
     }
-}
 
     // ==================== LOGOUT ====================
 
     @FXML
     public void handleLogout() {
-        javafx.stage.Stage stage = (javafx.stage.Stage) contextTitle.getScene().getWindow();
+        Stage stage = (Stage) contextTitle.getScene().getWindow();
         try {
-            Parent loginRoot = FXMLLoader.load(getClass().getResource("/com/forum/Login.fxml"));
+            Parent loginRoot = FXMLLoader.load(getClass().getResource("/com/forum/fxmlfiles/Login.fxml"));
             Scene loginScene = new Scene(loginRoot, 400, 500);
-            loginScene.getStylesheets().add(getClass().getResource("/com/forum/style.css").toExternalForm());
+            loginScene.getStylesheets().add(getClass().getResource("/com/forum/css/style.css").toExternalForm());
             stage.setScene(loginScene);
             stage.setResizable(true);
             stage.setTitle("Smart Discussion Forum");
