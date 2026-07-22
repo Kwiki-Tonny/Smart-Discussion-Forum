@@ -59,10 +59,12 @@ return [
     'prefix_indexes' => true,
     'strict' => true,
     'engine' => null,
-'options' => array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => database_path('certs/ca.pem'),
-                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => true,
-            ]),
+    'options' => array_filter([
+        PDO::MYSQL_ATTR_SSL_CA => env('DB_SSL_CA'),
+        PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => env('DB_SSL_VERIFY_SERVER_CERT', false),
+        PDO::MYSQL_ATTR_SSL_KEY => env('DB_SSL_KEY'),
+        PDO::MYSQL_ATTR_SSL_CERT => env('DB_SSL_CERT'),
+    ]),
 ],
 
         'mariadb' => [
