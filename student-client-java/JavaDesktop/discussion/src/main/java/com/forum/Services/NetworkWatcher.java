@@ -1,13 +1,13 @@
-package com.forum;
+package com.forum.services;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class NetworkWatcher implements Runnable {
     // Uses Laravel's health-check endpoint (adjust port if needed)
-    private static final String SERVER_PING_URL = "http://localhost:8000/api/v1/health-check";
+    private static final String SERVER_PING_URL = "http://127.0.0.1:8000/api/v1/health-check";
     private static final int CHECK_INTERVAL_MS = 10000;
-    private static final int CONNECTION_TIMEOUT_MS = 3000;
+    private static final int CONNECTION_TIMEOUT_MS = 5000;
     
     private final GlobalState state = GlobalState.getInstance();
 

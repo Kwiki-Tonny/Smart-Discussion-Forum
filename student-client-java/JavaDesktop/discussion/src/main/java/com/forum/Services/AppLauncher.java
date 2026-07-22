@@ -1,4 +1,4 @@
-package com.forum;
+package com.forum.services;
 public class AppLauncher {
     public static void main(String[] args) {
         System.out.println("================================================");

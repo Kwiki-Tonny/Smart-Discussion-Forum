@@ -1,4 +1,4 @@
-package main.java.com.forum.Models;
+package com.forum.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 

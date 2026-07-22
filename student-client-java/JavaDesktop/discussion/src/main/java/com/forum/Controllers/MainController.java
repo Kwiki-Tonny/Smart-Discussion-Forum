@@ -1,18 +1,19 @@
-package com.forum.Controllers;
+package com.forum.controllers;
 
-import com.forum.GlobalState;
 import com.forum.MainApp;
 import com.forum.models.Group;
-import com.forum.models.Topic;
 import com.forum.models.Post;
+import com.forum.models.Topic;
 import com.forum.models.User;
 import com.forum.services.ApiService;
+import com.forum.services.DatabaseHandler;
+import com.forum.services.GlobalState;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainController {
+
     @FXML private Text userNameText;
     @FXML private Text contextTitle;
     @FXML private Button contextActionBtn;
@@ -45,41 +47,50 @@ public class MainController {
     @FXML private Button navQuizzes;
     @FXML private Button navResults;
 
+    // Main reply form label
+    private Label replyToLabel;
+
     private final GlobalState state = GlobalState.getInstance();
     private final ApiService api = ApiService.getInstance();
-    
-    // State
+
     private String currentView = "groups";
     private Group currentGroup;
     private Topic currentTopic;
     private List<Group> groups = new ArrayList<>();
     private List<Topic> topics = new ArrayList<>();
     private List<Post> currentPosts = new ArrayList<>();
-    private boolean quizActive = false;
-    private boolean lockdownActive = false;
+
+    // Track which post is being replied to (for main form)
+    private Post currentReplyTarget = null;
+
+    // Track the currently visible inline form (so we can hide it)
+    private VBox currentInlineForm = null;
+
+    // ─── Initialization ──────────────────────────────────────────
 
     @FXML
     public void initialize() {
         try {
             System.out.println("MainController.initialize: start");
-            
-            // Set user name from global state
+
+            // Add "Replying to" label to the main reply form
+            if (replyForm != null && replyForm.getChildren().size() > 0) {
+                replyToLabel = new Label("Replying to: Thread");
+                replyToLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #666666; -fx-padding: 0 0 4 0;");
+                replyForm.getChildren().add(0, replyToLabel);
+            }
+
             User user = state.getCurrentUser();
             if (user != null) {
                 userNameText.setText(user.name);
             } else {
                 userNameText.setText("Guest");
             }
-            
-            // Setup connection status
+
             setupConnectionStatus();
-            
-            // Setup auth listeners
             setupAuthListeners();
-            
-            // Load groups from API
             loadGroups();
-            
+
             System.out.println("MainController.initialize: done");
         } catch (Exception e) {
             System.err.println("Exception in MainController.initialize:");
@@ -88,19 +99,15 @@ public class MainController {
         }
     }
 
-    // ==================== CONNECTION STATUS ====================
-    
+    // ─── Connection & Auth ─────────────────────────────────────
+
     private void setupConnectionStatus() {
-        // Initial status
         updateConnectionUI(state.isOnline());
-        
-        // Listen for changes
         state.addConnectionListener(new GlobalState.ConnectionListener() {
             @Override
             public void onConnectionChange(boolean isOnline) {
                 Platform.runLater(() -> updateConnectionUI(isOnline));
             }
-            
             @Override
             public void onError(String error) {
                 Platform.runLater(() -> {
@@ -125,8 +132,6 @@ public class MainController {
         }
     }
 
-    // ==================== AUTH LISTENERS ====================
-    
     private void setupAuthListeners() {
         state.addAuthListener(new GlobalState.AuthListener() {
             @Override
@@ -141,7 +146,6 @@ public class MainController {
                     });
                 }
             }
-            
             @Override
             public void onTokenExpired() {
                 Platform.runLater(() -> {
@@ -156,8 +160,8 @@ public class MainController {
         });
     }
 
-    // ==================== DATA LOADING ====================
-    
+    // ─── Data Loading ──────────────────────────────────────────
+
     private void loadGroups() {
         Task<List<Group>> task = new Task<>() {
             @Override
@@ -165,7 +169,6 @@ public class MainController {
                 return api.getGroups();
             }
         };
-
         task.setOnSucceeded(e -> {
             groups = task.getValue();
             Platform.runLater(() -> {
@@ -176,15 +179,12 @@ public class MainController {
                 }
             });
         });
-
         task.setOnFailed(e -> {
             Platform.runLater(() -> {
                 showEmptyState("Failed to load groups. Check your connection.");
-                System.err.println("Failed to load groups:");
                 task.getException().printStackTrace();
             });
         });
-
         new Thread(task).start();
     }
 
@@ -195,24 +195,21 @@ public class MainController {
                 return api.getTopicsForGroup(group.id);
             }
         };
-
         task.setOnSucceeded(e -> {
             topics = task.getValue();
             Platform.runLater(() -> {
                 renderTopics(topics);
-                // Clear thread area
                 threadArea.getChildren().clear();
                 replyForm.setVisible(false);
+                replyForm.setManaged(false);
             });
         });
-
         task.setOnFailed(e -> {
             Platform.runLater(() -> {
                 showEmptyState("Failed to load topics.");
                 task.getException().printStackTrace();
             });
         });
-
         new Thread(task).start();
     }
 
@@ -223,27 +220,29 @@ public class MainController {
                 return api.getPostsForTopic(topic.id);
             }
         };
-
         task.setOnSucceeded(e -> {
             currentPosts = task.getValue();
             Platform.runLater(() -> {
                 renderThread(topic, currentPosts);
                 replyForm.setVisible(true);
+                replyForm.setManaged(true);
+                currentReplyTarget = null;
+                if (replyToLabel != null) {
+                    replyToLabel.setText("Replying to: Thread");
+                }
             });
         });
-
         task.setOnFailed(e -> {
             Platform.runLater(() -> {
                 showErrorInThread("Failed to load posts.");
                 task.getException().printStackTrace();
             });
         });
-
         new Thread(task).start();
     }
 
-    // ==================== UI HELPERS ====================
-    
+    // ─── UI Helpers ─────────────────────────────────────────────
+
     private void showEmptyState(String message) {
         contextList.getChildren().clear();
         Label label = new Label(message);
@@ -274,7 +273,7 @@ public class MainController {
         active.getStyleClass().add("active");
     }
 
-    // ==================== NAVIGATION ====================
+    // ─── Navigation ─────────────────────────────────────────────
 
     @FXML
     public void showGroups() {
@@ -285,10 +284,7 @@ public class MainController {
         contextActionBtn.setManaged(false);
         replyForm.setVisible(false);
         replyForm.setManaged(false);
-        
         renderGroups();
-        
-        // Clear thread area
         threadArea.getChildren().clear();
         VBox placeholder = new VBox(12);
         placeholder.setAlignment(Pos.CENTER);
@@ -303,12 +299,10 @@ public class MainController {
 
     private void renderGroups() {
         contextList.getChildren().clear();
-
         if (groups.isEmpty()) {
             showEmptyState("No groups available.");
             return;
         }
-
         for (Group group : groups) {
             VBox item = createGroupItem(group);
             contextList.getChildren().add(item);
@@ -317,16 +311,12 @@ public class MainController {
 
     private VBox createGroupItem(Group group) {
         VBox item = new VBox(4);
-        item.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0; " +
-                "-fx-padding: 12px 16px; -fx-cursor: hand;");
+        item.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0; -fx-padding: 12px 16px; -fx-cursor: hand;");
         item.setOnMouseClicked(e -> handleGroupClick(group));
-
         Label title = new Label(group.name);
         title.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #000000;");
-
         Label desc = new Label(group.description != null ? group.description : "");
         desc.setStyle("-fx-font-size: 12px; -fx-text-fill: #666666;");
-
         item.getChildren().addAll(title, desc);
         return item;
     }
@@ -338,16 +328,13 @@ public class MainController {
         contextActionBtn.setManaged(true);
         contextActionBtn.setText("+");
         contextActionBtn.setOnAction(e -> showCreateTopicDialog(group));
-
         replyForm.setVisible(false);
         replyForm.setManaged(false);
-
         loadTopicsForGroup(group);
     }
 
     private void renderTopics(List<Topic> topicList) {
         contextList.getChildren().clear();
-
         if (topicList.isEmpty()) {
             Label empty = new Label("No topics yet. Start a new discussion!");
             empty.setStyle("-fx-padding: 40px 20px; -fx-text-fill: #999999; -fx-font-size: 14px;");
@@ -355,7 +342,6 @@ public class MainController {
             contextList.getChildren().add(empty);
             return;
         }
-
         for (Topic topic : topicList) {
             VBox item = createTopicItem(topic);
             contextList.getChildren().add(item);
@@ -364,25 +350,19 @@ public class MainController {
 
     private VBox createTopicItem(Topic topic) {
         VBox item = new VBox(4);
-        item.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0; " +
-                "-fx-padding: 12px 16px; -fx-cursor: hand;");
+        item.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0; -fx-padding: 12px 16px; -fx-cursor: hand;");
         item.setOnMouseClicked(e -> openTopic(topic));
-
         Label title = new Label(topic.title);
         title.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #000000;");
-
         String creatorName = "Unknown";
         if (topic.creator != null && topic.creator.has("name")) {
             creatorName = topic.creator.path("name").asText("Unknown");
         }
         Label sub = new Label("by " + creatorName + " • " + (topic.created_at != null ? topic.created_at : ""));
         sub.setStyle("-fx-font-size: 12px; -fx-text-fill: #666666;");
-
         item.getChildren().addAll(title, sub);
         return item;
     }
-
-    // ==================== TOPIC VIEW ====================
 
     private void openTopic(Topic topic) {
         currentTopic = topic;
@@ -391,9 +371,10 @@ public class MainController {
         contextActionBtn.setManaged(true);
         contextActionBtn.setText("+");
         contextActionBtn.setOnAction(e -> showCreateTopicDialog(currentGroup));
-
         loadPostsForTopic(topic);
     }
+
+    // ─── Thread Rendering with Inline Reply Forms ─────────────
 
     private void renderThread(Topic topic, List<Post> posts) {
         threadArea.getChildren().clear();
@@ -402,23 +383,20 @@ public class MainController {
         HBox topBar = new HBox(12);
         topBar.setAlignment(Pos.CENTER_LEFT);
         topBar.setStyle("-fx-padding: 0 0 12 0;");
-
         Button backBtn = new Button("← Back");
-        backBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 13px; -fx-cursor: hand;");
+        backBtn.setStyle("-fx-background-color: #f0f0f0; -fx-text-fill: #1A7A64; -fx-font-size: 13px; -fx-cursor: hand; -fx-padding: 4px 12px; -fx-border-radius: 4px;");
+        final Group groupRef = currentGroup;
         backBtn.setOnAction(e -> {
-            if (currentGroup != null) {
-                handleGroupClick(currentGroup);
+            if (groupRef != null) {
+                handleGroupClick(groupRef);
             }
         });
-
         topBar.getChildren().add(backBtn);
 
-        // Title
         Label title = new Label(topic.title);
         title.setStyle("-fx-font-size: 20px; -fx-font-weight: 700; -fx-text-fill: #000000;");
         title.setPadding(new Insets(8, 0, 8, 0));
 
-        // Posts container
         VBox postsContainer = new VBox(10);
         postsContainer.setPadding(new Insets(0, 0, 16, 0));
 
@@ -434,7 +412,7 @@ public class MainController {
             postsContainer.getChildren().add(emptyBox);
         } else {
             for (Post post : posts) {
-                VBox postView = createPostView(post);
+                VBox postView = createPostView(post, 0);
                 postsContainer.getChildren().add(postView);
             }
         }
@@ -448,12 +426,19 @@ public class MainController {
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
     }
 
-    private VBox createPostView(Post post) {
-        VBox postBox = new VBox(6);
-        postBox.setStyle("-fx-background-color: #ffffff; -fx-border-color: #1A7A64; -fx-border-radius: 8px; " +
-                "-fx-background-radius: 8px; -fx-padding: 14px 18px;");
+    // ─── Create Post View with Inline Reply Form ──────────────
 
-        // Header
+    private VBox createPostView(Post post, int depth) {
+        VBox postBox = new VBox(6);
+        String style = "-fx-background-color: #ffffff; -fx-border-color: #1A7A64; -fx-border-radius: 8px; " +
+                "-fx-background-radius: 8px; -fx-padding: 14px 18px;";
+        if (depth > 0) {
+            style += " -fx-border-width: 0 0 0 2px; -fx-border-radius: 0 8px 8px 0; -fx-background-radius: 0 8px 8px 0;";
+        }
+        postBox.setStyle(style);
+        postBox.setId("post-" + post.id); // for finding later
+
+        // ─── Header ─────────────────────────────────────────────
         HBox header = new HBox(10);
         header.setAlignment(Pos.CENTER_LEFT);
 
@@ -461,14 +446,14 @@ public class MainController {
         if (post.author != null && post.author.has("name")) {
             authorName = post.author.path("name").asText("Unknown");
         }
-        String initials = authorName.length() >= 2 ? 
-            authorName.substring(0, 1) + authorName.substring(authorName.indexOf(" ") + 1, authorName.indexOf(" ") + 2) : 
-            "??";
+        String initials = authorName.length() >= 2 ?
+                authorName.substring(0, 1) + authorName.substring(authorName.indexOf(" ") + 1, authorName.indexOf(" ") + 2) :
+                "??";
 
         Label avatar = new Label(initials);
         avatar.setStyle("-fx-min-width: 28px; -fx-min-height: 28px; -fx-background-radius: 50%; " +
-                "-fx-background-color: #e5e5e5; -fx-alignment: center; -fx-font-weight: 600; -fx-font-size: 12px; " +
-                "-fx-text-fill: #000000;");
+                "-fx-background-color: #1A7A64; -fx-alignment: center; -fx-font-weight: 600; -fx-font-size: 12px; " +
+                "-fx-text-fill: #ffffff;");
 
         Label name = new Label(authorName);
         name.setStyle("-fx-font-weight: 600; -fx-font-size: 14px; -fx-text-fill: #000000;");
@@ -479,7 +464,26 @@ public class MainController {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        header.getChildren().addAll(avatar, name, time, spacer);
+        // Like button
+        int likeCount = (post.likes_count != null) ? post.likes_count : 0;
+        Button likeBtn = new Button("❤️ " + likeCount);
+        likeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 13px; -fx-cursor: hand;");
+        if (post.is_liked != null && post.is_liked) {
+            likeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #dc2626; -fx-font-size: 13px; -fx-cursor: hand;");
+        }
+        final Post postRef = post;
+        final Button likeBtnRef = likeBtn;
+        likeBtn.setOnAction(e -> handleLike(postRef, likeBtnRef));
+
+        // Reply button – toggles inline form
+        Button replyBtn = new Button("Reply");
+        replyBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #e5e5e5; -fx-border-radius: 12px; " +
+                "-fx-padding: 2px 10px; -fx-font-size: 11px; -fx-cursor: hand; -fx-text-fill: #333333;");
+        final Post replyPost = post;
+        final String replyAuthor = authorName;
+        replyBtn.setOnAction(e -> toggleInlineReply(replyPost, replyAuthor));
+
+        header.getChildren().addAll(avatar, name, time, spacer, likeBtn, replyBtn);
 
         if (post.is_private) {
             Label privateTag = new Label("🔒 Private");
@@ -488,23 +492,317 @@ public class MainController {
             header.getChildren().add(privateTag);
         }
 
-        // Body
         Label body = new Label(post.content != null ? post.content : "");
         body.setStyle("-fx-font-size: 14px; -fx-text-fill: #1e293b; -fx-wrap-text: true;");
         body.setMaxWidth(Double.MAX_VALUE);
 
         postBox.getChildren().addAll(header, body);
+
+        // ─── Inline Reply Form (hidden by default) ────────────
+        VBox inlineForm = createInlineReplyForm(post);
+        inlineForm.setVisible(false);
+        inlineForm.setManaged(false);
+        postBox.getChildren().add(inlineForm);
+
+        // ─── Nested replies ─────────────────────────────────────
+        if (post.replies != null && !post.replies.isEmpty()) {
+            VBox repliesContainer = new VBox(8);
+            repliesContainer.setStyle("-fx-padding: 8px 0 0 16px; -fx-border-color: #1A7A64; -fx-border-width: 0 0 0 2px;");
+            for (Post child : post.replies) {
+                VBox childView = createPostView(child, depth + 1);
+                repliesContainer.getChildren().add(childView);
+            }
+            postBox.getChildren().add(repliesContainer);
+        }
+
         return postBox;
     }
 
-    // ==================== CREATE TOPIC ====================
+    // ─── Create Inline Reply Form ──────────────────────────────
+
+    private VBox createInlineReplyForm(Post parentPost) {
+        VBox form = new VBox(6);
+        form.setPadding(new Insets(8, 0, 0, 0));
+        form.setStyle("-fx-border-color: #1A7A64; -fx-border-width: 1 0 0 0; -fx-padding: 8 0 0 0;");
+
+        TextArea ta = new TextArea();
+        ta.setPromptText("Write a reply...");
+        ta.setPrefRowCount(2);
+        ta.setStyle("-fx-padding: 8px 12px; -fx-border-color: #d0d5dd; -fx-border-radius: 6px; -fx-background-radius: 6px;");
+
+        CheckBox privateCb = new CheckBox("Private");
+        privateCb.setStyle("-fx-font-size: 12px;");
+
+        Button postInlineBtn = new Button("Post Reply");
+        postInlineBtn.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-padding: 4px 16px; -fx-border-radius: 4px; -fx-background-radius: 4px; -fx-cursor: hand;");
+
+        HBox buttonRow = new HBox(12, privateCb, postInlineBtn);
+        buttonRow.setAlignment(Pos.CENTER_LEFT);
+
+        form.getChildren().addAll(ta, buttonRow);
+
+        // Store a reference to the form in the button so we can use it in the handler
+        postInlineBtn.setUserData(form);
+        postInlineBtn.setOnAction(e -> handleInlineReply(parentPost, ta, privateCb, form));
+
+        return form;
+    }
+
+    // ─── Toggle Inline Reply ────────────────────────────────────
+
+    private void toggleInlineReply(Post post, String author) {
+        // Hide currently visible inline form
+        if (currentInlineForm != null) {
+            currentInlineForm.setVisible(false);
+            currentInlineForm.setManaged(false);
+            currentInlineForm = null;
+        }
+
+        // Find the post's container and the inline form inside it
+        VBox parentBox = findPostBox(post.id);
+        if (parentBox != null) {
+            for (javafx.scene.Node child : parentBox.getChildren()) {
+                if (child instanceof VBox && child.getStyle().contains("border-color: #1A7A64; -fx-border-width: 1 0 0 0;")) {
+                    VBox form = (VBox) child;
+                    form.setVisible(true);
+                    form.setManaged(true);
+                    currentInlineForm = form;
+                    // Focus the text area
+                    for (javafx.scene.Node node : form.getChildren()) {
+                        if (node instanceof TextArea) {
+                            ((TextArea) node).requestFocus();
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Also update the main reply form label (optional)
+        if (replyToLabel != null) {
+            replyToLabel.setText("Replying to: " + author);
+        }
+    }
+
+    // ─── Find Post Box by ID ────────────────────────────────────
+
+    private VBox findPostBox(int postId) {
+        return findPostBoxRecursive(threadArea, postId);
+    }
+
+    private VBox findPostBoxRecursive(Parent parent, int postId) {
+        for (javafx.scene.Node node : parent.getChildrenUnmodifiable()) {
+            if (node instanceof VBox && node.getId() != null && node.getId().equals("post-" + postId)) {
+                return (VBox) node;
+            }
+            if (node instanceof Parent) {
+                VBox found = findPostBoxRecursive((Parent) node, postId);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    // ─── Handle Inline Reply Submission ────────────────────────
+
+    private void handleInlineReply(Post parentPost, TextArea ta, CheckBox privateCb, VBox form) {
+        String content = ta.getText().trim();
+        if (content.isEmpty()) {
+            showToast("Please write a reply.");
+            return;
+        }
+        boolean isPrivate = privateCb.isSelected();
+        int userId = state.getCurrentUserId();
+        if (userId == -1) {
+            showToast("User not logged in.");
+            return;
+        }
+
+        final Integer parentId = parentPost.id;
+        final String timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+        // Check online status
+        if (state.isOnline()) {
+            Task<Post> task = new Task<>() {
+                @Override
+                protected Post call() throws Exception {
+                    return api.createPost(currentTopic.id, userId, content, isPrivate, null, parentId);
+                }
+            };
+            task.setOnSucceeded(e -> {
+                ta.clear();
+                privateCb.setSelected(false);
+                form.setVisible(false);
+                form.setManaged(false);
+                currentInlineForm = null;
+                showToast("Reply posted!");
+                loadPostsForTopic(currentTopic);
+            });
+            task.setOnFailed(e -> {
+                showToast("Failed to post reply: " + task.getException().getMessage());
+                task.getException().printStackTrace();
+            });
+            new Thread(task).start();
+        } else {
+            // Offline – save locally and add to UI
+            boolean saved = DatabaseHandler.saveOfflinePostDraft(
+                    currentTopic.id, userId, content, isPrivate, timestamp, parentId
+            );
+            if (saved) {
+                ta.clear();
+                privateCb.setSelected(false);
+                form.setVisible(false);
+                form.setManaged(false);
+                currentInlineForm = null;
+                showToast("📶 Saved offline – will sync when online.");
+
+                // Create a local post object and add to the parent's replies
+                Post newPost = new Post();
+                newPost.id = -1; // temporary
+                newPost.content = content;
+                newPost.is_private = isPrivate;
+                newPost.created_at = timestamp;
+                newPost.author = null; // will show "You" later
+                newPost.likes_count = 0;
+                newPost.is_liked = false;
+
+                if (parentPost.replies == null) {
+                    parentPost.replies = new ArrayList<>();
+                }
+                parentPost.replies.add(newPost);
+
+                // Reload thread to show the new nested reply
+                loadPostsForTopic(currentTopic);
+            } else {
+                showToast("Failed to save offline reply.");
+            }
+        }
+    }
+
+    // ─── Handle Like (with offline support) ────────────────────
+
+    private void handleLike(Post post, Button likeBtn) {
+        if (state.isOnline()) {
+            Task<Post> task = new Task<>() {
+                @Override
+                protected Post call() throws Exception {
+                    return api.toggleLike(post.id);
+                }
+            };
+            task.setOnSucceeded(e -> {
+                Post updated = task.getValue();
+                post.is_liked = updated.is_liked;
+                post.likes_count = updated.likes_count;
+                Platform.runLater(() -> updateLikeUI(post, likeBtn));
+            });
+            task.setOnFailed(e -> {
+                showToast("Failed to like: " + task.getException().getMessage());
+            });
+            new Thread(task).start();
+        } else {
+            // Offline: toggle locally
+            post.is_liked = !post.is_liked;
+            if (post.likes_count == null) post.likes_count = 0;
+            post.likes_count += post.is_liked ? 1 : -1;
+            updateLikeUI(post, likeBtn);
+            showToast("📶 Like saved offline – will sync when online.");
+        }
+    }
+
+    private void updateLikeUI(Post post, Button likeBtn) {
+        int newCount = (post.likes_count != null) ? post.likes_count : 0;
+        likeBtn.setText("❤️ " + newCount);
+        if (post.is_liked != null && post.is_liked) {
+            likeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #dc2626; -fx-font-size: 13px; -fx-cursor: hand;");
+        } else {
+            likeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 13px; -fx-cursor: hand;");
+        }
+    }
+
+    // ─── Main Reply Form ────────────────────────────────────────
+
+    @FXML
+    public void handlePostReply() {
+        if (currentTopic == null || currentGroup == null) {
+            showToast("Please select a topic first.");
+            return;
+        }
+        String content = replyText.getText().trim();
+        if (content.isEmpty()) {
+            showToast("Please write a reply.");
+            return;
+        }
+        boolean isPrivate = privateCheck.isSelected();
+        int userId = state.getCurrentUserId();
+        if (userId == -1) {
+            showToast("User not logged in.");
+            return;
+        }
+
+        final Integer parentId = (currentReplyTarget != null) ? currentReplyTarget.id : null;
+        final String timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+        if (state.isOnline()) {
+            Task<Post> task = new Task<>() {
+                @Override
+                protected Post call() throws Exception {
+                    return api.createPost(currentTopic.id, userId, content, isPrivate, null, parentId);
+                }
+            };
+            task.setOnSucceeded(e -> {
+                replyText.clear();
+                privateCheck.setSelected(false);
+                currentReplyTarget = null;
+                if (replyToLabel != null) {
+                    replyToLabel.setText("Replying to: Thread");
+                }
+                showToast("Reply posted!");
+                loadPostsForTopic(currentTopic);
+            });
+            task.setOnFailed(e -> {
+                showToast("Failed to post reply: " + task.getException().getMessage());
+                task.getException().printStackTrace();
+            });
+            new Thread(task).start();
+        } else {
+            // Offline – save locally
+            boolean saved = DatabaseHandler.saveOfflinePostDraft(
+                    currentTopic.id, userId, content, isPrivate, timestamp, parentId
+            );
+            if (saved) {
+                replyText.clear();
+                privateCheck.setSelected(false);
+                currentReplyTarget = null;
+                if (replyToLabel != null) {
+                    replyToLabel.setText("Replying to: Thread");
+                }
+                showToast("📶 Saved offline – will sync when online.");
+
+                // Add to UI temporarily (as top-level post)
+                Post newPost = new Post();
+                newPost.id = -1;
+                newPost.content = content;
+                newPost.is_private = isPrivate;
+                newPost.created_at = timestamp;
+                newPost.author = null;
+                newPost.likes_count = 0;
+                newPost.is_liked = false;
+                currentPosts.add(newPost);
+                loadPostsForTopic(currentTopic);
+            } else {
+                showToast("Failed to save offline reply.");
+            }
+        }
+    }
+
+    // ─── Create Topic Dialog ────────────────────────────────────
 
     private void showCreateTopicDialog(Group group) {
         if (group == null) {
             showToast("Please select a group first.");
             return;
         }
-
         try {
             Stage createStage = new Stage();
             createStage.initModality(Modality.APPLICATION_MODAL);
@@ -568,27 +866,22 @@ public class MainController {
             createBtn.setOnAction(e -> {
                 String topicTitle = titleInput.getText().trim();
                 if (!topicTitle.isEmpty()) {
-                    // Create topic via API
                     Task<Topic> createTask = new Task<>() {
                         @Override
                         protected Topic call() throws Exception {
                             return api.createTopic(group.id, topicTitle, descInput.getText().trim());
                         }
                     };
-                    
                     createTask.setOnSucceeded(ev -> {
                         createStage.close();
                         showToast("Topic created successfully!");
-                        // Reload topics
                         handleGroupClick(group);
                     });
-                    
                     createTask.setOnFailed(ev -> {
                         createStage.close();
                         showToast("Failed to create topic: " + createTask.getException().getMessage());
                         createTask.getException().printStackTrace();
                     });
-                    
                     new Thread(createTask).start();
                 }
             });
@@ -607,53 +900,7 @@ public class MainController {
         }
     }
 
-    // ==================== POST REPLY ====================
-
-    @FXML
-    public void handlePostReply() {
-        if (currentTopic == null || currentGroup == null) {
-            showToast("Please select a topic first.");
-            return;
-        }
-
-        String content = replyText.getText().trim();
-        if (content.isEmpty()) {
-            showToast("Please write a reply.");
-            return;
-        }
-
-        boolean isPrivate = privateCheck.isSelected();
-        int userId = state.getCurrentUserId();
-
-        if (userId == -1) {
-            showToast("User not logged in.");
-            return;
-        }
-
-        Task<Post> task = new Task<>() {
-            @Override
-            protected Post call() throws Exception {
-                return api.createPost(currentTopic.id, userId, content, isPrivate, null);
-            }
-        };
-
-        task.setOnSucceeded(e -> {
-            replyText.clear();
-            privateCheck.setSelected(false);
-            showToast("Reply posted!");
-            // Reload posts
-            loadPostsForTopic(currentTopic);
-        });
-
-        task.setOnFailed(e -> {
-            showToast("Failed to post reply: " + task.getException().getMessage());
-            task.getException().printStackTrace();
-        });
-
-        new Thread(task).start();
-    }
-
-    // ==================== LOGOUT ====================
+    // ─── Logout ──────────────────────────────────────────────────
 
     @FXML
     public void handleLogout() {
@@ -664,7 +911,6 @@ public class MainController {
                 return null;
             }
         };
-
         logoutTask.setOnSucceeded(e -> {
             state.clearSession();
             try {
@@ -673,9 +919,7 @@ public class MainController {
                 ex.printStackTrace();
             }
         });
-
         logoutTask.setOnFailed(e -> {
-            // Even if API fails, clear local session
             state.clearSession();
             try {
                 MainApp.switchToLogin();
@@ -683,15 +927,13 @@ public class MainController {
                 ex.printStackTrace();
             }
         });
-
         new Thread(logoutTask).start();
     }
 
-    // ==================== PLACEHOLDER METHODS ====================
-    
+    // ─── Placeholder Navigation ─────────────────────────────────
+
     @FXML
     public void showProfile() {
-        // Keep existing implementation or load from API
         currentView = "profile";
         setActiveNav(navProfile);
         contextTitle.setText("Profile");
@@ -699,13 +941,10 @@ public class MainController {
         contextActionBtn.setManaged(false);
         replyForm.setVisible(false);
         replyForm.setManaged(false);
-
-        // Show user info from global state
         contextList.getChildren().clear();
         VBox profileBox = new VBox(16);
         profileBox.setPadding(new Insets(16));
         profileBox.setStyle("-fx-background-color: #ffffff;");
-        
         User user = state.getCurrentUser();
         if (user != null) {
             Label nameLabel = new Label("👤 " + user.name);
@@ -720,10 +959,7 @@ public class MainController {
             notLoggedIn.setStyle("-fx-font-size: 14px; -fx-text-fill: #999;");
             profileBox.getChildren().add(notLoggedIn);
         }
-        
         contextList.getChildren().add(profileBox);
-
-        // Clear thread area
         threadArea.getChildren().clear();
         VBox placeholder = new VBox(12);
         placeholder.setAlignment(Pos.CENTER);
@@ -738,7 +974,6 @@ public class MainController {
 
     @FXML
     public void showQuizzes() {
-        // Keep existing implementation
         currentView = "quizzes";
         setActiveNav(navQuizzes);
         contextTitle.setText("Quizzes");
@@ -746,16 +981,13 @@ public class MainController {
         contextActionBtn.setManaged(false);
         replyForm.setVisible(false);
         replyForm.setManaged(false);
-
         contextList.getChildren().clear();
-        
         VBox quizzesBox = new VBox(8);
         quizzesBox.setPadding(new Insets(12));
         Label info = new Label("📝 Quizzes will be available soon.");
         info.setStyle("-fx-font-size: 14px; -fx-text-fill: #666; -fx-padding: 20px;");
         quizzesBox.getChildren().add(info);
         contextList.getChildren().add(quizzesBox);
-
         threadArea.getChildren().clear();
         VBox placeholder = new VBox(12);
         placeholder.setAlignment(Pos.CENTER);
@@ -770,7 +1002,6 @@ public class MainController {
 
     @FXML
     public void showResults() {
-        // Keep existing implementation
         currentView = "results";
         setActiveNav(navResults);
         contextTitle.setText("Quiz Results");
@@ -778,7 +1009,6 @@ public class MainController {
         contextActionBtn.setManaged(false);
         replyForm.setVisible(false);
         replyForm.setManaged(false);
-
         contextList.getChildren().clear();
         VBox resultsBox = new VBox(8);
         resultsBox.setPadding(new Insets(12));
@@ -786,7 +1016,6 @@ public class MainController {
         info.setStyle("-fx-font-size: 14px; -fx-text-fill: #666; -fx-padding: 20px;");
         resultsBox.getChildren().add(info);
         contextList.getChildren().add(resultsBox);
-
         threadArea.getChildren().clear();
         VBox placeholder = new VBox(12);
         placeholder.setAlignment(Pos.CENTER);
@@ -805,26 +1034,6 @@ public class MainController {
             showCreateTopicDialog(currentGroup);
         } else {
             showToast("Please select a group first.");
-        }
-    }
-
-    // ==================== LOCKDOWN (for quizzes) ====================
-    
-    private void setLockdown(boolean enabled) {
-        lockdownActive = enabled;
-        navGroups.setDisable(enabled);
-        navProfile.setDisable(enabled);
-        navQuizzes.setDisable(enabled);
-        navResults.setDisable(enabled);
-        contextActionBtn.setDisable(enabled);
-        replyForm.setDisable(enabled);
-        replyText.setDisable(enabled);
-        privateCheck.setDisable(enabled);
-        contextList.setMouseTransparent(enabled);
-        if (enabled) {
-            contextList.setStyle("-fx-cursor: default;");
-        } else {
-            contextList.setStyle("-fx-cursor: hand;");
         }
     }
 }

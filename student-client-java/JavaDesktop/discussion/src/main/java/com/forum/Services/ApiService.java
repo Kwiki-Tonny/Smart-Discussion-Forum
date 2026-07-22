@@ -3,7 +3,7 @@ package com.forum.services;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.forum.GlobalState;
+import com.forum.services.GlobalState;
 import com.forum.models.Group;
 import com.forum.models.Post;
 import com.forum.models.Topic;
@@ -15,6 +15,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -43,7 +44,6 @@ public class ApiService {
         return instance;
     }
 
-    // ---------- Token Management (using GlobalState) ----------
     public String getToken() {
         return state.getAuthToken();
     }
@@ -52,7 +52,6 @@ public class ApiService {
         return state.isAuthenticated();
     }
 
-    // ---------- Generic Request Helpers ----------
     private HttpRequest.Builder authenticatedRequest() {
         String token = getToken();
         if (token == null || token.isEmpty()) {
@@ -65,7 +64,6 @@ public class ApiService {
 
     private JsonNode parseResponse(HttpResponse<String> response) throws Exception {
         if (response.statusCode() == 401) {
-            // Token expired or invalid
             state.clearSession();
             throw new RuntimeException("Authentication expired. Please login again.");
         }
@@ -76,47 +74,39 @@ public class ApiService {
         return mapper.readTree(response.body());
     }
 
-    // ---------- Authentication ----------
+    // ─── Authentication ──────────────────────────────────────────
+
     public LoginResponse login(String email, String password) throws Exception {
         String jsonBody = mapper.writeValueAsString(Map.of("email", email, "password", password));
-
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/login"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
-
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         JsonNode root = parseResponse(response);
 
         String token = root.path("access_token").asText();
         if (token.isEmpty()) token = root.path("token").asText();
-
-        if (token.isEmpty()) {
-            throw new RuntimeException("No token in response");
-        }
+        if (token.isEmpty()) throw new RuntimeException("No token in response");
 
         JsonNode userNode = root.path("user");
         User user = mapper.treeToValue(userNode, User.class);
-
         return new LoginResponse(token, user);
     }
 
     public void logout() throws Exception {
         if (!isAuthenticated()) return;
-
         HttpRequest request = authenticatedRequest()
                 .uri(URI.create(BASE_URL + "/logout"))
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
-
         try {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 300) {
                 System.err.println("Logout warning: " + response.body());
             }
         } finally {
-            // Always clear local token even if server call fails
             state.clearSession();
         }
     }
@@ -126,19 +116,18 @@ public class ApiService {
                 .uri(URI.create(BASE_URL + "/user"))
                 .GET()
                 .build();
-
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         JsonNode root = parseResponse(response);
         return mapper.treeToValue(root, User.class);
     }
 
-    // ---------- Forum Data ----------
+    // ─── Forum Data ─────────────────────────────────────────────
+
     public List<Group> getGroups() throws Exception {
         HttpRequest request = authenticatedRequest()
                 .uri(URI.create(BASE_URL + "/groups"))
                 .GET()
                 .build();
-
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         JsonNode root = parseResponse(response);
         JsonNode data = root.path("data");
@@ -156,7 +145,6 @@ public class ApiService {
                 .uri(URI.create(BASE_URL + "/groups/" + groupId + "/topics"))
                 .GET()
                 .build();
-
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         JsonNode root = parseResponse(response);
         JsonNode data = root.path("data");
@@ -174,7 +162,6 @@ public class ApiService {
                 .uri(URI.create(BASE_URL + "/topics/" + topicId + "/posts"))
                 .GET()
                 .build();
-
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         JsonNode root = parseResponse(response);
         JsonNode data = root.path("data");
@@ -194,26 +181,29 @@ public class ApiService {
                 "description", description != null ? description : ""
         );
         String json = mapper.writeValueAsString(payload);
-
         HttpRequest request = authenticatedRequest()
                 .uri(URI.create(BASE_URL + "/topics"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
-
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         JsonNode root = parseResponse(response);
         return mapper.treeToValue(root.path("data"), Topic.class);
     }
 
-    public Post createPost(int topicId, int userId, String content, boolean isPrivate, List<Integer> excludedUserIds) throws Exception {
-        Map<String, Object> payload = Map.of(
-                "topic_id", topicId,
-                "user_id", userId,
-                "content", content,
-                "is_private", isPrivate,
-                "excluded_user_ids", excludedUserIds != null ? excludedUserIds : List.of()
-        );
+    // ─── Create Post (with parentId for nested replies) ────────
+
+    public Post createPost(int topicId, int userId, String content, boolean isPrivate,
+                           List<Integer> excludedUserIds, Integer parentId) throws Exception {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("topic_id", topicId);
+        payload.put("user_id", userId);
+        payload.put("content", content);
+        payload.put("is_private", isPrivate);
+        payload.put("excluded_user_ids", excludedUserIds != null ? excludedUserIds : List.of());
+        if (parentId != null) {
+            payload.put("parent_id", parentId);
+        }
         String json = mapper.writeValueAsString(payload);
 
         HttpRequest request = authenticatedRequest()
@@ -227,13 +217,26 @@ public class ApiService {
         return mapper.treeToValue(root.path("data"), Post.class);
     }
 
-    // ---------- Sync Endpoints ----------
+    // ─── Like ──────────────────────────────────────────────────
+
+    public Post toggleLike(int postId) throws Exception {
+        HttpRequest request = authenticatedRequest()
+                .uri(URI.create(BASE_URL + "/posts/" + postId + "/like"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        JsonNode root = parseResponse(response);
+        return mapper.treeToValue(root.path("data"), Post.class);
+    }
+
+    // ─── Sync ──────────────────────────────────────────────────
+
     public List<Post> syncDownload(String since) throws Exception {
         HttpRequest request = authenticatedRequest()
                 .uri(URI.create(BASE_URL + "/sync/download?since=" + since))
                 .GET()
                 .build();
-
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         JsonNode root = parseResponse(response);
         JsonNode data = root.path("data");
@@ -249,13 +252,11 @@ public class ApiService {
     public List<Map<String, Object>> syncUpload(List<Map<String, Object>> pendingPosts) throws Exception {
         Map<String, Object> payload = Map.of("posts", pendingPosts);
         String json = mapper.writeValueAsString(payload);
-
         HttpRequest request = authenticatedRequest()
                 .uri(URI.create(BASE_URL + "/sync/upload"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
-
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         JsonNode root = parseResponse(response);
         List<Map<String, Object>> results = new ArrayList<>();
@@ -268,7 +269,8 @@ public class ApiService {
         return results;
     }
 
-    // ---------- Helper DTO ----------
+    // ─── Helper DTO ────────────────────────────────────────────
+
     public static class LoginResponse {
         public String token;
         public User user;

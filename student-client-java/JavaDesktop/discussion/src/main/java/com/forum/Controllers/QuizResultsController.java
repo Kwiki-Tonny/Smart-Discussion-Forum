@@ -1,4 +1,4 @@
-package com.forum.Controllers;
+package com.forum.controllers;
 
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;

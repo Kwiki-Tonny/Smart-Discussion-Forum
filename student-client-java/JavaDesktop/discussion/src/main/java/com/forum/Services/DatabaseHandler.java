@@ -1,4 +1,4 @@
-package com.forum;
+package com.forum.services;
 
 import java.io.File;
 import java.sql.Connection;
@@ -123,7 +123,7 @@ public class DatabaseHandler {
 
                 /*
                  * 5. POSTS / REPLIES TABLE
-                 * Includes the 'is_private' column to trigger content security policies.
+                 * Includes 'is_private' column and 'parent_id' for nested replies.
                  */
                 stmt.execute("CREATE TABLE IF NOT EXISTS posts (" +
                         "local_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -133,10 +133,12 @@ public class DatabaseHandler {
                         "content TEXT NOT NULL, " +
                         "is_private INTEGER DEFAULT 0, " +               // 0 = Public, 1 = Private (Triggers exclusions)
                         "sync_status TEXT NOT NULL DEFAULT 'SYNCED', " + // 'PENDING_CREATE', 'SYNCED'
+                        "parent_id INTEGER, " +                          // NEW: for nested replies
                         "created_at TEXT NOT NULL, " +
                         "updated_at TEXT, " +
                         "FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE, " +
-                        "FOREIGN KEY (user_id) REFERENCES user_profiles(id)" +
+                        "FOREIGN KEY (user_id) REFERENCES user_profiles(id), " +
+                        "FOREIGN KEY (parent_id) REFERENCES posts(local_id) ON DELETE CASCADE" +
                         ");");
 
                 /*
@@ -156,7 +158,7 @@ public class DatabaseHandler {
                         ");");
 
                 databaseInitialized = true;
-                System.out.println("[+] Embedded forum.db structure verified and secured with Privacy Layer.");
+                System.out.println("[+] Embedded forum.db structure verified and secured with Privacy Layer (parent_id added).");
 
             } catch (SQLException e) {
                 System.err.println("[-] Critical structural configuration exception inside SQLite engine:");
@@ -167,16 +169,32 @@ public class DatabaseHandler {
 
     /**
      * Saves an offline discussion entry draft locally, capturing privacy markers.
+     * This is a convenience method for posts without a parent (top-level replies).
      */
     public static boolean saveOfflinePostDraft(int topicId, int userId, String content, boolean isPrivate, String timestamp) {
-        String sql = "INSERT INTO posts (topic_id, user_id, content, is_private, sync_status, created_at) VALUES (?, ?, ?, ?, 'PENDING_CREATE', ?);";
-        
+        return saveOfflinePostDraft(topicId, userId, content, isPrivate, timestamp, null);
+    }
+
+    /**
+     * Saves an offline discussion entry draft locally, with support for nested replies.
+     * @param parentId The local_id of the parent post, or null for top-level posts.
+     */
+    public static boolean saveOfflinePostDraft(int topicId, int userId, String content,
+                                               boolean isPrivate, String timestamp, Integer parentId) {
+        String sql = "INSERT INTO posts (topic_id, user_id, content, is_private, sync_status, created_at, parent_id) " +
+                     "VALUES (?, ?, ?, ?, 'PENDING_CREATE', ?, ?);";
+
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, topicId);
             pstmt.setInt(2, userId);
             pstmt.setString(3, content);
             pstmt.setInt(4, isPrivate ? 1 : 0);
             pstmt.setString(5, timestamp);
+            if (parentId != null) {
+                pstmt.setInt(6, parentId);
+            } else {
+                pstmt.setNull(6, java.sql.Types.INTEGER);
+            }
             pstmt.executeUpdate();
             return true;
         } catch (SQLException e) {
@@ -211,7 +229,7 @@ public class DatabaseHandler {
      */
     public static List<OfflinePostChange> getPendingUpstreamPosts() {
         List<OfflinePostChange> changes = new ArrayList<>();
-        String sql = "SELECT local_id, topic_id, user_id, content, is_private, created_at FROM posts WHERE sync_status = 'PENDING_CREATE';";
+        String sql = "SELECT local_id, topic_id, user_id, content, is_private, created_at, parent_id FROM posts WHERE sync_status = 'PENDING_CREATE';";
 
         try (Connection conn = getConnection(); Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
@@ -221,7 +239,8 @@ public class DatabaseHandler {
                         rs.getInt("user_id"),
                         rs.getString("content"),
                         rs.getInt("is_private") == 1,
-                        rs.getString("created_at")
+                        rs.getString("created_at"),
+                        rs.getObject("parent_id") != null ? rs.getInt("parent_id") : null
                 ));
             }
         } catch (SQLException e) {
@@ -298,14 +317,16 @@ public class DatabaseHandler {
         public final String content;
         public final boolean isPrivate;
         public final String createdAt;
+        public final Integer parentId;  // NEW: for nested replies
 
-        public OfflinePostChange(int localId, int topicId, int userId, String content, boolean isPrivate, String createdAt) {
+        public OfflinePostChange(int localId, int topicId, int userId, String content, boolean isPrivate, String createdAt, Integer parentId) {
             this.localId = localId;
             this.topicId = topicId;
             this.userId = userId;
             this.content = content;
             this.isPrivate = isPrivate;
             this.createdAt = createdAt;
+            this.parentId = parentId;
         }
     }
 

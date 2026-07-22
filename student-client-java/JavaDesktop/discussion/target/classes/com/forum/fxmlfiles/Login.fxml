@@ -7,8 +7,8 @@
 
 <VBox xmlns="http://javafx.com/javafx/17"
       xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.forum.Controllers.LoginController"
-      stylesheets="/com/forum/CSS files/style.css"
+      fx:controller="com.forum.controllers.LoginController"
+      stylesheets="/com/forum/css/style.css"
       styleClass="login-screen"
       alignment="CENTER"
       spacing="0">
@@ -24,13 +24,13 @@
             <!-- Email -->
             <VBox spacing="4">
                 <Label styleClass="field-label">WORKSPACE EMAIL</Label>
-                <TextField fx:id="emailField" styleClass="field-input" text="" promptText="Enter your workspace email"/>
+                <TextField fx:id="emailField" styleClass="field-input" promptText="Enter your workspace email"/>
             </VBox>
 
             <!-- Password -->
             <VBox spacing="4">
                 <Label styleClass="field-label">PASSWORD</Label>
-                <PasswordField fx:id="passwordField" styleClass="field-input" text="**********" promptText="••••••••"/>
+                <PasswordField fx:id="passwordField" styleClass="field-input" promptText="••••••••"/>
             </VBox>
 
             <!-- Options Row: Remember me + Forgot password -->
@@ -43,8 +43,11 @@
             <!-- Error label -->
             <Label fx:id="errorLabel" styleClass="login-error" visible="false" text="Invalid credentials. Please try again." wrapText="true"/>
 
-            <!-- Login Button – use maxWidth="Infinity" or simply set maxWidth to a large number -->
-            <Button fx:id="loginButton" styleClass="login-btn" text="ACCESS WORKSPACE" onAction="#handleLogin" maxWidth="Infinity"/>
+            <!-- Login Button + ProgressIndicator -->
+            <HBox alignment="CENTER" spacing="12">
+                <Button fx:id="loginButton" styleClass="login-btn" text="ACCESS WORKSPACE" onAction="#handleLogin" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+                <ProgressIndicator fx:id="progressIndicator" visible="false" prefWidth="30" prefHeight="30"/>
+            </HBox>
 
             <!-- Additional links -->
             <HBox alignment="CENTER" spacing="4" styleClass="register-link">

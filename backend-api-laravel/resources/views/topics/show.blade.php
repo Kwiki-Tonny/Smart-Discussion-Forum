@@ -19,11 +19,11 @@
                 <p class="text-[8px] text-[#666666] uppercase tracking-wider font-medium">Replies</p>
             </div>
             <div class="text-center p-2.5 rounded-lg bg-white border border-[#E5E5E5] hover:shadow-sm transition">
-                <p class="text-xl font-bold text-[#2563EB]">{{ $topic->creator->name ?? 'Unknown' }}</p>
+                <p class="text-[12px] font-bold text-[#2563EB]">{{ $topic->creator->name ?? 'Unknown' }}</p>
                 <p class="text-[8px] text-[#666666] uppercase tracking-wider font-medium">Author</p>
             </div>
             <div class="text-center p-2.5 rounded-lg bg-white border border-[#E5E5E5] hover:shadow-sm transition">
-                <p class="text-xl font-bold text-[#D97706]">{{ $topic->created_at->format('M d, Y') }}</p>
+                <p class="text-[12px] font-bold text-[#D97706]">{{ $topic->created_at->format('M d, Y') }}</p>
                 <p class="text-[8px] text-[#666666] uppercase tracking-wider font-medium">Created</p>
             </div>
         </div>

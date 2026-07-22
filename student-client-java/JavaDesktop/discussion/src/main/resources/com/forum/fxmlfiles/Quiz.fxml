@@ -7,12 +7,12 @@
 
 <VBox xmlns="http://javafx.com/javafx/17"
       xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.forum.Controllers.QuizController"
+      fx:controller="com.forum.controllers.QuizController"
       stylesheets="/com/forum/css/style.css"
       spacing="0"
       VBox.vgrow="ALWAYS">
 
-    <!-- Header with title and timer (no close button) -->
+    <!-- Header with title and timer -->
     <HBox alignment="CENTER_LEFT" spacing="12"
           style="-fx-padding: 12px 16px; -fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0;">
         <Text fx:id="quizTitleText" text="Quiz Title"
@@ -22,15 +22,11 @@
               style="-fx-font-size: 16px; -fx-font-weight: 700; -fx-text-fill: #000000;"/>
     </HBox>
 
-    <!-- Progress bar -->
+    <!-- Progress indicator -->
     <HBox alignment="CENTER_LEFT" spacing="12" style="-fx-padding: 8px 16px; -fx-background-color: #f9f9f9;">
         <Text fx:id="qNumText" text="Question 1 of 10" style="-fx-font-size: 13px; -fx-text-fill: #666666;"/>
         <Region HBox.hgrow="ALWAYS"/>
-        <VBox styleClass="progress-bar" prefWidth="200" minHeight="4" maxHeight="4"
-              style="-fx-background-color: #e5e5e5; -fx-background-radius: 4px;">
-            <Region fx:id="progressFill" prefWidth="10" minHeight="4" maxHeight="4"
-                    style="-fx-background-color: #1A7A64; -fx-background-radius: 4px;"/>
-        </VBox>
+        <ProgressBar fx:id="quizProgressBar" progress="0.0" prefWidth="200" style="-fx-accent: #1A7A64;"/>
         <Text fx:id="progressText" text="1/10" style="-fx-font-size: 12px; -fx-text-fill: #666666;"/>
     </HBox>
 
@@ -55,4 +51,13 @@
             </HBox>
         </VBox>
     </ScrollPane>
+
+    <!-- Result Overlay (hidden initially) -->
+    <VBox fx:id="resultOverlay" visible="false" managed="false"
+          style="-fx-padding: 20; -fx-alignment: center; -fx-background-color: #ffffff; -fx-border-color: #1A7A64; -fx-border-width: 2 0 0 0;">
+        <Label text="Quiz Complete!" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1A7A64;"/>
+        <Label fx:id="scoreLabel" text="Score: 0/0" style="-fx-font-size: 16px; -fx-padding: 8 0;"/>
+        <Label fx:id="classAverageLabel" text="Class average: 0%" style="-fx-font-size: 14px; -fx-text-fill: #666666;"/>
+        <Button text="Close" onAction="#closeQuiz" style="-fx-background-color: #1A7A64; -fx-text-fill: white; -fx-padding: 8 24; -fx-border-radius: 6px; -fx-cursor: hand;"/>
+    </VBox>
 </VBox>

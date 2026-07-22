@@ -1,6 +1,6 @@
-package com.forum.Controllers;
+package com.forum.controllers;
 
-import com.forum.GlobalState;
+import com.forum.services.GlobalState;
 import com.forum.MainApp;
 import com.forum.models.User;
 import com.forum.services.ApiService;

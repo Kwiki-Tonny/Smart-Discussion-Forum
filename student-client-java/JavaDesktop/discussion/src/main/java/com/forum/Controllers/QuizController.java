@@ -1,4 +1,4 @@
-package com.forum.Controllers;
+package com.forum.controllers;
 
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;

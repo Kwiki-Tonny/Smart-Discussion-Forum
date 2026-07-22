@@ -1,7 +1,8 @@
-package com.forum.models;
+package com.forum.services;
 
-import com.forum.DatabaseHandler;
-import com.forum.GlobalState;
+import com.forum.services.DatabaseHandler;
+import com.forum.services.GlobalState;
+import com.forum.models.Post;
 import com.forum.services.ApiService;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;

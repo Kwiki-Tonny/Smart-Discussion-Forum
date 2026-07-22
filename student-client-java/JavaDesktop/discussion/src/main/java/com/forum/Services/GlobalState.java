@@ -1,4 +1,4 @@
-package com.forum;
+package com.forum.services;
 
 import com.forum.models.User;
 import javafx.application.Platform;

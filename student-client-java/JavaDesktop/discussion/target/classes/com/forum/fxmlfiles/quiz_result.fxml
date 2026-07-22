@@ -6,16 +6,17 @@
 
 <VBox xmlns="http://javafx.com/javafx/17"
       xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.forum.Controllers.QuizResultsController"
+      fx:controller="com.forum.controllers.QuizResultsController"
+      stylesheets="/com/forum/css/style.css"
       spacing="0"
       style="-fx-background-color: #f5f5f5;">
 
     <HBox style="-fx-padding: 12px 16px; -fx-background-color: #1A7A64; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0;">
-        <Label text="📊 Quiz Results" style="-fx-font-size: 14px; -fx-font-weight: 700; -fx-text-fill: #000000;"/>
+        <Label text="📊 Quiz Results" style="-fx-font-size: 14px; -fx-font-weight: 700; -fx-text-fill: #ffffff;"/>
     </HBox>
 
     <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent; -fx-background: transparent;">
-        <VBox fx:id="resultsList" spacing="1" style="-fx-background-color: #1A7A64;"/>
+        <VBox fx:id="resultsList" spacing="1" style="-fx-background-color: transparent;"/>
     </ScrollPane>
 
 </VBox>
