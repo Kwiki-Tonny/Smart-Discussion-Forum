@@ -6,9 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Post extends Model
 {
-    protected $fillable = [        '
-       
-        'content', 
+    protected $fillable = [
+        'content',
         'is_private',
         'is_pinned',
         'attachments'
