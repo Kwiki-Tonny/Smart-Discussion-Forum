@@ -47,7 +47,6 @@
         @endif
     </div>
 
-   >
 {{-- Quick Stats --}}
 <div class="p-4 bg-white border-b border-[#E5E5E5]">
     <div class="grid grid-cols-4 gap-3">
