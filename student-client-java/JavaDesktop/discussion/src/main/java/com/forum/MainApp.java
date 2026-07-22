@@ -1,5 +1,6 @@
 package com.forum;
 
+import com.forum.services.SyncWorker;
 import javafx.application.Application;
 import javafx.event.Event;
 import javafx.event.EventDispatchChain;
@@ -57,6 +58,13 @@ public class MainApp extends Application {
         primaryStage.setMinWidth(400);
         primaryStage.setMinHeight(550);
         primaryStage.show();
+
+        // Start the SyncWorker thread after setting up the primary stage
+        Thread syncThread = new Thread(new SyncWorker());
+        syncThread.setDaemon(true);
+        syncThread.setName("SyncWorker");
+        syncThread.start();
+        System.out.println("SyncWorker thread started successfully");
     }
 
     public static void switchToMain() {

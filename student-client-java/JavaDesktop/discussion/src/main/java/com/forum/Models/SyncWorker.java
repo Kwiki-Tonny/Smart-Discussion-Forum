@@ -1,6 +1,8 @@
 package com.forum.models;
 
-import com.forum.services.ApiClient;
+import com.forum.DatabaseHandler;
+import com.forum.GlobalState;
+import com.forum.services.ApiService;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -9,20 +11,25 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class SyncWorker implements Runnable {
 
     private static final int SLEEP_INTERVAL = 15000; // 15 seconds
     private boolean running = true;
-    private final ApiClient apiClient = new ApiClient();
+    private final ApiService api = ApiService.getInstance();
+    private final GlobalState state = GlobalState.getInstance();
 
     @Override
     public void run() {
+        System.out.println("[SyncWorker] Started.");
         while (running) {
             try {
                 Thread.sleep(SLEEP_INTERVAL);
-                if (GlobalState.isOnline() && GlobalState.getToken() != null) {
+                if (state.isOnline() && state.isAuthenticated()) {
                     sync();
                 }
             } catch (InterruptedException e) {
@@ -32,90 +39,90 @@ public class SyncWorker implements Runnable {
                 System.err.println("[SyncWorker] Error: " + e.getMessage());
             }
         }
+        System.out.println("[SyncWorker] Stopped.");
     }
 
     private void sync() {
         // 1. Upload pending posts
-        List<DatabaseHandler.OfflinePostChange> pending = DatabaseHandler.getPendingUpstreamPosts();
-        if (!pending.isEmpty()) {
-            uploadPending(pending);
-        }
+        uploadPendingPosts();
+        
+        // 2. Upload pending exclusions
+        uploadPendingExclusions();
 
-        // 2. Download new posts
+        // 3. Download new posts
         downloadNewPosts();
     }
 
-    private void uploadPending(List<DatabaseHandler.OfflinePostChange> pending) {
-        JsonArray arr = new JsonArray();
+    private void uploadPendingPosts() {
+        List<DatabaseHandler.OfflinePostChange> pending = DatabaseHandler.getPendingUpstreamPosts();
+        if (pending.isEmpty()) return;
+
+        System.out.println("[SyncWorker] Uploading " + pending.size() + " pending posts...");
+
+        // Convert to map list for API
+        List<Map<String, Object>> payload = new ArrayList<>();
         for (DatabaseHandler.OfflinePostChange p : pending) {
-            JsonObject obj = new JsonObject();
-            obj.addProperty("topic_id", p.topicId);
-            obj.addProperty("user_id", p.userId);
-            obj.addProperty("content", p.content);
-            obj.addProperty("is_private", p.isPrivate);
-            obj.addProperty("created_at", p.createdAt);
-            arr.add(obj);
+            Map<String, Object> postMap = new HashMap<>();
+            postMap.put("topic_id", p.topicId);
+            postMap.put("user_id", p.userId);
+            postMap.put("content", p.content);
+            postMap.put("is_private", p.isPrivate);
+            postMap.put("created_at", p.createdAt);
+            payload.add(postMap);
         }
 
-        apiClient.syncUpload(arr.toString(), new ApiClient.ApiCallback() {
-            @Override
-            public void onSuccess(String response) {
-                try {
-                    JsonArray respArr = JsonParser.parseString(response).getAsJsonArray();
-                    for (int i = 0; i < respArr.size() && i < pending.size(); i++) {
-                        int serverId = respArr.get(i).getAsJsonObject().get("id").getAsInt();
-                        DatabaseHandler.resolvePendingPostSync(pending.get(i).localId, serverId);
-                    }
-                    System.out.println("[SyncWorker] Uploaded " + respArr.size() + " posts.");
-                } catch (Exception e) {
-                    e.printStackTrace();
+        try {
+            List<Map<String, Object>> results = api.syncUpload(payload);
+            // results should contain server IDs for each
+            for (int i = 0; i < results.size() && i < pending.size(); i++) {
+                Object idObj = results.get(i).get("id");
+                if (idObj != null) {
+                    int serverId = ((Number) idObj).intValue();
+                    DatabaseHandler.resolvePendingPostSync(pending.get(i).localId, serverId);
                 }
             }
+            System.out.println("[SyncWorker] Uploaded " + results.size() + " posts.");
+        } catch (Exception e) {
+            System.err.println("[SyncWorker] Upload failed: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 
-            @Override
-            public void onError(String message) {
-                System.err.println("[SyncWorker] Upload failed: " + message);
-            }
-        });
+    private void uploadPendingExclusions() {
+        // Implementation for uploading exclusions - to be added
+        // Similar to uploadPendingPosts but using post_exclusions table
     }
 
     private void downloadNewPosts() {
         String since = getLastSyncTimestamp();
-        apiClient.syncDownload(since, new ApiClient.ApiCallback() {
-            @Override
-            public void onSuccess(String response) {
-                try {
-                    JsonArray arr = JsonParser.parseString(response).getAsJsonArray();
-                    if (arr.size() == 0) return;
+        try {
+            List<Post> posts = api.syncDownload(since);
+            if (posts.isEmpty()) return;
 
-                    try (Connection conn = DatabaseHandler.getConnection();
-                         PreparedStatement pstmt = conn.prepareStatement(
-                             "INSERT INTO posts (server_id, topic_id, user_id, content, is_private, sync_status, created_at, updated_at) " +
-                             "VALUES (?, ?, ?, ?, ?, 'SYNCED', ?, ?)")) {
+            System.out.println("[SyncWorker] Downloading " + posts.size() + " new posts...");
 
-                        for (int i = 0; i < arr.size(); i++) {
-                            JsonObject obj = arr.get(i).getAsJsonObject();
-                            pstmt.setInt(1, obj.get("id").getAsInt());
-                            pstmt.setInt(2, obj.get("topic_id").getAsInt());
-                            pstmt.setInt(3, obj.get("user_id").getAsInt());
-                            pstmt.setString(4, obj.get("content").getAsString());
-                            pstmt.setInt(5, obj.get("is_private").getAsInt());
-                            pstmt.setString(6, obj.get("created_at").getAsString());
-                            pstmt.setString(7, obj.get("created_at").getAsString());
-                            pstmt.executeUpdate();
-                        }
-                        System.out.println("[SyncWorker] Downloaded " + arr.size() + " new posts.");
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
+            // Save to local DB (insert with server_id and sync_status='SYNCED')
+            try (Connection conn = DatabaseHandler.getConnection();
+                 PreparedStatement pstmt = conn.prepareStatement(
+                         "INSERT INTO posts (server_id, topic_id, user_id, content, is_private, sync_status, created_at, updated_at) " +
+                                 "VALUES (?, ?, ?, ?, ?, 'SYNCED', ?, ?)")) {
+
+                for (Post p : posts) {
+                    pstmt.setInt(1, p.id);
+                    pstmt.setInt(2, p.topic_id);
+                    pstmt.setInt(3, p.user_id);
+                    pstmt.setString(4, p.content);
+                    pstmt.setInt(5, p.is_private ? 1 : 0);
+                    pstmt.setString(6, p.created_at != null ? p.created_at : "");
+                    pstmt.setString(7, p.created_at != null ? p.created_at : "");
+                    pstmt.executeUpdate();
                 }
+                System.out.println("[SyncWorker] Downloaded " + posts.size() + " new posts.");
             }
-
-            @Override
-            public void onError(String message) {
-                System.err.println("[SyncWorker] Download failed: " + message);
-            }
-        });
+        } catch (Exception e) {
+            System.err.println("[SyncWorker] Download failed: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private String getLastSyncTimestamp() {
