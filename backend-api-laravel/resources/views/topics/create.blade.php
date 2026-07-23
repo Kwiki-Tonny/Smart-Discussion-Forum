@@ -95,6 +95,9 @@
             {{-- Form --}}
             <form method="POST" action="{{ route('topics.store') }}" class="mt-6 space-y-6">
 
+                {{-- ✅ ADD CSRF TOKEN HERE --}}
+                @csrf
+
                 {{-- Step 1: Group --}}
                 <div class="relative">
                     <div class="absolute -left-4 top-0 w-1 h-full bg-[#0A574F] rounded-full"></div>

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Text?>
+
+<VBox xmlns="http://javafx.com/javafx/17"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.forum.controllers.QuizController"
+      stylesheets="/com/forum/css/style.css"
+      spacing="0"
+      VBox.vgrow="ALWAYS">
+
+    <!-- Header with title and timer -->
+    <HBox alignment="CENTER_LEFT" spacing="12"
+          style="-fx-padding: 12px 16px; -fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0;">
+        <Text fx:id="quizTitleText" text="Quiz Title"
+              style="-fx-font-size: 16px; -fx-font-weight: 700; -fx-text-fill: #1A7A64;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Text fx:id="timerText" text="⏱️ 05:00"
+              style="-fx-font-size: 16px; -fx-font-weight: 700; -fx-text-fill: #000000;"/>
+    </HBox>
+
+    <!-- Progress bar -->
+    <HBox alignment="CENTER_LEFT" spacing="12" style="-fx-padding: 8px 16px; -fx-background-color: #f9f9f9;">
+        <Text fx:id="qNumText" text="Question 1 of 10" style="-fx-font-size: 13px; -fx-text-fill: #666666;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <VBox styleClass="progress-bar" prefWidth="200" minHeight="4" maxHeight="4"
+              style="-fx-background-color: #e5e5e5; -fx-background-radius: 4px;">
+            <Region fx:id="progressFill" prefWidth="10" minHeight="4" maxHeight="4"
+                    style="-fx-background-color: #1A7A64; -fx-background-radius: 4px;"/>
+        </VBox>
+        <Text fx:id="progressText" text="1/10" style="-fx-font-size: 12px; -fx-text-fill: #666666;"/>
+    </HBox>
+
+    <!-- Scrollable question area -->
+    <StackPane VBox.vgrow="ALWAYS">
+        <!-- Main content -->
+        <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS"
+                    style="-fx-background-color: transparent; -fx-background: transparent;"
+                    fx:id="scrollPane">
+            <VBox spacing="16" style="-fx-padding: 16px;">
+                <Text fx:id="qText" text="Question text goes here"
+                      style="-fx-font-size: 16px; -fx-font-weight: 600; -fx-text-fill: #000000; -fx-wrap-text: true;"/>
+
+                <VBox fx:id="optionsContainer" spacing="8"/>
+
+                <!-- Navigation buttons -->
+                <HBox alignment="CENTER_RIGHT" spacing="8" style="-fx-padding: 12px 0 0 0;">
+                    <Button fx:id="prevBtn" text="Previous" onAction="#handlePrevious"
+                            style="-fx-background-color: #f5f5f5; -fx-text-fill: #333333; -fx-padding: 6px 16px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;"/>
+                    <Button fx:id="nextBtn" text="Next" onAction="#handleNext"
+                            style="-fx-background-color: #000000; -fx-text-fill: #ffffff; -fx-padding: 6px 16px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;"/>
+                    <Button fx:id="submitBtn" text="📤 Submit Quiz" onAction="#handleSubmit"
+                            style="-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-padding: 6px 16px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;"
+                            visible="false" managed="false"/>
+                </HBox>
+            </VBox>
+        </ScrollPane>
+
+        <!-- Focus Loss Warning (visible briefly) -->
+        <Label fx:id="focusWarningLabel" text="⚠️ Please stay focused on the quiz!"
+               style="-fx-background-color: #fef3c7; -fx-text-fill: #b45309; -fx-padding: 10px 20px; -fx-border-radius: 8px; -fx-background-radius: 8px; -fx-font-weight: 600;"
+               visible="false" managed="false"
+               StackPane.alignment="TOP_CENTER" StackPane.margin="$insets(10, 10, 0, 10)"/>
+
+        <!-- Result Overlay (shown on submission) -->
+        <VBox fx:id="resultOverlay" visible="false" managed="false"
+              alignment="CENTER" spacing="16"
+              style="-fx-background-color: rgba(255,255,255,0.95); -fx-padding: 30px; -fx-border-color: #1A7A64; -fx-border-width: 2px; -fx-border-radius: 12px; -fx-background-radius: 12px;"
+              maxWidth="400" StackPane.alignment="CENTER">
+            <Text fx:id="resultTitle" text="✅ Quiz Complete!" style="-fx-font-size: 24px; -fx-font-weight: 700; -fx-fill: #1A7A64;"/>
+            <Text fx:id="resultScore" text="Your Score: 0/0 (0%)" style="-fx-font-size: 18px; -fx-font-weight: 600; -fx-fill: #000000;"/>
+            <HBox spacing="20" alignment="CENTER">
+                <VBox alignment="CENTER" spacing="4">
+                    <Text text="Correct" style="-fx-font-size: 12px; -fx-fill: #666666;"/>
+                    <Text fx:id="resultCorrect" text="0" style="-fx-font-size: 20px; -fx-font-weight: 700; -fx-fill: #16a34a;"/>
+                </VBox>
+                <VBox alignment="CENTER" spacing="4">
+                    <Text text="Incorrect" style="-fx-font-size: 12px; -fx-fill: #666666;"/>
+                    <Text fx:id="resultIncorrect" text="0" style="-fx-font-size: 20px; -fx-font-weight: 700; -fx-fill: #dc2626;"/>
+                </VBox>
+                <VBox alignment="CENTER" spacing="4">
+                    <Text text="Unanswered" style="-fx-font-size: 12px; -fx-fill: #666666;"/>
+                    <Text fx:id="resultUnanswered" text="0" style="-fx-font-size: 20px; -fx-font-weight: 700; -fx-fill: #f59e0b;"/>
+                </VBox>
+            </HBox>
+            <Button text="Close" onAction="#closeQuiz"
+                    style="-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-padding: 8px 30px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand; -fx-font-weight: 600;"/>
+        </VBox>
+    </StackPane>
+</VBox>

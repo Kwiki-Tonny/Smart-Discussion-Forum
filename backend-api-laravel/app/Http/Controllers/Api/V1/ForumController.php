@@ -6,18 +6,48 @@ use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\Topic;
 use App\Models\Post;
-use App\Models\User;  // <-- ADDED: Required for createPost method
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class ForumController extends Controller
 {
     /**
      * Endpoint 1: Fetch all learning groups/cohorts.
-     * This provides the Web and Java clients with the initial list of available forum spaces.
+     * Enhanced: adds 'is_member' flag for the authenticated user.
      */
-    public function getGroups()
+    public function getGroups(Request $request)
     {
+        $user = $request->user();
+        $groupIds = $user->groups()->pluck('groups.id')->toArray(); // all group IDs the user is in
+
         $groups = Group::select('id', 'name', 'description', 'created_at')->get();
+
+        $groups->each(function ($group) use ($groupIds) {
+            $group->is_member = in_array($group->id, $groupIds);
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'count' => $groups->count(),
+            'data' => $groups
+        ], 200);
+    }
+
+    /**
+     * Search groups by name (with is_member flag).
+     */
+    public function searchGroups(Request $request)
+    {
+        $query = $request->query('q', '');
+        $user = $request->user();
+
+        $groups = Group::where('name', 'LIKE', "%{$query}%")
+            ->select('id', 'name', 'description', 'created_at')
+            ->get();
+
+        $groups->each(function ($group) use ($user) {
+            $group->is_member = $user->groups()->where('group_id', $group->id)->exists();
+        });
 
         return response()->json([
             'status' => 'success',
@@ -28,7 +58,6 @@ class ForumController extends Controller
 
     /**
      * Endpoint 2: Fetch all discussion threads inside a specific group.
-     * Uses 'Eager Loading' to fetch creator data cleanly without heavy SQL strain.
      */
     public function getTopicsByGroup($groupId)
     {
@@ -47,7 +76,6 @@ class ForumController extends Controller
 
     /**
      * Endpoint 3: Create a new discussion topic.
-     * The ml_category field is left as null (will be filled by Developer 5 via background job).
      */
     public function createTopic(Request $request)
     {
@@ -62,10 +90,9 @@ class ForumController extends Controller
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'creator_id' => $request->user()->id,
-            'ml_category' => null, // Will be filled by ML classifier in Sprint 2
+            'ml_category' => null,
         ]);
 
-        // Update user communication timestamp for inactivity tracking
         $request->user()->update(['last_communicated_at' => now()]);
 
         return response()->json([
@@ -77,8 +104,6 @@ class ForumController extends Controller
 
     /**
      * Endpoint 4: Create/Publish a new interactive response post.
-     * Implements strict incoming request data verification.
-     * Handles private posts with user exclusions (Privacy Filter).
      */
     public function createPost(Request $request)
     {
@@ -91,7 +116,6 @@ class ForumController extends Controller
             'excluded_user_ids.*' => 'exists:users,id',
         ]);
 
-        // Create the post
         $post = Post::create([
             'topic_id' => $validatedData['topic_id'],
             'user_id' => $validatedData['user_id'],
@@ -99,12 +123,10 @@ class ForumController extends Controller
             'is_private' => $validatedData['is_private'],
         ]);
 
-        // If private, attach exclusions
         if ($validatedData['is_private'] && !empty($validatedData['excluded_user_ids'])) {
             $post->excludedUsers()->attach($validatedData['excluded_user_ids']);
         }
 
-        // Update the user's last_communicated_at timestamp (for inactivity tracking)
         $user = User::find($validatedData['user_id']);
         $user->last_communicated_at = now();
         $user->save();
@@ -118,7 +140,6 @@ class ForumController extends Controller
 
     /**
      * Endpoint 5: Fetch posts for a specific topic with Privacy Filter applied.
-     * Uses the visibleToUser scope to filter out private posts and exclusions.
      */
     public function getPostsByTopic($topicId, Request $request)
     {
@@ -128,8 +149,21 @@ class ForumController extends Controller
         $posts = Post::where('topic_id', $topicId)
             ->visibleToUser($userId)
             ->with('author:id,name,email,role')
+            ->withCount('likes')                                 // → likes_count
+            ->with(['likes' => function ($q) use ($userId) {     // → is_liked
+                $q->where('user_id', $userId);
+            }])
+            // optional: load excluded users if the client needs them
+            // ->with('excludedUsers:id,name,email')
             ->orderBy('created_at', 'asc')
-            ->get();
+            ->get(['id', 'topic_id', 'user_id', 'content', 'is_private', 'created_at', 'parent_id']);
+
+        // Add is_liked attribute
+        $posts->each(function ($post) {
+            $post->is_liked = $post->likes->isNotEmpty();
+            // remove the 'likes' relation from the response to keep it clean
+            unset($post->likes);
+        });
 
         return response()->json([
             'status' => 'success',
@@ -140,11 +174,10 @@ class ForumController extends Controller
 
     /**
      * Endpoint 6: Sync Upload (Stubbed for Sprint 3).
-     * Will handle uploading pending offline posts from the Java desktop client.
      */
     public function syncUpload(Request $request)
     {
-        // Sprint 3 implementation: Loop through $request->input('posts') and save them.
+        // Implementation pending Sprint 3.
         return response()->json([
             'status' => 'success',
             'message' => 'Sync upload endpoint ready (Sprint 3 implementation pending).',
@@ -153,16 +186,14 @@ class ForumController extends Controller
 
     /**
      * Endpoint 7: Sync Download (Stubbed for Sprint 3).
-     * Will fetch new posts since a given timestamp for the Java desktop client.
      */
     public function syncDownload(Request $request)
     {
         $since = $request->input('since', now()->subDays(30));
-
-        // Sprint 3 implementation: Query posts created after $since.
+        // Implementation pending Sprint 3.
         return response()->json([
             'status' => 'success',
-            'data' => [], // Return empty array for now
+            'data' => [],
         ]);
     }
 }

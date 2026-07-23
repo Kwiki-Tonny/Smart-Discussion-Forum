@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx/17"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.forum.controllers.UserSelectionDialog"
+      spacing="12"
+      style="-fx-background-color: #ffffff; -fx-padding: 20px; -fx-border-radius: 12px; -fx-background-radius: 12px;"
+      prefWidth="400" prefHeight="500">
+
+    <Label text="Select users to exclude from this private post"
+           style="-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #1A7A64;"/>
+
+    <TextField fx:id="searchField" promptText="🔍 Search users..."
+               style="-fx-padding: 8px 12px; -fx-border-color: #d0d5dd; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 13px;"/>
+
+    <HBox spacing="8">
+        <Button fx:id="selectAllBtn" text="Select All" onAction="#handleSelectAll"
+                style="-fx-background-color: #f0f0f0; -fx-text-fill: #333333; -fx-padding: 4px 12px; -fx-border-radius: 4px; -fx-background-radius: 4px; -fx-cursor: hand; -fx-font-size: 12px;"/>
+        <Button fx:id="deselectAllBtn" text="Deselect All" onAction="#handleDeselectAll"
+                style="-fx-background-color: #f0f0f0; -fx-text-fill: #333333; -fx-padding: 4px 12px; -fx-border-radius: 4px; -fx-background-radius: 4px; -fx-cursor: hand; -fx-font-size: 12px;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label fx:id="selectedCountLabel" text="Selected: 0 users"
+               style="-fx-font-size: 12px; -fx-text-fill: #666666;"/>
+    </HBox>
+
+    <ListView fx:id="userListView" VBox.vgrow="ALWAYS"
+              style="-fx-border-color: #e5e5e5; -fx-border-radius: 6px; -fx-background-radius: 6px;"/>
+
+    <HBox spacing="8" alignment="CENTER_RIGHT">
+        <Button fx:id="cancelBtn" text="Cancel" onAction="#handleCancel"
+                style="-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 13px; -fx-font-weight: 600; -fx-padding: 8px 20px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;"/>
+        <Button fx:id="confirmBtn" text="Confirm Selection" onAction="#handleConfirm"
+                style="-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-font-size: 13px; -fx-font-weight: 600; -fx-padding: 8px 20px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;"/>
+    </HBox>
+
+</VBox>

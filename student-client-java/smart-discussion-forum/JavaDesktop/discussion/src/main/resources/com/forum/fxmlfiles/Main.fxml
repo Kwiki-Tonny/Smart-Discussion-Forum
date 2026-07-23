@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.Circle?>
+<?import javafx.scene.text.Text?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.forum.controllers.MainController"
+            stylesheets="/com/forum/css/style.css"
+            styleClass="main-window">
+
+    <!-- TOP BAR -->
+    <top>
+        <HBox styleClass="top-bar" alignment="CENTER_LEFT" spacing="20">
+            <Text styleClass="brand">💬 Smart Discussion Forum</Text>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Text styleClass="user-name" fx:id="userNameText">Dr. Jane Smith</Text>
+            <Button styleClass="logout-btn" text="Logout" onAction="#handleLogout"/>
+        </HBox>
+    </top>
+
+    <!-- SIDEBAR (LEFT) -->
+    <left>
+        <VBox styleClass="sidebar" alignment="TOP_CENTER" spacing="8" minWidth="72" prefWidth="72">
+            <Button styleClass="nav-btn active" fx:id="navGroups" onAction="#showGroups">
+                <graphic>
+                    <VBox alignment="CENTER" spacing="2">
+                        <FontIcon iconLiteral="fas-layer-group" iconSize="22"/>
+                        <Text styleClass="label">Groups</Text>
+                    </VBox>
+                </graphic>
+            </Button>
+
+            <Button styleClass="nav-btn" fx:id="navQuizzes" onAction="#showQuizzes">
+                <graphic>
+                    <VBox alignment="CENTER" spacing="2">
+                        <FontIcon iconLiteral="fas-pencil-alt" iconSize="22"/>
+                        <Text styleClass="badge">3</Text>
+                        <Text styleClass="label">Quizzes</Text>
+                    </VBox>
+                </graphic>
+            </Button>
+
+            <Button styleClass="nav-btn" fx:id="navResults" onAction="#showResults">
+                <graphic>
+                    <VBox alignment="CENTER" spacing="2">
+                        <FontIcon iconLiteral="fas-chart-bar" iconSize="22"/>
+                        <Text styleClass="label">Results</Text>
+                    </VBox>
+                </graphic>
+            </Button>
+
+            <Region VBox.vgrow="ALWAYS"/>
+
+            <Button styleClass="nav-btn" fx:id="navProfile" onAction="#showProfile">
+                <graphic>
+                    <VBox alignment="CENTER" spacing="2">
+                        <FontIcon iconLiteral="fas-user" iconSize="22"/>
+                        <Text styleClass="label">Profile</Text>
+                    </VBox>
+                </graphic>
+            </Button>
+        </VBox>
+    </left>
+
+    <!-- CENTER (SplitPane) -->
+    <center>
+        <SplitPane fx:id="mainSplitPane" dividerPositions="0.25" style="-fx-background-color: #f9f9f9;">
+
+            <!-- CONTEXT PANEL (LEFT) -->
+            <VBox styleClass="context-panel" minWidth="220" maxWidth="400">
+                <!-- Search -->
+                <HBox style="-fx-padding: 8px 12px; -fx-background-color: #ffffff; -fx-border-color: #e5e7eb; -fx-border-width: 0 0 1px 0;">
+                    <TextField fx:id="searchField" promptText="🔍 Search groups..."
+                               style="-fx-padding: 6px 10px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-border-color: #d0d5dd; -fx-font-size: 13px;"/>
+                </HBox>
+
+                <!-- Context Header -->
+                <HBox styleClass="header" alignment="CENTER_LEFT">
+                    <Text fx:id="contextTitle">Groups</Text>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Button styleClass="action-btn" fx:id="contextActionBtn" text="+"
+                            onAction="#handleCreateTopic" visible="false" managed="false"/>
+                </HBox>
+
+                <!-- Context List (Scrollable) -->
+                <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent; -fx-background: transparent;">
+                    <VBox styleClass="context-list" fx:id="contextList"/>
+                </ScrollPane>
+            </VBox>
+
+            <!-- MAIN CONTENT (RIGHT) -->
+            <VBox styleClass="main-content" HBox.hgrow="ALWAYS">
+                <VBox styleClass="thread-area" fx:id="threadArea" VBox.vgrow="ALWAYS"/>
+
+                <!-- Reply Form -->
+                <VBox styleClass="reply-form" fx:id="replyForm" visible="false" managed="false">
+                    <TextArea styleClass="reply-text" fx:id="replyText" promptText="Write a reply…" prefRowCount="2"/>
+                    <HBox styleClass="actions" alignment="CENTER_LEFT" spacing="12">
+                        <HBox styleClass="left" spacing="12">
+                            <CheckBox fx:id="privateCheck" text="🔒 Private"/>
+                            <Button fx:id="selectUsersBtn" text="👤 Select Users" 
+                                    style="-fx-background-color: transparent; -fx-text-fill: #1A7A64; -fx-font-size: 12px; -fx-cursor: hand; -fx-border-color: #1A7A64; -fx-border-radius: 4px; -fx-padding: 2px 8px;"
+                                    visible="false" managed="false" onAction="#onSelectUsers"/>
+                        </HBox>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Button styleClass="post-btn" text="Post Reply" onAction="#handlePostReply"/>
+                    </HBox>
+                </VBox>
+            </VBox>
+
+        </SplitPane>
+    </center>
+
+    <!-- FOOTER -->
+    <bottom>
+        <HBox styleClass="footer" alignment="CENTER_LEFT" spacing="16">
+            <HBox styleClass="status" spacing="8">
+                <Circle fx:id="statusDot" radius="4" styleClass="dot online"/>
+                <Label fx:id="statusLabel" text="Online" styleClass="label online"/>
+            </HBox>
+            <Text>Database: Connected</Text>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Text fx:id="syncStatus">Last sync: Just now</Text>
+        </HBox>
+    </bottom>
+
+</BorderPane>

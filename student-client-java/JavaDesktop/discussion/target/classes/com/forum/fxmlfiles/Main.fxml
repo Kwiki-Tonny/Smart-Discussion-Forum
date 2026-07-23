@@ -5,7 +5,6 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.shape.Circle?>
 <?import javafx.scene.text.Text?>
-<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <BorderPane xmlns="http://javafx.com/javafx/17"
             xmlns:fx="http://javafx.com/fxml/1"
@@ -13,7 +12,7 @@
             stylesheets="/com/forum/css/style.css"
             styleClass="main-window">
 
-    <!-- TOP BAR -->
+    <!-- ===== TOP BAR (WHITE) ===== -->
     <top>
         <HBox styleClass="top-bar" alignment="CENTER_LEFT" spacing="20">
             <Text styleClass="brand">💬 Smart Discussion Forum</Text>
@@ -23,73 +22,69 @@
         </HBox>
     </top>
 
-    <!-- BODY -->
+    <!-- ===== BODY ===== -->
     <center>
         <HBox styleClass="body-area">
 
-            <!-- SIDEBAR – Green Background -->
-            <VBox styleClass="sidebar-green" alignment="TOP_CENTER" spacing="8">
-                <!-- Groups -->
-                <Button styleClass="nav-btn-green active" fx:id="navGroups" onAction="#showGroups">
+            <!-- SIDEBAR (WHITE + EMOJIS) -->
+            <VBox styleClass="sidebar" alignment="TOP_CENTER" spacing="8">
+                <Button styleClass="nav-btn active" fx:id="navGroups" onAction="#showGroups">
                     <graphic>
                         <VBox alignment="CENTER" spacing="2">
-                            <FontIcon iconLiteral="fas-layer-group" iconSize="22"/>
-                            <Text styleClass="nav-label">Groups</Text>
+                            <Text>📚</Text>
+                            <Text styleClass="label">Groups</Text>
                         </VBox>
                     </graphic>
                 </Button>
-
-                <!-- Quizzes -->
-                <Button styleClass="nav-btn-green" fx:id="navQuizzes" onAction="#showQuizzes">
+                
+                <Button styleClass="nav-btn" fx:id="navQuizzes" onAction="#showQuizzes">
                     <graphic>
                         <VBox alignment="CENTER" spacing="2">
-                            <FontIcon iconLiteral="fas-pencil-alt" iconSize="22"/>
-                            <Text styleClass="nav-label">Quizzes</Text>
+                            <Text>📝</Text>
                             <Text styleClass="badge">3</Text>
+                            <Text styleClass="label">Quizzes</Text>
                         </VBox>
                     </graphic>
                 </Button>
-
-                <!-- Results -->
-                <Button styleClass="nav-btn-green" fx:id="navResults" onAction="#showResults">
+                
+                <Button styleClass="nav-btn" fx:id="navResults" onAction="#showResults">
                     <graphic>
                         <VBox alignment="CENTER" spacing="2">
-                            <FontIcon iconLiteral="fas-clipboard-list" iconSize="22"/>
-                            <Text styleClass="nav-label">Results</Text>
+                            <Text>📊</Text>
+                            <Text styleClass="label">Results</Text>
                         </VBox>
                     </graphic>
                 </Button>
-
+                
                 <Region VBox.vgrow="ALWAYS"/>
-
-                <!-- Profile (bottom) -->
-                <Button styleClass="nav-btn-green avatar-btn" fx:id="navProfile" onAction="#showProfile">
+                
+                <Button styleClass="nav-btn" fx:id="navProfile" onAction="#showProfile">
                     <graphic>
                         <VBox alignment="CENTER" spacing="2">
-                            <FontIcon iconLiteral="fas-user" iconSize="22"/>
-                            <Text styleClass="nav-label">Profile</Text>
+                            <Text>👤</Text>
+                            <Text styleClass="label">Profile</Text>
                         </VBox>
                     </graphic>
                 </Button>
             </VBox>
 
-            <!-- CONTEXT PANEL -->
+            <!-- CONTEXT PANEL (LEFT) -->
             <VBox styleClass="context-panel">
                 <HBox styleClass="header" alignment="CENTER_LEFT">
                     <Text fx:id="contextTitle">Groups</Text>
                     <Region HBox.hgrow="ALWAYS"/>
-                    <Button styleClass="action-btn" fx:id="contextActionBtn" text="+" onAction="#handleCreateTopic"
-                            visible="false" managed="false"/>
+                    <Button styleClass="action-btn" fx:id="contextActionBtn" text="+" 
+                            onAction="#handleCreateTopic" visible="false" managed="false"/>
                 </HBox>
                 <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS">
                     <VBox styleClass="context-list" fx:id="contextList"/>
                 </ScrollPane>
             </VBox>
 
-            <!-- MAIN CONTENT -->
+            <!-- MAIN CONTENT (RIGHT) -->
             <VBox styleClass="main-content" HBox.hgrow="ALWAYS">
                 <VBox styleClass="thread-area" fx:id="threadArea" VBox.vgrow="ALWAYS"/>
-
+                
                 <!-- REPLY FORM -->
                 <VBox styleClass="reply-form" fx:id="replyForm" visible="false" managed="false">
                     <TextArea styleClass="reply-text" fx:id="replyText" promptText="Write a reply…" prefRowCount="2"/>
@@ -106,7 +101,7 @@
         </HBox>
     </center>
 
-    <!-- FOOTER -->
+    <!-- ===== FOOTER ===== -->
     <bottom>
         <HBox styleClass="footer" alignment="CENTER_LEFT" spacing="16">
             <HBox styleClass="status" spacing="8">

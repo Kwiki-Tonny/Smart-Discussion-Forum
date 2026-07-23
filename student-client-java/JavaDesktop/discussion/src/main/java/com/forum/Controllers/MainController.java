@@ -11,11 +11,15 @@ import com.forum.services.GlobalState;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
 import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.*;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Text;
@@ -23,13 +27,16 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class MainController {
 
+    // ─── FXML INJECTIONS ──────────────────────────────────────────
     @FXML private Text userNameText;
     @FXML private Text contextTitle;
     @FXML private Button contextActionBtn;
@@ -47,26 +54,31 @@ public class MainController {
     @FXML private Button navQuizzes;
     @FXML private Button navResults;
 
-    // Main reply form label
-    private Label replyToLabel;
-
+    // ─── SERVICES & STATE ─────────────────────────────────────────
     private final GlobalState state = GlobalState.getInstance();
     private final ApiService api = ApiService.getInstance();
 
-    private String currentView = "groups";
-    private Group currentGroup;
-    private Topic currentTopic;
+    // Data from API
     private List<Group> groups = new ArrayList<>();
     private List<Topic> topics = new ArrayList<>();
     private List<Post> currentPosts = new ArrayList<>();
 
-    // Track which post is being replied to (for main form)
-    private Post currentReplyTarget = null;
+    // Current selections
+    private String currentView = "groups";
+    private Group currentGroup;
+    private Topic currentTopic;
 
-    // Track the currently visible inline form (so we can hide it)
+    // Track joined groups (local only – extend to real API later)
+    private final Set<Integer> joinedGroupIds = new HashSet<>();
+
+    // Inline reply tracking
+    private Post currentReplyTarget = null;
     private VBox currentInlineForm = null;
 
-    // ─── Initialization ──────────────────────────────────────────
+    // UI helper
+    private Label replyToLabel;
+
+    // ─── INITIALIZATION ────────────────────────────────────────────
 
     @FXML
     public void initialize() {
@@ -81,14 +93,12 @@ public class MainController {
             }
 
             User user = state.getCurrentUser();
-            if (user != null) {
-                userNameText.setText(user.name);
-            } else {
-                userNameText.setText("Guest");
-            }
+            userNameText.setText(user != null ? user.name : "Guest");
 
             setupConnectionStatus();
             setupAuthListeners();
+
+            // Load real groups from API
             loadGroups();
 
             System.out.println("MainController.initialize: done");
@@ -99,7 +109,7 @@ public class MainController {
         }
     }
 
-    // ─── Connection & Auth ─────────────────────────────────────
+    // ─── CONNECTION & AUTH ────────────────────────────────────────
 
     private void setupConnectionStatus() {
         updateConnectionUI(state.isOnline());
@@ -160,7 +170,7 @@ public class MainController {
         });
     }
 
-    // ─── Data Loading ──────────────────────────────────────────
+    // ─── REAL API DATA LOADING ────────────────────────────────────
 
     private void loadGroups() {
         Task<List<Group>> task = new Task<>() {
@@ -175,7 +185,7 @@ public class MainController {
                 if (groups.isEmpty()) {
                     showEmptyState("No groups available.");
                 } else {
-                    showGroups();
+                    renderGroups();
                 }
             });
         });
@@ -241,7 +251,7 @@ public class MainController {
         new Thread(task).start();
     }
 
-    // ─── UI Helpers ─────────────────────────────────────────────
+    // ─── UI HELPERS ──────────────────────────────────────────────
 
     private void showEmptyState(String message) {
         contextList.getChildren().clear();
@@ -273,7 +283,7 @@ public class MainController {
         active.getStyleClass().add("active");
     }
 
-    // ─── Navigation ─────────────────────────────────────────────
+    // ─── NAVIGATION ───────────────────────────────────────────────
 
     @FXML
     public void showGroups() {
@@ -285,6 +295,7 @@ public class MainController {
         replyForm.setVisible(false);
         replyForm.setManaged(false);
         renderGroups();
+        // Clear thread area
         threadArea.getChildren().clear();
         VBox placeholder = new VBox(12);
         placeholder.setAlignment(Pos.CENTER);
@@ -297,40 +308,173 @@ public class MainController {
         threadArea.getChildren().add(placeholder);
     }
 
+    // ─── RENDER GROUPS (Option B style + real API) ──────────────
+
     private void renderGroups() {
         contextList.getChildren().clear();
         if (groups.isEmpty()) {
             showEmptyState("No groups available.");
             return;
         }
+
         for (Group group : groups) {
-            VBox item = createGroupItem(group);
+            VBox item = new VBox(4);
+            item.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0; " +
+                    "-fx-padding: 12px 16px; -fx-cursor: hand;");
+            item.setOnMouseClicked(e -> handleGroupClick(group));
+
+            Label title = new Label(group.name);
+            title.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #000000;");
+
+            Label desc = new Label(group.description != null ? group.description : "");
+            desc.setStyle("-fx-font-size: 12px; -fx-text-fill: #666666;");
+
+            HBox metaRow = new HBox(12);
+            metaRow.setAlignment(Pos.CENTER_RIGHT);
+
+            // We don't have member counts from API, so we show a placeholder
+            Label topicsLabel = new Label("📄 0 topics");
+            topicsLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #999999;");
+            Label membersLabel = new Label("👤 0 members");
+            membersLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #999999;");
+
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+
+            boolean isJoined = joinedGroupIds.contains(group.id);
+            Button joinBtn = new Button(isJoined ? "Leave" : "Join");
+            joinBtn.setStyle("-fx-background-color: " + (isJoined ? "#dc3545" : "#1A7A64") + "; " +
+                    "-fx-text-fill: #ffffff; -fx-font-size: 11px; -fx-font-weight: 600; -fx-padding: 2px 14px; " +
+                    "-fx-border-radius: 12px; -fx-background-radius: 12px;");
+            joinBtn.setOnAction(e -> {
+                e.consume();
+                if (!isJoined) {
+                    showCommunityRules(group);
+                } else {
+                    joinedGroupIds.remove(group.id);
+                    renderGroups();
+                }
+            });
+
+            metaRow.getChildren().addAll(topicsLabel, membersLabel, spacer, joinBtn);
+            item.getChildren().addAll(title, desc, metaRow);
             contextList.getChildren().add(item);
         }
     }
 
-    private VBox createGroupItem(Group group) {
-        VBox item = new VBox(4);
-        item.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0; -fx-padding: 12px 16px; -fx-cursor: hand;");
-        item.setOnMouseClicked(e -> handleGroupClick(group));
-        Label title = new Label(group.name);
-        title.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #000000;");
-        Label desc = new Label(group.description != null ? group.description : "");
-        desc.setStyle("-fx-font-size: 12px; -fx-text-fill: #666666;");
-        item.getChildren().addAll(title, desc);
-        return item;
+    private void handleGroupClick(Group group) {
+        if (!joinedGroupIds.contains(group.id)) {
+            showCommunityRules(group);
+            return;
+        }
+        openGroupTopics(group);
     }
 
-    private void handleGroupClick(Group group) {
+    // ─── COMMUNITY RULES (Option B modal) ────────────────────────
+
+    private void showCommunityRules(Group group) {
+        try {
+            Stage rulesStage = new Stage();
+            rulesStage.initModality(Modality.APPLICATION_MODAL);
+            rulesStage.initStyle(StageStyle.UNDECORATED);
+            rulesStage.setTitle("Community Rules");
+
+            VBox root = new VBox(16);
+            root.setStyle("-fx-background-color: #ffffff; -fx-border-radius: 16px; -fx-background-radius: 16px; " +
+                    "-fx-padding: 0; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 24, 0, 0, 8);");
+            root.setPrefWidth(500);
+
+            HBox header = new HBox(10);
+            header.setAlignment(Pos.CENTER_RIGHT);
+            header.setStyle("-fx-background-color: #1A7A64; -fx-padding: 16px 20px; " +
+                    "-fx-border-radius: 16px 16px 0 0; -fx-background-radius: 16px 16px 0 0;");
+            Label title = new Label("Community Rules");
+            title.setStyle("-fx-font-size: 16px; -fx-font-weight: 700; -fx-text-fill: #ffffff;");
+            header.getChildren().add(title);
+
+            VBox body = new VBox(12);
+            body.setPadding(new Insets(20));
+
+            String[][] rules = {
+                    {"📜", "Be respectful — Maintain professional discourse at all times."},
+                    {"🚫", "No spam — Keep the environment clean and relevant."},
+                    {"🎯", "Stay on topic — Ensure contributions align with the group's purpose."},
+                    {"🔒", "Protect Privacy — Do not share sensitive internal data."}
+            };
+
+            for (String[] rule : rules) {
+                HBox ruleBox = new HBox(10);
+                ruleBox.setAlignment(Pos.TOP_LEFT);
+                Label icon = new Label(rule[0]);
+                icon.setStyle("-fx-font-size: 14px;");
+                Label text = new Label(rule[1]);
+                text.setStyle("-fx-font-size: 13px; -fx-text-fill: #1e293b; -fx-wrap-text: true;");
+                text.setMaxWidth(420);
+                ruleBox.getChildren().addAll(icon, text);
+                body.getChildren().add(ruleBox);
+            }
+
+            HBox footer = new HBox(8);
+            footer.setAlignment(Pos.CENTER);
+            footer.setStyle("-fx-padding: 12px 20px 20px 20px; -fx-border-color: #e5e5e5; -fx-border-width: 1px 0 0 0;");
+
+            Button declineBtn = new Button("Decline");
+            declineBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 13px; " +
+                    "-fx-font-weight: 600; -fx-padding: 10px 30px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;");
+            declineBtn.setOnAction(e -> rulesStage.close());
+
+            Region footerSpacer = new Region();
+            HBox.setHgrow(footerSpacer, Priority.ALWAYS);
+
+            Button acceptBtn = new Button("Accept to Continue");
+            acceptBtn.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-font-size: 13px; " +
+                    "-fx-font-weight: 600; -fx-padding: 10px 30px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand;");
+            acceptBtn.setOnAction(e -> {
+                joinedGroupIds.add(group.id);
+                rulesStage.close();
+                renderGroups();
+                openGroupTopics(group);
+            });
+
+            footer.getChildren().addAll(declineBtn, footerSpacer, acceptBtn);
+            root.getChildren().addAll(header, body, footer);
+
+            Scene scene = new Scene(root);
+            scene.getStylesheets().add(getClass().getResource("/com/forum/css/style.css").toExternalForm());
+            rulesStage.setScene(scene);
+            rulesStage.showAndWait();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ─── OPEN GROUP & RENDER TOPICS ──────────────────────────────
+
+    private void openGroupTopics(Group group) {
         currentGroup = group;
         contextTitle.setText(group.name);
         contextActionBtn.setVisible(true);
         contextActionBtn.setManaged(true);
         contextActionBtn.setText("+");
         contextActionBtn.setOnAction(e -> showCreateTopicDialog(group));
+
         replyForm.setVisible(false);
         replyForm.setManaged(false);
+
         loadTopicsForGroup(group);
+
+        // Clear right panel
+        threadArea.getChildren().clear();
+        VBox placeholder = new VBox(12);
+        placeholder.setAlignment(Pos.CENTER);
+        placeholder.setPadding(new Insets(60, 20, 60, 20));
+        Label icon = new Label("💬");
+        icon.setStyle("-fx-font-size: 32px; -fx-text-fill: #999999;");
+        Label msg = new Label("Select a topic to view discussion");
+        msg.setStyle("-fx-text-fill: #999999; -fx-font-size: 14px;");
+        placeholder.getChildren().addAll(icon, msg);
+        threadArea.getChildren().add(placeholder);
     }
 
     private void renderTopics(List<Topic> topicList) {
@@ -343,25 +487,34 @@ public class MainController {
             return;
         }
         for (Topic topic : topicList) {
-            VBox item = createTopicItem(topic);
+            VBox item = new VBox(4);
+            item.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0; " +
+                    "-fx-padding: 12px 16px; -fx-cursor: hand;");
+            item.setOnMouseClicked(e -> openTopic(topic));
+
+            Label title = new Label(topic.title);
+            title.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #000000;");
+
+            String creatorName = "Unknown";
+            if (topic.creator != null && topic.creator.has("name")) {
+                creatorName = topic.creator.path("name").asText("Unknown");
+            }
+            Label sub = new Label("by " + creatorName + " • " + (topic.created_at != null ? topic.created_at : ""));
+            sub.setStyle("-fx-font-size: 12px; -fx-text-fill: #666666;");
+
+            HBox metaRow = new HBox(12);
+            metaRow.setAlignment(Pos.CENTER_LEFT);
+            Label repliesLabel = new Label("💬 0 replies"); // will be updated when posts load
+            repliesLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #999999;");
+
+            Label tagLabel = new Label("General");
+            tagLabel.setStyle("-fx-font-size: 9px; -fx-font-weight: 700; -fx-padding: 1px 10px; " +
+                    "-fx-background-radius: 12px; -fx-background-color: #e5e5e5; -fx-text-fill: #333333;");
+
+            metaRow.getChildren().addAll(repliesLabel, tagLabel);
+            item.getChildren().addAll(title, sub, metaRow);
             contextList.getChildren().add(item);
         }
-    }
-
-    private VBox createTopicItem(Topic topic) {
-        VBox item = new VBox(4);
-        item.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0; -fx-padding: 12px 16px; -fx-cursor: hand;");
-        item.setOnMouseClicked(e -> openTopic(topic));
-        Label title = new Label(topic.title);
-        title.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #000000;");
-        String creatorName = "Unknown";
-        if (topic.creator != null && topic.creator.has("name")) {
-            creatorName = topic.creator.path("name").asText("Unknown");
-        }
-        Label sub = new Label("by " + creatorName + " • " + (topic.created_at != null ? topic.created_at : ""));
-        sub.setStyle("-fx-font-size: 12px; -fx-text-fill: #666666;");
-        item.getChildren().addAll(title, sub);
-        return item;
     }
 
     private void openTopic(Topic topic) {
@@ -374,28 +527,39 @@ public class MainController {
         loadPostsForTopic(topic);
     }
 
-    // ─── Thread Rendering with Inline Reply Forms ─────────────
+    // ─── RENDER THREAD (Posts) ────────────────────────────────────
 
     private void renderThread(Topic topic, List<Post> posts) {
         threadArea.getChildren().clear();
 
-        // Back button
+        // Top bar: Back, Share, Export
         HBox topBar = new HBox(12);
         topBar.setAlignment(Pos.CENTER_LEFT);
         topBar.setStyle("-fx-padding: 0 0 12 0;");
+
         Button backBtn = new Button("← Back");
-        backBtn.setStyle("-fx-background-color: #f0f0f0; -fx-text-fill: #1A7A64; -fx-font-size: 13px; -fx-cursor: hand; -fx-padding: 4px 12px; -fx-border-radius: 4px;");
-        final Group groupRef = currentGroup;
+        backBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 13px; -fx-cursor: hand;");
         backBtn.setOnAction(e -> {
-            if (groupRef != null) {
-                handleGroupClick(groupRef);
-            }
+            if (currentGroup != null) openGroupTopics(currentGroup);
         });
-        topBar.getChildren().add(backBtn);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button shareBtn = new Button("📤 Share");
+        shareBtn.setStyle("-fx-background-color: #87cefa; -fx-border-color: #e5e5e5; -fx-border-radius: 6px; " +
+                "-fx-padding: 4px 14px; -fx-font-size: 12px; -fx-text-fill: #000000; -fx-cursor: hand;");
+        shareBtn.setOnAction(e -> shareTopic(topic));
+
+        Button exportBtn = new Button("📄 Export PDF");
+        exportBtn.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-border-radius: 6px; " +
+                "-fx-padding: 4px 14px; -fx-font-size: 12px; -fx-cursor: hand;");
+        exportBtn.setOnAction(e -> exportToPDF(topic));
+
+        topBar.getChildren().addAll(backBtn, spacer, shareBtn, exportBtn);
 
         Label title = new Label(topic.title);
         title.setStyle("-fx-font-size: 20px; -fx-font-weight: 700; -fx-text-fill: #000000;");
-        title.setPadding(new Insets(8, 0, 8, 0));
 
         VBox postsContainer = new VBox(10);
         postsContainer.setPadding(new Insets(0, 0, 16, 0));
@@ -426,7 +590,7 @@ public class MainController {
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
     }
 
-    // ─── Create Post View with Inline Reply Form ──────────────
+    // ─── CREATE POST VIEW (Flat Card Style) ──────────────────────
 
     private VBox createPostView(Post post, int depth) {
         VBox postBox = new VBox(6);
@@ -436,9 +600,9 @@ public class MainController {
             style += " -fx-border-width: 0 0 0 2px; -fx-border-radius: 0 8px 8px 0; -fx-background-radius: 0 8px 8px 0;";
         }
         postBox.setStyle(style);
-        postBox.setId("post-" + post.id); // for finding later
+        postBox.setId("post-" + post.id);
 
-        // ─── Header ─────────────────────────────────────────────
+        // Header
         HBox header = new HBox(10);
         header.setAlignment(Pos.CENTER_LEFT);
 
@@ -464,7 +628,6 @@ public class MainController {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        // Like button
         int likeCount = (post.likes_count != null) ? post.likes_count : 0;
         Button likeBtn = new Button("❤️ " + likeCount);
         likeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 13px; -fx-cursor: hand;");
@@ -475,7 +638,6 @@ public class MainController {
         final Button likeBtnRef = likeBtn;
         likeBtn.setOnAction(e -> handleLike(postRef, likeBtnRef));
 
-        // Reply button – toggles inline form
         Button replyBtn = new Button("Reply");
         replyBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #e5e5e5; -fx-border-radius: 12px; " +
                 "-fx-padding: 2px 10px; -fx-font-size: 11px; -fx-cursor: hand; -fx-text-fill: #333333;");
@@ -498,13 +660,13 @@ public class MainController {
 
         postBox.getChildren().addAll(header, body);
 
-        // ─── Inline Reply Form (hidden by default) ────────────
+        // Inline reply form (hidden by default)
         VBox inlineForm = createInlineReplyForm(post);
         inlineForm.setVisible(false);
         inlineForm.setManaged(false);
         postBox.getChildren().add(inlineForm);
 
-        // ─── Nested replies ─────────────────────────────────────
+        // Nested replies
         if (post.replies != null && !post.replies.isEmpty()) {
             VBox repliesContainer = new VBox(8);
             repliesContainer.setStyle("-fx-padding: 8px 0 0 16px; -fx-border-color: #1A7A64; -fx-border-width: 0 0 0 2px;");
@@ -518,7 +680,7 @@ public class MainController {
         return postBox;
     }
 
-    // ─── Create Inline Reply Form ──────────────────────────────
+    // ─── INLINE REPLY ─────────────────────────────────────────────
 
     private VBox createInlineReplyForm(Post parentPost) {
         VBox form = new VBox(6);
@@ -540,35 +702,28 @@ public class MainController {
         buttonRow.setAlignment(Pos.CENTER_LEFT);
 
         form.getChildren().addAll(ta, buttonRow);
-
-        // Store a reference to the form in the button so we can use it in the handler
         postInlineBtn.setUserData(form);
         postInlineBtn.setOnAction(e -> handleInlineReply(parentPost, ta, privateCb, form));
 
         return form;
     }
 
-    // ─── Toggle Inline Reply ────────────────────────────────────
-
     private void toggleInlineReply(Post post, String author) {
-        // Hide currently visible inline form
         if (currentInlineForm != null) {
             currentInlineForm.setVisible(false);
             currentInlineForm.setManaged(false);
             currentInlineForm = null;
         }
 
-        // Find the post's container and the inline form inside it
         VBox parentBox = findPostBox(post.id);
         if (parentBox != null) {
-            for (javafx.scene.Node child : parentBox.getChildren()) {
+            for (var child : parentBox.getChildren()) {
                 if (child instanceof VBox && child.getStyle().contains("border-color: #1A7A64; -fx-border-width: 1 0 0 0;")) {
                     VBox form = (VBox) child;
                     form.setVisible(true);
                     form.setManaged(true);
                     currentInlineForm = form;
-                    // Focus the text area
-                    for (javafx.scene.Node node : form.getChildren()) {
+                    for (var node : form.getChildren()) {
                         if (node instanceof TextArea) {
                             ((TextArea) node).requestFocus();
                             break;
@@ -579,20 +734,17 @@ public class MainController {
             }
         }
 
-        // Also update the main reply form label (optional)
         if (replyToLabel != null) {
             replyToLabel.setText("Replying to: " + author);
         }
     }
-
-    // ─── Find Post Box by ID ────────────────────────────────────
 
     private VBox findPostBox(int postId) {
         return findPostBoxRecursive(threadArea, postId);
     }
 
     private VBox findPostBoxRecursive(Parent parent, int postId) {
-        for (javafx.scene.Node node : parent.getChildrenUnmodifiable()) {
+        for (var node : parent.getChildrenUnmodifiable()) {
             if (node instanceof VBox && node.getId() != null && node.getId().equals("post-" + postId)) {
                 return (VBox) node;
             }
@@ -603,8 +755,6 @@ public class MainController {
         }
         return null;
     }
-
-    // ─── Handle Inline Reply Submission ────────────────────────
 
     private void handleInlineReply(Post parentPost, TextArea ta, CheckBox privateCb, VBox form) {
         String content = ta.getText().trim();
@@ -622,7 +772,6 @@ public class MainController {
         final Integer parentId = parentPost.id;
         final String timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
 
-        // Check online status
         if (state.isOnline()) {
             Task<Post> task = new Task<>() {
                 @Override
@@ -645,7 +794,6 @@ public class MainController {
             });
             new Thread(task).start();
         } else {
-            // Offline – save locally and add to UI
             boolean saved = DatabaseHandler.saveOfflinePostDraft(
                     currentTopic.id, userId, content, isPrivate, timestamp, parentId
             );
@@ -657,22 +805,17 @@ public class MainController {
                 currentInlineForm = null;
                 showToast("📶 Saved offline – will sync when online.");
 
-                // Create a local post object and add to the parent's replies
                 Post newPost = new Post();
-                newPost.id = -1; // temporary
+                newPost.id = -1;
                 newPost.content = content;
                 newPost.is_private = isPrivate;
                 newPost.created_at = timestamp;
-                newPost.author = null; // will show "You" later
+                newPost.author = null;
                 newPost.likes_count = 0;
                 newPost.is_liked = false;
 
-                if (parentPost.replies == null) {
-                    parentPost.replies = new ArrayList<>();
-                }
+                if (parentPost.replies == null) parentPost.replies = new ArrayList<>();
                 parentPost.replies.add(newPost);
-
-                // Reload thread to show the new nested reply
                 loadPostsForTopic(currentTopic);
             } else {
                 showToast("Failed to save offline reply.");
@@ -680,7 +823,7 @@ public class MainController {
         }
     }
 
-    // ─── Handle Like (with offline support) ────────────────────
+    // ─── LIKE ─────────────────────────────────────────────────────
 
     private void handleLike(Post post, Button likeBtn) {
         if (state.isOnline()) {
@@ -701,7 +844,6 @@ public class MainController {
             });
             new Thread(task).start();
         } else {
-            // Offline: toggle locally
             post.is_liked = !post.is_liked;
             if (post.likes_count == null) post.likes_count = 0;
             post.likes_count += post.is_liked ? 1 : -1;
@@ -720,7 +862,7 @@ public class MainController {
         }
     }
 
-    // ─── Main Reply Form ────────────────────────────────────────
+    // ─── MAIN REPLY FORM ──────────────────────────────────────────
 
     @FXML
     public void handlePostReply() {
@@ -754,9 +896,7 @@ public class MainController {
                 replyText.clear();
                 privateCheck.setSelected(false);
                 currentReplyTarget = null;
-                if (replyToLabel != null) {
-                    replyToLabel.setText("Replying to: Thread");
-                }
+                if (replyToLabel != null) replyToLabel.setText("Replying to: Thread");
                 showToast("Reply posted!");
                 loadPostsForTopic(currentTopic);
             });
@@ -766,7 +906,6 @@ public class MainController {
             });
             new Thread(task).start();
         } else {
-            // Offline – save locally
             boolean saved = DatabaseHandler.saveOfflinePostDraft(
                     currentTopic.id, userId, content, isPrivate, timestamp, parentId
             );
@@ -774,12 +913,9 @@ public class MainController {
                 replyText.clear();
                 privateCheck.setSelected(false);
                 currentReplyTarget = null;
-                if (replyToLabel != null) {
-                    replyToLabel.setText("Replying to: Thread");
-                }
+                if (replyToLabel != null) replyToLabel.setText("Replying to: Thread");
                 showToast("📶 Saved offline – will sync when online.");
 
-                // Add to UI temporarily (as top-level post)
                 Post newPost = new Post();
                 newPost.id = -1;
                 newPost.content = content;
@@ -796,7 +932,7 @@ public class MainController {
         }
     }
 
-    // ─── Create Topic Dialog ────────────────────────────────────
+    // ─── CREATE TOPIC DIALOG ──────────────────────────────────────
 
     private void showCreateTopicDialog(Group group) {
         if (group == null) {
@@ -875,7 +1011,7 @@ public class MainController {
                     createTask.setOnSucceeded(ev -> {
                         createStage.close();
                         showToast("Topic created successfully!");
-                        handleGroupClick(group);
+                        openGroupTopics(group);
                     });
                     createTask.setOnFailed(ev -> {
                         createStage.close();
@@ -900,7 +1036,276 @@ public class MainController {
         }
     }
 
-    // ─── Logout ──────────────────────────────────────────────────
+    // ─── SHARE & EXPORT ───────────────────────────────────────────
+
+    private void shareTopic(Topic topic) {
+        Clipboard clipboard = Clipboard.getSystemClipboard();
+        ClipboardContent content = new ClipboardContent();
+        content.putString("Topic: " + topic.title + "\nAuthor: " + topic.creator + "\nDate: " + topic.created_at);
+        clipboard.setContent(content);
+        showToast("Topic link copied to clipboard!");
+    }
+
+    private void exportToPDF(Topic topic) {
+        try {
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+            String filename = "chat_export_" + topic.title.replaceAll(" ", "_") + "_" + timestamp + ".txt";
+            File file = new File(System.getProperty("user.home") + "/Downloads/" + filename);
+
+            try (FileWriter writer = new FileWriter(file)) {
+                writer.write("=== " + topic.title + " ===\n");
+                writer.write("Author: " + topic.creator + "\n");
+                writer.write("Date: " + topic.created_at + "\n\n");
+                for (Post post : currentPosts) {
+                    appendPostToFile(writer, post, 0);
+                }
+            }
+            showToast("✅ Chat exported to: " + file.getAbsolutePath());
+        } catch (IOException e) {
+            e.printStackTrace();
+            showToast("❌ Error exporting chat: " + e.getMessage());
+        }
+    }
+
+    private void appendPostToFile(FileWriter writer, Post post, int indent) throws IOException {
+        String indentStr = "  ".repeat(indent);
+        String authorName = post.author != null && post.author.has("name") ? post.author.path("name").asText("Unknown") : "Unknown";
+        writer.write(indentStr + authorName + " (" + post.created_at + "):\n");
+        writer.write(indentStr + "  " + post.content + "\n");
+        if (post.is_private) {
+            writer.write(indentStr + "  [PRIVATE]\n");
+        }
+        if (post.replies != null) {
+            for (Post reply : post.replies) {
+                appendPostToFile(writer, reply, indent + 1);
+            }
+        }
+    }
+
+    // ─── PROFILE (Option B Beautiful Centered Card) ──────────────
+
+    @FXML
+    public void showProfile() {
+        currentView = "profile";
+        setActiveNav(navProfile);
+        contextTitle.setText("Profile");
+        contextActionBtn.setVisible(false);
+        contextActionBtn.setManaged(false);
+        replyForm.setVisible(false);
+        replyForm.setManaged(false);
+
+        // Left panel: Performance stats (mock)
+        contextList.getChildren().clear();
+        VBox statsBox = new VBox(16);
+        statsBox.setPadding(new Insets(16));
+        statsBox.setStyle("-fx-background-color: #ffffff;");
+        Label statsTitle = new Label("📊 Performance");
+        statsTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: 700; -fx-text-fill: #1A7A64;");
+        statsBox.getChildren().add(statsTitle);
+        String[][] stats = {{"📝","Total Posts","42"},{"💬","Total Replies","78"},{"📈","Insights","+12%"},{"📊","Analytics","4 groups"}};
+        for (String[] stat : stats) {
+            HBox row = new HBox(12);
+            row.setAlignment(Pos.CENTER_LEFT);
+            row.setStyle("-fx-padding: 8px 0; -fx-border-color: #f0f0f0; -fx-border-width: 0 0 1px 0;");
+            row.getChildren().addAll(
+                    new Label(stat[0]) {{ setStyle("-fx-font-size: 16px;"); }},
+                    new Label(stat[1]) {{ setStyle("-fx-font-size: 13px; -fx-text-fill: #333333;"); }},
+                    new Region() {{ HBox.setHgrow(this, Priority.ALWAYS); }},
+                    new Label(stat[2]) {{ setStyle("-fx-font-size: 13px; -fx-font-weight: 600; -fx-text-fill: #000000;"); }}
+            );
+            statsBox.getChildren().add(row);
+        }
+        contextList.getChildren().add(statsBox);
+
+        // Right panel: Centered Profile Card
+        threadArea.getChildren().clear();
+        VBox outerWrapper = new VBox();
+        outerWrapper.setAlignment(Pos.CENTER);
+        outerWrapper.setPadding(new Insets(20));
+        outerWrapper.setFillWidth(true);
+
+        VBox profileBox = new VBox(20);
+        profileBox.setPadding(new Insets(30));
+        profileBox.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-radius: 12px; -fx-background-radius: 12px;");
+        profileBox.setMaxWidth(700);
+        profileBox.setAlignment(Pos.CENTER);
+
+        User user = state.getCurrentUser();
+        String name = user != null ? user.name : "Guest";
+        String email = user != null ? user.email : "guest@forum.com";
+        String role = user != null ? user.role : "Member";
+        String initials = name.length() >= 2 ? name.substring(0, 1) + name.substring(name.indexOf(" ") + 1, name.indexOf(" ") + 2) : "??";
+
+        HBox avatarRow = new HBox(16);
+        avatarRow.setAlignment(Pos.CENTER_LEFT);
+        Label avatar = new Label(initials);
+        avatar.setStyle("-fx-min-width: 64px; -fx-min-height: 64px; -fx-background-radius: 50%; " +
+                "-fx-background-color: #000000; -fx-text-fill: #ffffff; -fx-font-size: 28px; -fx-font-weight: 600; -fx-alignment: center;");
+        VBox infoBox = new VBox(4);
+        infoBox.getChildren().addAll(
+                new Label(name) {{ setStyle("-fx-font-size: 20px; -fx-font-weight: 700;"); }},
+                new Label(email) {{ setStyle("-fx-text-fill: #666666;"); }},
+                new Label(role) {{ setStyle("-fx-background-color: #dbeafe; -fx-text-fill: #1d4ed8; -fx-font-size: 11px; -fx-font-weight: 600; -fx-padding: 2px 12px; -fx-background-radius: 12px;"); }}
+        );
+        avatarRow.getChildren().addAll(avatar, infoBox);
+
+        String[][] profileStats = {{"📚","Topics","15"},{"📝","Posts","42"},{"💬","Replies","78"},{"📊","Quizzes","5"}};
+        GridPane statsGrid = createStatsGrid(profileStats);
+
+        profileBox.getChildren().addAll(avatarRow, statsGrid);
+        outerWrapper.getChildren().add(profileBox);
+        threadArea.getChildren().add(outerWrapper);
+    }
+
+    private GridPane createStatsGrid(String[][] stats) {
+        GridPane grid = new GridPane();
+        grid.setHgap(20);
+        grid.setVgap(12);
+        grid.setPadding(new Insets(20, 0, 0, 0));
+        grid.setAlignment(Pos.CENTER);
+        for (int i = 0; i < 4; i++) {
+            ColumnConstraints col = new ColumnConstraints();
+            col.setPercentWidth(25);
+            col.setHalignment(HPos.CENTER);
+            grid.getColumnConstraints().add(col);
+        }
+        for (int i = 0; i < stats.length; i++) {
+            VBox statBox = new VBox(4);
+            statBox.setAlignment(Pos.CENTER);
+            statBox.getChildren().addAll(
+                    new Label(stats[i][0]) {{ setStyle("-fx-font-size: 20px;"); }},
+                    new Label(stats[i][2]) {{ setStyle("-fx-font-size: 26px; -fx-font-weight: 700; -fx-text-fill: #1A7A64;"); }},
+                    new Label(stats[i][1]) {{ setStyle("-fx-font-size: 13px; -fx-text-fill: #666666;"); }}
+            );
+            grid.add(statBox, i, 0);
+        }
+        return grid;
+    }
+
+    // ─── QUIZZES (Option B Card Layout) ──────────────────────────
+    // FIXED: loop variable captured in lambda now uses final local copy
+
+    @FXML
+    public void showQuizzes() {
+        currentView = "quizzes";
+        setActiveNav(navQuizzes);
+        contextTitle.setText("Quizzes");
+        contextActionBtn.setVisible(false);
+        contextActionBtn.setManaged(false);
+        replyForm.setVisible(false);
+        replyForm.setManaged(false);
+
+        contextList.getChildren().clear();
+        VBox quizzesBox = new VBox(8);
+        quizzesBox.setPadding(new Insets(12));
+
+        String[][] quizzes = {
+                {"Physics 101 Midterm", "10 questions · 3 min", "Due soon", "#fef2f2", "#dc2626"},
+                {"Chemistry Lab Quiz", "8 questions · 2 min", "Open", "#dbeafe", "#1d4ed8"},
+                {"Mathematics Week 5", "12 questions · 4 min", "Upcoming", "#d1fae5", "#065f46"}
+        };
+
+        for (int i = 0; i < quizzes.length; i++) {
+            final int index = i;  // ✅ create final copy for lambda
+
+            VBox card = new VBox(6);
+            card.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-radius: 8px; -fx-background-radius: 8px; -fx-padding: 12px 14px;");
+            card.setPrefWidth(240);
+
+            HBox headerRow = new HBox();
+            headerRow.setAlignment(Pos.CENTER_LEFT);
+            headerRow.getChildren().addAll(
+                    new Label(quizzes[index][0]) {{ setStyle("-fx-font-size: 14px; -fx-font-weight: 600;"); }},
+                    new Region() {{ HBox.setHgrow(this, Priority.ALWAYS); }},
+                    new Label(quizzes[index][2]) {{ setStyle("-fx-background-color: " + quizzes[index][3] + "; -fx-text-fill: " + quizzes[index][4] + "; -fx-font-size: 9px; -fx-font-weight: 600; -fx-padding: 2px 10px; -fx-background-radius: 12px;"); }}
+            );
+
+            Label infoLabel = new Label(quizzes[index][1]);
+            infoLabel.setStyle("-fx-text-fill: #666666; -fx-font-size: 12px;");
+
+            Button startBtn = new Button("▶ Start Quiz");
+            startBtn.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-padding: 4px; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
+            startBtn.setMaxWidth(Double.MAX_VALUE);
+            startBtn.setOnAction(e -> startQuiz(index, quizzes[index][0]));  // ✅ uses final index
+
+            card.getChildren().addAll(headerRow, infoLabel, startBtn);
+            quizzesBox.getChildren().add(card);
+        }
+        contextList.getChildren().add(quizzesBox);
+
+        threadArea.getChildren().clear();
+        VBox placeholder = new VBox(12);
+        placeholder.setAlignment(Pos.CENTER);
+        placeholder.setPadding(new Insets(60, 20, 60, 20));
+        placeholder.getChildren().addAll(
+                new Label("📝") {{ setStyle("-fx-font-size: 32px; -fx-text-fill: #999999;"); }},
+                new Label("Select a quiz to start") {{ setStyle("-fx-text-fill: #999999; -fx-font-size: 14px;"); }}
+        );
+        threadArea.getChildren().add(placeholder);
+    }
+
+    private void startQuiz(int quizIndex, String quizTitle) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/fxmlfiles/Quiz.fxml"));
+            Parent quizView = loader.load();
+            com.forum.controllers.QuizController controller = loader.getController();
+
+            threadArea.getChildren().clear();
+            threadArea.getChildren().add(quizView);
+            VBox.setVgrow(quizView, Priority.ALWAYS);
+
+            controller.setQuizData(quizTitle, quizIndex, () -> {
+                showQuizzes();
+            });
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            showToast("Error starting quiz: " + e.getMessage());
+        }
+    }
+
+    // ─── RESULTS (Option B style) ────────────────────────────────
+
+    @FXML
+    public void showResults() {
+        currentView = "results";
+        setActiveNav(navResults);
+        contextTitle.setText("Quiz Results");
+        contextActionBtn.setVisible(false);
+        contextActionBtn.setManaged(false);
+        replyForm.setVisible(false);
+        replyForm.setManaged(false);
+
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/fxmlfiles/quiz_result.fxml"));
+            Parent listView = loader.load();
+
+            com.forum.controllers.QuizResultsController controller = loader.getController();
+            controller.setRightPanel(threadArea);
+
+            contextList.getChildren().clear();
+            contextList.getChildren().add(listView);
+            VBox.setVgrow(listView, Priority.ALWAYS);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Label error = new Label("Could not load quiz results.");
+            error.setStyle("-fx-padding: 20px; -fx-text-fill: #dc2626;");
+            contextList.getChildren().add(error);
+        }
+
+        threadArea.getChildren().clear();
+        VBox placeholder = new VBox(12);
+        placeholder.setAlignment(Pos.CENTER);
+        placeholder.setPadding(new Insets(60, 20, 60, 20));
+        placeholder.getChildren().addAll(
+                new Label("📊") {{ setStyle("-fx-font-size: 32px; -fx-text-fill: #999999;"); }},
+                new Label("Select a quiz result to view detailed analytics") {{ setStyle("-fx-text-fill: #999999; -fx-font-size: 14px;"); }}
+        );
+        threadArea.getChildren().add(placeholder);
+    }
+
+    // ─── LOGOUT ────────────────────────────────────────────────────
 
     @FXML
     public void handleLogout() {
@@ -930,103 +1335,7 @@ public class MainController {
         new Thread(logoutTask).start();
     }
 
-    // ─── Placeholder Navigation ─────────────────────────────────
-
-    @FXML
-    public void showProfile() {
-        currentView = "profile";
-        setActiveNav(navProfile);
-        contextTitle.setText("Profile");
-        contextActionBtn.setVisible(false);
-        contextActionBtn.setManaged(false);
-        replyForm.setVisible(false);
-        replyForm.setManaged(false);
-        contextList.getChildren().clear();
-        VBox profileBox = new VBox(16);
-        profileBox.setPadding(new Insets(16));
-        profileBox.setStyle("-fx-background-color: #ffffff;");
-        User user = state.getCurrentUser();
-        if (user != null) {
-            Label nameLabel = new Label("👤 " + user.name);
-            nameLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: 700;");
-            Label emailLabel = new Label("📧 " + user.email);
-            emailLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #666;");
-            Label roleLabel = new Label("Role: " + user.role);
-            roleLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #666;");
-            profileBox.getChildren().addAll(nameLabel, emailLabel, roleLabel);
-        } else {
-            Label notLoggedIn = new Label("Not logged in");
-            notLoggedIn.setStyle("-fx-font-size: 14px; -fx-text-fill: #999;");
-            profileBox.getChildren().add(notLoggedIn);
-        }
-        contextList.getChildren().add(profileBox);
-        threadArea.getChildren().clear();
-        VBox placeholder = new VBox(12);
-        placeholder.setAlignment(Pos.CENTER);
-        placeholder.setPadding(new Insets(60, 20, 60, 20));
-        Label icon = new Label("👤");
-        icon.setStyle("-fx-font-size: 32px; -fx-text-fill: #999999;");
-        Label msg = new Label("User Profile");
-        msg.setStyle("-fx-text-fill: #999999; -fx-font-size: 14px;");
-        placeholder.getChildren().addAll(icon, msg);
-        threadArea.getChildren().add(placeholder);
-    }
-
-    @FXML
-    public void showQuizzes() {
-        currentView = "quizzes";
-        setActiveNav(navQuizzes);
-        contextTitle.setText("Quizzes");
-        contextActionBtn.setVisible(false);
-        contextActionBtn.setManaged(false);
-        replyForm.setVisible(false);
-        replyForm.setManaged(false);
-        contextList.getChildren().clear();
-        VBox quizzesBox = new VBox(8);
-        quizzesBox.setPadding(new Insets(12));
-        Label info = new Label("📝 Quizzes will be available soon.");
-        info.setStyle("-fx-font-size: 14px; -fx-text-fill: #666; -fx-padding: 20px;");
-        quizzesBox.getChildren().add(info);
-        contextList.getChildren().add(quizzesBox);
-        threadArea.getChildren().clear();
-        VBox placeholder = new VBox(12);
-        placeholder.setAlignment(Pos.CENTER);
-        placeholder.setPadding(new Insets(60, 20, 60, 20));
-        Label icon = new Label("📝");
-        icon.setStyle("-fx-font-size: 32px; -fx-text-fill: #999999;");
-        Label msg = new Label("Quizzes coming soon");
-        msg.setStyle("-fx-text-fill: #999999; -fx-font-size: 14px;");
-        placeholder.getChildren().addAll(icon, msg);
-        threadArea.getChildren().add(placeholder);
-    }
-
-    @FXML
-    public void showResults() {
-        currentView = "results";
-        setActiveNav(navResults);
-        contextTitle.setText("Quiz Results");
-        contextActionBtn.setVisible(false);
-        contextActionBtn.setManaged(false);
-        replyForm.setVisible(false);
-        replyForm.setManaged(false);
-        contextList.getChildren().clear();
-        VBox resultsBox = new VBox(8);
-        resultsBox.setPadding(new Insets(12));
-        Label info = new Label("📊 Results will be available here.");
-        info.setStyle("-fx-font-size: 14px; -fx-text-fill: #666; -fx-padding: 20px;");
-        resultsBox.getChildren().add(info);
-        contextList.getChildren().add(resultsBox);
-        threadArea.getChildren().clear();
-        VBox placeholder = new VBox(12);
-        placeholder.setAlignment(Pos.CENTER);
-        placeholder.setPadding(new Insets(60, 20, 60, 20));
-        Label icon = new Label("📊");
-        icon.setStyle("-fx-font-size: 32px; -fx-text-fill: #999999;");
-        Label msg = new Label("Quiz results coming soon");
-        msg.setStyle("-fx-text-fill: #999999; -fx-font-size: 14px;");
-        placeholder.getChildren().addAll(icon, msg);
-        threadArea.getChildren().add(placeholder);
-    }
+    // ─── CREATE TOPIC (FXML action) ──────────────────────────────
 
     @FXML
     public void handleCreateTopic() {
