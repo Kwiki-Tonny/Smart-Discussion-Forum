@@ -459,7 +459,7 @@ class StudentController extends Controller
             return response()->json(['message' => 'Post not found'], 404);
         }
 
-        // Check if the user already liked this post
+        // Toggle like
         $existing = PostLike::where('post_id', $postId)
                             ->where('user_id', $user->id)
                             ->first();
@@ -475,12 +475,11 @@ class StudentController extends Controller
             $liked = true;
         }
 
-        $likeCount = PostLike::where('post_id', $postId)->count();
+        // Reload the post with author data and compute like fields
+        $post->load('author:id,name,email,role');
+        $post->is_liked = $liked;
+        $post->likes_count = PostLike::where('post_id', $postId)->count();
 
-        return response()->json([
-            'success' => true,
-            'liked' => $liked,
-            'count' => $likeCount,
-        ]);
+        return response()->json(['data' => $post]);
     }
 }

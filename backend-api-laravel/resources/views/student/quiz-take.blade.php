@@ -59,7 +59,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // ============================================================
-    // 1. INITIALIZE
+    // 1. INITIALIZE WITH REAL QUESTIONS FROM SERVER
     // ============================================================
     const quizId = {{ $quiz->id }};
     let remainingSeconds = {{ $remainingSeconds }};
@@ -68,27 +68,20 @@ document.addEventListener('DOMContentLoaded', function() {
     let warningCount = 0;
     const maxWarnings = 3;
 
-    // Mock questions (in real app, these come from the server)
-    const questions = [
-        {
-            id: 1,
-            question: 'What is the chemical symbol for water?',
-            options: ['H2O', 'CO2', 'NaCl', 'HCl'],
-            correct: 0
-        },
-        {
-            id: 2,
-            question: 'What is the pH value of pure water?',
-            options: ['5', '6', '7', '8'],
-            correct: 2
-        },
-        {
-            id: 3,
-            question: 'Which of the following is an example of a covalent bond?',
-            options: ['NaCl', 'H2O', 'KCl', 'MgO'],
-            correct: 1
-        }
-    ];
+    // REAL QUESTIONS passed from Laravel
+    const questions = @json($quiz->questions);
+
+    // If no questions, show a message and disable submit
+    if (!questions || questions.length === 0) {
+        document.getElementById('quiz-questions').innerHTML = `
+            <div class="bg-white border border-[#E5E5E5] p-6 text-center">
+                <p class="text-sm text-[#DC2626]">⚠️ This quiz has no questions yet.</p>
+                <p class="text-xs text-[#666666]">Please contact your lecturer.</p>
+            </div>
+        `;
+        document.getElementById('submit-quiz-btn').disabled = true;
+        return;
+    }
 
     // ============================================================
     // 2. RENDER QUESTIONS
@@ -101,12 +94,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="bg-white border border-[#E5E5E5] p-4">
                     <p class="text-sm font-bold text-[#000000]">${index + 1}. ${q.question}</p>
                     <div class="mt-2 space-y-1">
-                        ${q.options.map((opt, optIndex) => `
-                            <label class="flex items-center space-x-3 cursor-pointer p-1 hover:bg-[#F5F5F5] transition-colors">
-                                <input type="radio" name="q${q.id}" value="${optIndex}" class="accent-black">
-                                <span class="text-sm text-[#000000]">${opt}</span>
-                            </label>
-                        `).join('')}
+            `;
+
+            if (q.type === 'text') {
+                html += `
+                    <input type="text" name="q${q.id}" class="w-full bg-[#F9F9F9] border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition" placeholder="Type your answer...">
+                `;
+            } else {
+                // single or multiple choice
+                const options = q.options || [];
+                const inputType = q.type === 'multiple' ? 'checkbox' : 'radio';
+                options.forEach((opt, optIndex) => {
+                    html += `
+                        <label class="flex items-center space-x-3 cursor-pointer p-1 hover:bg-[#F5F5F5] transition-colors">
+                            <input type="${inputType}" name="q${q.id}" value="${optIndex}" class="accent-black">
+                            <span class="text-sm text-[#000000]">${opt}</span>
+                        </label>
+                    `;
+                });
+            }
+
+            html += `
                     </div>
                 </div>
             `;
@@ -116,9 +124,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateQuestionCounter() {
-        const answered = document.querySelectorAll('input[type="radio"]:checked').length;
         const total = questions.length;
-        document.getElementById('question-counter').textContent = `Question ${answered} of ${total}`;
+        const answered = document.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked, input[type="text"]').length;
+        document.getElementById('question-counter').textContent = `Question ${Math.min(answered + 1, total)} of ${total}`;
     }
 
     // ============================================================
@@ -129,13 +137,10 @@ document.addEventListener('DOMContentLoaded', function() {
         timerInterval = setInterval(function() {
             remainingSeconds--;
             updateTimerDisplay();
-
-            // Warning when less than 60 seconds
             if (remainingSeconds <= 60 && remainingSeconds > 0) {
                 document.getElementById('timer-display').style.backgroundColor = '#FEF2F2';
                 document.getElementById('timer').style.color = '#DC2626';
             }
-
             if (remainingSeconds <= 0) {
                 clearInterval(timerInterval);
                 autoSubmit('Time expired!');
@@ -151,26 +156,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // 4. SOFT LOCKDOWN - Copy/Paste Prevention
+    // 4. LOCKDOWN (Copy/Paste prevention & tab switch detection)
     // ============================================================
-    document.addEventListener('copy', function(e) {
-        e.preventDefault();
-        showWarning('Copying is disabled during the quiz.');
-    });
+    document.addEventListener('copy', function(e) { e.preventDefault(); showWarning('Copying is disabled.'); });
+    document.addEventListener('paste', function(e) { e.preventDefault(); showWarning('Pasting is disabled.'); });
+    document.addEventListener('contextmenu', function(e) { e.preventDefault(); showWarning('Right-click is disabled.'); });
 
-    document.addEventListener('paste', function(e) {
-        e.preventDefault();
-        showWarning('Pasting is disabled during the quiz.');
-    });
-
-    document.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
-        showWarning('Right-click is disabled during the quiz.');
-    });
-
-    // ============================================================
-    // 5. SOFT LOCKDOWN - Tab Switch Detection
-    // ============================================================
     document.addEventListener('visibilitychange', function() {
         if (document.hidden) {
             warningCount++;
@@ -183,45 +174,39 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // ============================================================
-    // 6. NOTIFICATIONS
-    // ============================================================
     function showWarning(message) {
-        // Remove existing warning
         const existing = document.getElementById('quiz-warning');
         if (existing) existing.remove();
-
         const warning = document.createElement('div');
         warning.id = 'quiz-warning';
         warning.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 bg-[#DC2626] text-white px-6 py-3 z-50 border border-[#B91C1C] shadow-lg';
-        warning.innerHTML = `
-            <div class="flex items-center space-x-3">
-                <span class="text-sm font-bold">⚠️</span>
-                <span class="text-sm">${message}</span>
-            </div>
-        `;
+        warning.innerHTML = `<div class="flex items-center space-x-3"><span class="text-sm font-bold">⚠️</span><span class="text-sm">${message}</span></div>`;
         document.body.appendChild(warning);
-
-        setTimeout(() => {
-            if (warning) warning.remove();
-        }, 4000);
+        setTimeout(() => { if (warning) warning.remove(); }, 4000);
     }
 
     // ============================================================
-    // 7. SUBMIT QUIZ
+    // 5. SUBMIT QUIZ
     // ============================================================
     function submitQuiz(autoSubmitted = false) {
         if (isSubmitted) return;
         isSubmitted = true;
 
-        // Collect answers
         const answers = {};
-        document.querySelectorAll('input[type="radio"]:checked, input[type="text"]').forEach(input => {
+        document.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked, input[type="text"]').forEach(input => {
             const name = input.name;
-            if (input.type === 'radio') {
-                answers[name] = parseInt(input.value);
+            if (input.type === 'radio' || input.type === 'checkbox') {
+                if (!answers[name]) answers[name] = [];
+                answers[name].push(parseInt(input.value));
             } else if (input.type === 'text') {
                 answers[name] = input.value.trim();
+            }
+        });
+
+        // For single choice, flatten to single value
+        Object.keys(answers).forEach(key => {
+            if (Array.isArray(answers[key]) && answers[key].length === 1) {
+                answers[key] = answers[key][0];
             }
         });
 
@@ -232,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const token = document.querySelector('meta[name="csrf-token"]')?.content;
         if (!token) {
-            alert('CSRF token missing. Please refresh the page.');
+            alert('CSRF token missing. Please refresh.');
             submitBtn.textContent = originalText;
             submitBtn.disabled = false;
             isSubmitted = false;
@@ -261,7 +246,6 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             if (data.success) {
-                // ✅ Show success
                 const container = document.getElementById('quiz-container');
                 container.innerHTML = `
                     <div class="flex-1 flex items-center justify-center p-8">
@@ -277,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
             } else {
-                alert(data.message || 'Submission failed. Please try again.');
+                alert(data.message || 'Submission failed.');
             }
         })
         .catch(error => {
@@ -293,13 +277,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function autoSubmit(reason) {
         if (isSubmitted) return;
         showWarning(`⏰ ${reason} Auto-submitting...`);
-        setTimeout(() => {
-            submitQuiz(true);
-        }, 2000);
+        setTimeout(() => { submitQuiz(true); }, 2000);
     }
 
     // ============================================================
-    // 8. EVENT LISTENERS
+    // 6. EVENT LISTENERS
     // ============================================================
     document.getElementById('submit-quiz-btn').addEventListener('click', function() {
         if (confirm('Are you sure you want to submit your answers?')) {
@@ -307,15 +289,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Update question counter on radio change
     document.addEventListener('change', function(e) {
-        if (e.target.type === 'radio') {
+        if (e.target.type === 'radio' || e.target.type === 'checkbox' || e.target.type === 'text') {
             updateQuestionCounter();
         }
     });
 
     // ============================================================
-    // 9. INITIALIZATION
+    // 7. INITIALIZATION
     // ============================================================
     renderQuestions();
     startTimer();

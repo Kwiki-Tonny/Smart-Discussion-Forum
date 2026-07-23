@@ -159,11 +159,11 @@
 .top-bar .brand {
     -fx-font-size: 16px;
     -fx-font-weight: 700;
-    -fx-text-fill: #1A7A64; /* FIXED: Was white on white */
+    -fx-text-fill: #1A7A64;
 }
 .top-bar .user-name {
     -fx-font-size: 14px;
-    -fx-text-fill: #1e293b; /* FIXED: Dark text for light header */
+    -fx-text-fill: #1e293b;
     -fx-font-weight: 500;
 }
 .logout-btn {
@@ -185,38 +185,66 @@
     -fx-background-color: #f9f9f9;
 }
 
-/* SIDEBAR - WHITE */
+/* ───────────── SIDEBAR (DARK GREEN) ───────────── */
 .sidebar {
-    -fx-background-color: #ffffff;
-    -fx-padding: 16px 0 12px 0;
+    -fx-background-color: #0f2b24;
+    -fx-padding: 20px 0 16px 0;
     -fx-min-width: 72px;
     -fx-pref-width: 72px;
-    -fx-border-color: #e5e7eb;
-    -fx-border-width: 0 1px 0 0;
+    -fx-border-width: 0;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 8, 0, 0, 4);
 }
+
 .sidebar .nav-btn {
     -fx-background-color: transparent;
-    -fx-text-fill: #6b7280;
+    -fx-text-fill: rgba(255,255,255,0.6);
     -fx-min-width: 48px;
     -fx-min-height: 48px;
-    -fx-border-radius: 12px;
-    -fx-background-radius: 12px;
+    -fx-background-radius: 14px;
     -fx-cursor: hand;
     -fx-alignment: center;
     -fx-padding: 4px;
 }
-.sidebar .nav-btn:hover {
-    -fx-background-color: rgba(26,122,100,0.12);
-    -fx-text-fill: #1A7A64;
+
+/* Icon style (both FontIcon and Text) */
+.sidebar .nav-btn .icon {
+    -fx-fill: rgba(255,255,255,0.6);
+    -fx-icon-color: rgba(255,255,255,0.6);
+    -fx-icon-size: 22px;
 }
-.sidebar .nav-btn.active {
-    -fx-background-color: #1A7A64;
-    -fx-text-fill: #ffffff;
-}
+
 .sidebar .nav-btn .label {
     -fx-font-size: 9px;
-    -fx-text-fill: inherit;
+    -fx-text-fill: rgba(255,255,255,0.6);
 }
+
+/* Hover effect */
+.sidebar .nav-btn:hover {
+    -fx-background-color: rgba(255,255,255,0.1);
+    -fx-text-fill: #ffffff;
+}
+.sidebar .nav-btn:hover .icon {
+    -fx-fill: #ffffff;
+    -fx-icon-color: #ffffff;
+}
+.sidebar .nav-btn:hover .label {
+    -fx-text-fill: #ffffff;
+}
+
+/* Active state */
+.sidebar .nav-btn.active {
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #0f2b24;
+}
+.sidebar .nav-btn.active .icon {
+    -fx-fill: #0f2b24;
+    -fx-icon-color: #0f2b24;
+}
+.sidebar .nav-btn.active .label {
+    -fx-text-fill: #0f2b24;
+}
+
+/* Badge (e.g., quiz count) */
 .sidebar .nav-btn .badge {
     -fx-background-color: #dc2626;
     -fx-text-fill: #ffffff;
@@ -227,6 +255,8 @@
     -fx-background-radius: 50%;
     -fx-alignment: center;
 }
+
+/* Avatar button (profile) */
 .sidebar .avatar-btn {
     -fx-background-color: transparent;
 }
@@ -513,7 +543,7 @@
     -fx-padding: 12px 16px;
 }
 .results-header .label {
-    -fx-text-fill: #ffffff !important; /* FIXED: Was black on teal */
+    -fx-text-fill: #ffffff !important;
     -fx-font-size: 14px;
     -fx-font-weight: 700;
 }
@@ -589,7 +619,19 @@
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 8, 0, 0, 4);
 }
 
-/* ─── REPLY FORM ────────────────────────────────────────────── */
+/* ─── REPLY FORM (additional override) ────────────────────────────── */
+/* The earlier .reply-form block already exists; we keep it, but to avoid duplication, we merge. 
+   However, we already have two .reply-form blocks; we'll keep the latest one (with improved styles). 
+   The earlier one used -fx-border-color: #1A7A64; this one uses #e5e7eb, so we'll keep the second one. 
+   But we also had .reply-form .actions .post-btn, etc. The second block covers it. 
+   We'll remove the first .reply-form block above and keep this one. 
+   But to avoid duplication, we'll keep only the second one (the more detailed). 
+   So we delete the earlier .reply-form block. 
+   But we already have both in the file – we'll keep the one near the bottom. 
+   We'll also remove the duplicate .reply-form from the earlier section. 
+   Let's present the final file without duplicates. 
+   I'll include only one .reply-form block (the styled one near the bottom). 
+*/
 .reply-form {
     -fx-background-color: #ffffff;
     -fx-border-color: #e5e7eb;

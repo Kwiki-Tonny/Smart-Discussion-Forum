@@ -484,7 +484,6 @@ public class MainController {
         VBox item = new VBox(4);
         item.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0; " +
                 "-fx-padding: 12px 16px; -fx-cursor: hand;");
-        // Use explicit handler to avoid lambda capturing loop variable
         item.setOnMouseClicked(new GroupClickHandler(group));
 
         Label title = new Label(group.name);
@@ -496,8 +495,13 @@ public class MainController {
         HBox metaRow = new HBox(12);
         metaRow.setAlignment(Pos.CENTER_RIGHT);
 
-        Label topicsLabel = new Label("📄 0 topics");
+        // ─── Dynamic topic count ──────────────────────────────────────
+        Label topicsLabel = new Label("📄 " + group.topicsCount + " topics");
         topicsLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #999999;");
+
+        // ─── Dynamic member count (optional – uncomment if needed) ──
+        // Label membersLabel = new Label("👤 " + group.usersCount + " members");
+        // membersLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #999999;");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -508,6 +512,8 @@ public class MainController {
                 "-fx-border-radius: 12px; -fx-background-radius: 12px;");
         joinBtn.setOnAction(new JoinButtonHandler(group, isJoined));
 
+        // ─── Add to metaRow ──────────────────────────────────────────
+        // If you want to include members, add membersLabel before spacer
         metaRow.getChildren().addAll(topicsLabel, spacer, joinBtn);
         item.getChildren().addAll(title, desc, metaRow);
         return item;
@@ -720,6 +726,7 @@ public class MainController {
     private void renderTopics(List<Topic> topicList) {
         contextList.getChildren().clear();
 
+        // ─── Back button ──────────────────────────────────────────────
         HBox backRow = new HBox(8);
         backRow.setAlignment(Pos.CENTER_LEFT);
         backRow.setStyle("-fx-padding: 8px 16px; -fx-background-color: #f5f5f5; -fx-border-color: #e5e7eb; -fx-border-width: 0 0 1px 0;");
@@ -729,6 +736,7 @@ public class MainController {
         backRow.getChildren().add(backBtn);
         contextList.getChildren().add(backRow);
 
+        // ─── Empty state ──────────────────────────────────────────────
         if (topicList.isEmpty()) {
             Label empty = new Label("No topics yet. Start a new discussion!");
             empty.setStyle("-fx-padding: 40px 20px; -fx-text-fill: #999999; -fx-font-size: 14px;");
@@ -737,17 +745,17 @@ public class MainController {
             return;
         }
 
+        // ─── Topic items ──────────────────────────────────────────────
         for (Topic topic : topicList) {
             VBox item = new VBox(4);
             item.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0; " +
                     "-fx-padding: 12px 16px; -fx-cursor: hand;");
-            // Use explicit handler to avoid lambda
             item.setOnMouseClicked(new TopicClickHandler(topic));
 
             Label title = new Label(topic.title);
             title.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #000000;");
 
-            // Safe null handling for creator
+            // ─── Author & date ──────────────────────────────────────
             String creatorName = "Unknown";
             if (topic.creator != null && topic.creator.has("name")) {
                 creatorName = topic.creator.path("name").asText("Unknown");
@@ -755,14 +763,22 @@ public class MainController {
             Label sub = new Label("by " + creatorName + " • " + (topic.created_at != null ? topic.created_at : ""));
             sub.setStyle("-fx-font-size: 12px; -fx-text-fill: #666666;");
 
+            // ─── Meta row: replies + category tag ──────────────────
             HBox metaRow = new HBox(12);
             metaRow.setAlignment(Pos.CENTER_LEFT);
-            Label repliesLabel = new Label("💬 0 replies");
+
+            // Dynamic reply count
+            Label repliesLabel = new Label("💬 " + topic.postsCount + " replies");
             repliesLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #999999;");
 
-            Label tagLabel = new Label("General");
+            // Dynamic ML category (fallback to "General")
+            String category = (topic.mlCategory != null && !topic.mlCategory.isEmpty())
+                    ? topic.mlCategory
+                    : "General";
+            Label tagLabel = new Label(category);
             tagLabel.setStyle("-fx-font-size: 9px; -fx-font-weight: 700; -fx-padding: 1px 10px; " +
                     "-fx-background-radius: 12px; -fx-background-color: #e5e5e5; -fx-text-fill: #333333;");
+
 
             metaRow.getChildren().addAll(repliesLabel, tagLabel);
             item.getChildren().addAll(title, sub, metaRow);

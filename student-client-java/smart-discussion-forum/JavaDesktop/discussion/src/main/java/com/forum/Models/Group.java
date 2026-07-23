@@ -9,7 +9,13 @@ public class Group {
     public String name;
     public String description;
     public String created_at;
-    
+
     @JsonProperty("is_member")
     public boolean isMember;
+
+    @JsonProperty("topics_count")
+    public int topicsCount;
+
+    @JsonProperty("users_count")
+    public int usersCount;
 }

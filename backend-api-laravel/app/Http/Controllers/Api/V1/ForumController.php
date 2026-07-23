@@ -20,7 +20,9 @@ class ForumController extends Controller
         $user = $request->user();
         $groupIds = $user->groups()->pluck('groups.id')->toArray(); // all group IDs the user is in
 
-        $groups = Group::select('id', 'name', 'description', 'created_at')->get();
+        $groups = Group::select('id', 'name', 'description', 'created_at')
+        ->withCount(['topics', 'users'])
+        ->get();
 
         $groups->each(function ($group) use ($groupIds) {
             $group->is_member = in_array($group->id, $groupIds);
@@ -62,10 +64,10 @@ class ForumController extends Controller
     public function getTopicsByGroup($groupId)
     {
         $group = Group::findOrFail($groupId);
-
         $topics = $group->topics()
             ->with('creator:id,name,role')
-            ->get();
+            ->withCount('posts')
+            ->get(['id', 'group_id', 'title', 'description', 'creator_id', 'created_at', 'ml_category']); // ← added ml_category
 
         return response()->json([
             'status' => 'success',
@@ -114,6 +116,7 @@ class ForumController extends Controller
             'is_private' => 'required|boolean',
             'excluded_user_ids' => 'nullable|array',
             'excluded_user_ids.*' => 'exists:users,id',
+            'parent_id' => 'nullable|exists:posts,id',          // ← ADD THIS
         ]);
 
         $post = Post::create([
@@ -121,6 +124,7 @@ class ForumController extends Controller
             'user_id' => $validatedData['user_id'],
             'content' => $validatedData['content'],
             'is_private' => $validatedData['is_private'],
+            'parent_id' => $validatedData['parent_id'] ?? null, // ← ADD THIS
         ]);
 
         if ($validatedData['is_private'] && !empty($validatedData['excluded_user_ids'])) {

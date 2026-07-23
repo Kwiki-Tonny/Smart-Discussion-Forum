@@ -795,7 +795,7 @@ class StudentController extends Controller
     public function takeQuiz($quizId)
     {
         $user = Auth::user();
-        $quiz = Quiz::with(['group'])->findOrFail($quizId);
+        $quiz = Quiz::with(['group', 'questions'])->findOrFail($quizId);
         
         // Check if quiz is available
         if ($quiz->starts_at > now()) {

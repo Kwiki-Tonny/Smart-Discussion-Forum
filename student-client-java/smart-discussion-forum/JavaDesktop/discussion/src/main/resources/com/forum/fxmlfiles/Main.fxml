@@ -23,32 +23,34 @@
         </HBox>
     </top>
 
-    <!-- SIDEBAR (LEFT) -->
+    <!-- SIDEBAR (SOFT TEAL) -->
     <left>
         <VBox styleClass="sidebar" alignment="TOP_CENTER" spacing="8" minWidth="72" prefWidth="72">
+            <!-- Groups -->
             <Button styleClass="nav-btn active" fx:id="navGroups" onAction="#showGroups">
                 <graphic>
                     <VBox alignment="CENTER" spacing="2">
-                        <FontIcon iconLiteral="fas-layer-group" iconSize="22"/>
+                        <FontIcon iconLiteral="fas-users" iconSize="22" styleClass="icon"/>
                         <Text styleClass="label">Groups</Text>
                     </VBox>
                 </graphic>
             </Button>
 
+            <!-- Quizzes -->
             <Button styleClass="nav-btn" fx:id="navQuizzes" onAction="#showQuizzes">
                 <graphic>
                     <VBox alignment="CENTER" spacing="2">
-                        <FontIcon iconLiteral="fas-pencil-alt" iconSize="22"/>
-                        <Text styleClass="badge">3</Text>
+                        <FontIcon iconLiteral="fas-pencil-alt" iconSize="22" styleClass="icon"/>
                         <Text styleClass="label">Quizzes</Text>
                     </VBox>
                 </graphic>
             </Button>
 
+            <!-- Results -->
             <Button styleClass="nav-btn" fx:id="navResults" onAction="#showResults">
                 <graphic>
                     <VBox alignment="CENTER" spacing="2">
-                        <FontIcon iconLiteral="fas-chart-bar" iconSize="22"/>
+                        <FontIcon iconLiteral="fas-chart-bar" iconSize="22" styleClass="icon"/>
                         <Text styleClass="label">Results</Text>
                     </VBox>
                 </graphic>
@@ -56,10 +58,11 @@
 
             <Region VBox.vgrow="ALWAYS"/>
 
+            <!-- Profile -->
             <Button styleClass="nav-btn" fx:id="navProfile" onAction="#showProfile">
                 <graphic>
                     <VBox alignment="CENTER" spacing="2">
-                        <FontIcon iconLiteral="fas-user" iconSize="22"/>
+                        <FontIcon iconLiteral="fas-user" iconSize="22" styleClass="icon"/>
                         <Text styleClass="label">Profile</Text>
                     </VBox>
                 </graphic>
