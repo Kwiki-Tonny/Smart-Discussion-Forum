@@ -8,6 +8,7 @@ use App\Models\Group;
 use App\Models\Topic;
 use App\Models\Post;
 use App\Models\Quiz;
+use App\Models\Setting;
 use App\Models\BlacklistLog;
 use App\Models\QuizSubmission;
 use App\Notifications\UserApproved;
@@ -313,13 +314,12 @@ class AdminController extends Controller
      */
     public function configuration()
     {
-        // Get current settings from config or database
         $settings = [
-            'inactivity_warning_1' => config('forum.inactivity_warning_1', 7),
-            'inactivity_warning_2' => config('forum.inactivity_warning_2', 14),
-            'inactivity_blacklist' => config('forum.inactivity_blacklist', 21),
-            'blacklist_duration' => config('forum.blacklist_duration', 14),
-            'max_login_attempts' => config('forum.max_login_attempts', 5),
+            'inactivity_warning_1' => Setting::get('inactivity_warning_1', 7),
+            'inactivity_warning_2' => Setting::get('inactivity_warning_2', 14),
+            'inactivity_blacklist' => Setting::get('inactivity_blacklist', 21),
+            'blacklist_duration'   => Setting::get('blacklist_duration', 14),
+            'max_login_attempts'   => Setting::get('max_login_attempts', 5),
         ];
 
         return view('admin.configuration', compact('settings'));
@@ -334,17 +334,18 @@ class AdminController extends Controller
             'inactivity_warning_1' => 'required|integer|min:1|max:30',
             'inactivity_warning_2' => 'required|integer|min:1|max:30',
             'inactivity_blacklist' => 'required|integer|min:1|max:60',
-            'blacklist_duration' => 'required|integer|min:1|max:365',
-            'max_login_attempts' => 'required|integer|min:1|max:20',
+            'blacklist_duration'   => 'required|integer|min:1|max:365',
+            'max_login_attempts'   => 'required|integer|min:1|max:20',
         ]);
 
-        // Store in config or database
+        foreach ($validated as $key => $value) {
+            Setting::set($key, $value);
+        }
+
+        // Also update the runtime config for the current request (optional)
         foreach ($validated as $key => $value) {
             config(['forum.' . $key => $value]);
         }
-
-        // Optionally store in a settings table
-        // Setting::updateOrCreate(['key' => $key], ['value' => $value]);
 
         return redirect()->route('admin.configuration')
             ->with('success', 'Configuration updated successfully.');
@@ -415,7 +416,21 @@ class AdminController extends Controller
      */
     public function groupsList()
     {
-        $groups = Group::withCount(['topics', 'users'])->orderBy('name')->get();
+        // Fetch all groups with counts
+        $groups = Group::withCount(['topics', 'users'])
+            ->orderBy('topics_count', 'desc')
+            ->get();
+
+        // Add posts_count (replies) to each group
+        foreach ($groups as $g) {
+            $g->posts_count = \App\Models\Post::whereHas('topic', function ($q) use ($g) {
+                $q->where('group_id', $g->id);
+            })->count();
+        }
+
+        // Sort by topics_count (default)
+        $groups = $groups->sortByDesc('topics_count')->values();
+
         return view('admin.groups-list', compact('groups'));
     }
 }

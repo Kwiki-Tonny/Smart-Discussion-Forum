@@ -483,13 +483,17 @@ class LecturerController extends Controller
     /**
      * Export Quiz Results – Only own quizzes
      */
-    public function exportQuizResults($quizId)
-    {
-        $user = Auth::user();
-        $quiz = Quiz::where('created_by', $user->id)->findOrFail($quizId);
+public function exportQuizResults($quizId)
+{
+    $user = Auth::user();
+    $quiz = Quiz::where('created_by', $user->id)->findOrFail($quizId);
 
-        return Excel::download(new QuizResultsExport($quizId), 'quiz_results_' . $quiz->title . '.xlsx');
-    }
+    // Sanitize filename: remove / and \ and replace with underscores
+    $safeTitle = str_replace(['/', '\\'], '_', $quiz->title);
+    $filename = 'quiz_results_' . $safeTitle . '.xlsx';
+
+    return Excel::download(new QuizResultsExport($quizId), $filename);
+}
 
     /**
      * Lecturer Profile – Only own groups

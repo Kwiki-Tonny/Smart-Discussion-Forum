@@ -73,6 +73,20 @@
 
         {{-- Form --}}
         <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            {{-- Flash Messages --}}
+            @if(session('success'))
+                <div class="bg-[#F0FDF4] border border-[#16A34A] text-[#16A34A] px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
+                    <i data-lucide="check-circle" style="width:18px;height:18px;"></i>
+                    {{ session('success') }}
+                </div>
+            @endif
+            @if(session('error'))
+                <div class="bg-[#FEF2F2] border border-[#DC2626] text-[#DC2626] px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
+                    <i data-lucide="alert-circle" style="width:18px;height:18px;"></i>
+                    {{ session('error') }}
+                </div>
+            @endif
+
             <div class="max-w-3xl bg-white rounded-xl border-2 border-[#0A574F] shadow-sm p-6">
 
                 {{-- Form Intro --}}

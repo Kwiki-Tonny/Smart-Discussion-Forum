@@ -110,7 +110,7 @@
             {{-- TOP ROW: Round Score Chart + Distribution Chart (side by side) --}}
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1">
 
-                {{-- Round Score Chart (with fixed answered counter) --}}
+                {{-- Round Score Chart --}}
                 <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-6 hover:shadow-md transition flex flex-col items-center justify-center">
                     <div class="relative inline-block">
                         <svg class="w-48 h-48 transform -rotate-90">
@@ -139,7 +139,7 @@
                         </div>
                     </div>
 
-                    {{-- Quick stats below the circle (answered fixed) --}}
+                    {{-- Quick stats below the circle --}}
                     <div class="mt-4 grid grid-cols-2 gap-3 w-full">
                         <div class="bg-[#F9F9F9] rounded-lg p-2 text-center">
                             <div class="flex items-center justify-center gap-1">
@@ -172,14 +172,25 @@
                     </div>
                 </div>
 
-                {{-- Score Distribution Chart --}}
+                {{-- Score Distribution Chart (using $allSubmissions) --}}
                 <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4 hover:shadow-md transition flex flex-col">
                     <div class="flex items-center gap-2 mb-3">
                         <i data-lucide="bar-chart-2" style="width:18px;height:18px;color:#0A574F;"></i>
                         <h3 class="text-xs font-bold uppercase tracking-wider text-[#666666]">Score Distribution</h3>
                     </div>
                     <div class="flex-1" style="min-height: 0;">
-                        <canvas id="scoreDistribution" style="width:100%; height:100%;"></canvas>
+                        @php
+                            $scores = $allSubmissions->pluck('score')->filter();
+                        @endphp
+                        @if($scores->isEmpty())
+                            <div class="flex items-center justify-center h-full text-[#999999] text-sm flex-col gap-2">
+                                <i data-lucide="inbox" style="width:32px;height:32px;"></i>
+                                <p>No submissions yet</p>
+                                <p class="text-xs">The chart will appear once students submit the quiz.</p>
+                            </div>
+                        @else
+                            <canvas id="scoreDistribution" style="width:100%; height:100%;"></canvas>
+                        @endif
                     </div>
                 </div>
 
@@ -247,28 +258,28 @@
     document.addEventListener('DOMContentLoaded', function() {
         lucide.createIcons();
 
+        // ─── SCORE DISTRIBUTION CHART ──────────────────────────
         const scores = {!! json_encode($allSubmissions->pluck('score')->filter()) !!};
-        const userScore = {{ $submission->score ?? 0 }};
-        const bins = [0,10,20,30,40,50,60,70,80,90,100];
-        const binLabels = bins.map((b, i) => {
-            if (i === bins.length - 1) return b + '+';
-            return b + '-' + (bins[i+1] - 1);
-        });
-
-        const counts = bins.map((b, i) => {
-            if (i === bins.length - 1) return scores.filter(s => s >= b).length;
-            return scores.filter(s => s >= b && s < bins[i+1]).length;
-        });
-
-        const maxCount = Math.max(...counts, 1);
-        const backgroundColors = counts.map(count => {
-            const opacity = 0.2 + 0.7 * (count / maxCount);
-            return `rgba(10, 87, 79, ${opacity})`;
-        });
-        const borderColors = counts.map(() => '#0A574F');
-        const borderWidths = counts.map(() => 1.5);
-
         if (scores.length > 0) {
+            const bins = [0,10,20,30,40,50,60,70,80,90,100];
+            const binLabels = bins.map((b, i) => {
+                if (i === bins.length - 1) return b + '+';
+                return b + '-' + (bins[i+1] - 1);
+            });
+
+            const counts = bins.map((b, i) => {
+                if (i === bins.length - 1) return scores.filter(s => s >= b).length;
+                return scores.filter(s => s >= b && s < bins[i+1]).length;
+            });
+
+            const maxCount = Math.max(...counts, 1);
+            const backgroundColors = counts.map(count => {
+                const opacity = 0.2 + 0.7 * (count / maxCount);
+                return `rgba(10, 87, 79, ${opacity})`;
+            });
+            const borderColors = counts.map(() => '#0A574F');
+            const borderWidths = counts.map(() => 1.5);
+
             new Chart(document.getElementById('scoreDistribution'), {
                 type: 'bar',
                 data: {
