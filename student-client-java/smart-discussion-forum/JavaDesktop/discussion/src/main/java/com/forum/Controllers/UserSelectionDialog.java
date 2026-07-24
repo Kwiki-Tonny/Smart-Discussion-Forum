@@ -42,7 +42,20 @@ public class UserSelectionDialog {
 
     @FXML
     public void initialize() {
-        // Search filter
+        // ─── CELL FACTORY: show user name and email ──────────────
+        userListView.setCellFactory(param -> new ListCell<User>() {
+            @Override
+            protected void updateItem(User user, boolean empty) {
+                super.updateItem(user, empty);
+                if (empty || user == null) {
+                    setText(null);
+                } else {
+                    setText(user.name + " (" + user.email + ")");
+                }
+            }
+        });
+
+        // ─── SEARCH FILTER ──────────────────────────────────────
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
             String query = newVal.toLowerCase().trim();
             if (query.isEmpty()) {
@@ -58,7 +71,7 @@ public class UserSelectionDialog {
             }
         });
 
-        // Update count on selection change
+        // ─── SELECTION COUNT UPDATE ─────────────────────────────
         userListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             updateSelectedCount();
         });

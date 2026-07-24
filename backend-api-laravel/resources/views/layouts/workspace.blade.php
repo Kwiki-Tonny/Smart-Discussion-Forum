@@ -206,7 +206,7 @@
     </div>
 
     {{-- FOOTER --}}
-    <footer class="h-6 bg-[#FAFAFA] border-t border-[#E5E5E5] flex items-center justify-between px-6 text-[11px] text-[#666666] font-medium flex-shrink-0">
+    <!--<footer class="h-6 bg-[#FAFAFA] border-t border-[#E5E5E5] flex items-center justify-between px-6 text-[11px] text-[#666666] font-medium flex-shrink-0">
         <div class="border-t border-[#E5E5E5] bg-white px-8 py-3 flex items-center justify-between text-[11px] text-[#666666]">
             <div class="flex items-center gap-6">
                 <span class="flex items-center gap-1">
@@ -224,8 +224,24 @@
                 <a href="#" class="hover:text-[#0A574F] transition">Terms of Service</a>
             </div>
         </div>
-    </footer>
-
+    </footer> -->
+        <footer class="w-full bg-[#FAFAFA] border-t border-[#E5E5E5] px-6 py-3 flex items-center justify-between text-[11px] text-[#666666] font-medium flex-shrink-0">
+            <div class="flex items-center gap-6">
+                <span class="flex items-center gap-1">
+                    <i data-lucide="circle" style="width:8px;height:8px;fill:#16A34A;color:#16A34A;"></i>
+                    System Status: <span class="text-[#000000] font-medium">Online</span>
+                </span>
+                <span class="flex items-center gap-1">
+                    <i data-lucide="database" style="width:12px;height:12px;color:#2563EB;"></i>
+                    Database: <span class="text-[#000000] font-medium">Connected</span>
+                </span>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="#" class="hover:text-[#0A574F] transition">Privacy Policy</a>
+                <span class="text-[#D1D5DB]">·</span>
+                <a href="#" class="hover:text-[#0A574F] transition">Terms of Service</a>
+            </div>
+        </footer>
     {{-- Initialize Lucide Icons --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {

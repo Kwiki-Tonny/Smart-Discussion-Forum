@@ -102,7 +102,7 @@
 @section('content')
     <div class="flex flex-col h-full bg-[#F9F9F9]">
 
-        {{-- Header with Red Accent --}}
+        {{-- Header --}}
         <div class="bg-white border-b border-[#E5E5E5] px-8 py-6">
             <div class="flex items-center justify-between">
                 <div>
@@ -134,11 +134,11 @@
             </div>
         </div>
 
-        {{-- Quiz Grid --}}
+        {{-- Quiz Grid – each card is now a distinct, separate card with clear separation --}}
         <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
                 @forelse($quizzes as $quiz)
-                    <div class="bg-white rounded-lg border border-[#E5E5E5] shadow-sm hover:shadow-md hover:border-[#0A574F] transition p-5 {{ $quiz->hasEnded() ? 'border-l-4 border-l-[#DC2626]' : '' }}">
+                    <div class="bg-white rounded-xl border border-[#E5E5E5] shadow-sm hover:shadow-md hover:border-[#0A574F] transition-all p-5 flex flex-col {{ $quiz->hasEnded() ? 'border-l-4 border-l-[#DC2626]' : '' }}">
                         <div class="flex items-start justify-between">
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2">
@@ -200,34 +200,35 @@
                             </p>
                         @endif
 
-                      <div class="mt-4 pt-4 border-t border-[#E5E5E5]">
-    @if($quiz->has_taken)
-        <a href="{{ route('quiz.report', $quiz->id) }}"
-           class="flex items-center justify-center gap-2 text-center text-xs font-bold uppercase tracking-wider bg-white text-[#0A574F] border-2 border-[#0A574F] px-4 py-2 rounded-lg hover:bg-[#0A574F] hover:text-white transition-all">
-            <i data-lucide="bar-chart-2" style="width:14px;height:14px;"></i>
-            View Results
-        </a>
-    @elseif($quiz->isActive())
-        <a href="{{ route('student.quiz.take', $quiz->id) }}"
-           class="flex items-center justify-center gap-2 text-center text-xs font-bold uppercase tracking-wider bg-white text-[#0A574F] border-2 border-[#0A574F] px-4 py-2 rounded-lg hover:bg-[#0A574F] hover:text-white transition-all">
-            <i data-lucide="play" style="width:14px;height:14px;"></i>
-            Start Quiz
-        </a>
-    @elseif($quiz->hasEnded())
-        <a href="#"
-           onclick="return false;"
-           class="flex items-center justify-center gap-2 text-center text-xs font-bold uppercase tracking-wider bg-white text-[#DC2626] border-2 border-[#DC2626] px-4 py-2 rounded-lg hover:bg-[#DC2626] hover:text-white transition-all cursor-pointer">
-            <i data-lucide="x-circle" style="width:14px;height:14px;"></i>
-            Quiz Ended
-        </a>
-    @else
-        <button disabled
-                class="w-full text-center text-xs font-bold uppercase tracking-wider bg-[#E5E5E5] text-[#999999] px-4 py-2 rounded-lg cursor-not-allowed">
-            <i data-lucide="clock" style="width:14px;height:14px;display:inline;"></i>
-            Not Started Yet
-        </button>
-    @endif
-</div> 
+                        <div class="mt-auto pt-4 border-t border-[#E5E5E5]">
+                            @if($quiz->has_taken)
+                                <a href="{{ route('quiz.report', $quiz->id) }}"
+                                   class="flex items-center justify-center gap-2 text-center text-xs font-bold uppercase tracking-wider bg-white text-[#0A574F] border-2 border-[#0A574F] px-4 py-2 rounded-lg hover:bg-[#0A574F] hover:text-white transition-all">
+                                    <i data-lucide="bar-chart-2" style="width:14px;height:14px;"></i>
+                                    View Results
+                                </a>
+                            @elseif($quiz->isActive())
+                                <a href="{{ route('student.quiz.take', $quiz->id) }}"
+                                   class="flex items-center justify-center gap-2 text-center text-xs font-bold uppercase tracking-wider bg-white text-[#0A574F] border-2 border-[#0A574F] px-4 py-2 rounded-lg hover:bg-[#0A574F] hover:text-white transition-all">
+                                    <i data-lucide="play" style="width:14px;height:14px;"></i>
+                                    Start Quiz
+                                </a>
+                            @elseif($quiz->hasEnded())
+                                <a href="#"
+                                   onclick="return false;"
+                                   class="flex items-center justify-center gap-2 text-center text-xs font-bold uppercase tracking-wider bg-white text-[#DC2626] border-2 border-[#DC2626] px-4 py-2 rounded-lg hover:bg-[#DC2626] hover:text-white transition-all cursor-pointer">
+                                    <i data-lucide="x-circle" style="width:14px;height:14px;"></i>
+                                    Quiz Ended
+                                </a>
+                            @else
+                                <button disabled
+                                        class="w-full text-center text-xs font-bold uppercase tracking-wider bg-[#E5E5E5] text-[#999999] px-4 py-2 rounded-lg cursor-not-allowed">
+                                    <i data-lucide="clock" style="width:14px;height:14px;display:inline;"></i>
+                                    Not Started Yet
+                                </button>
+                            @endif
+                        </div>
+                    </div>
                 @empty
                     <div class="col-span-full bg-white rounded-lg border border-dashed border-[#E5E5E5] p-12 text-center">
                         <i data-lucide="file-question" style="width:48px;height:48px;color:#94A3B8;margin:0 auto 0.75rem;display:block;"></i>

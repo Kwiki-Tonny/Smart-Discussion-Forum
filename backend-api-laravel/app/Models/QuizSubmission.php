@@ -32,6 +32,6 @@ class QuizSubmission extends Model
 
     public function answers()
     {
-        return $this->hasMany(QuizAnswer::class);
+        return $this->hasMany(QuizAnswer::class, 'submission_id');
     }
 }

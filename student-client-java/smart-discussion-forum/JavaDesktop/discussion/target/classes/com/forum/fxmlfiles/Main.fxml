@@ -23,18 +23,20 @@
         </HBox>
     </top>
 
-    <!-- SIDEBAR (DARK GREEN) -->
+    <!-- SIDEBAR (SOFT TEAL) -->
     <left>
         <VBox styleClass="sidebar" alignment="TOP_CENTER" spacing="8" minWidth="72" prefWidth="72">
+            <!-- Groups -->
             <Button styleClass="nav-btn active" fx:id="navGroups" onAction="#showGroups">
                 <graphic>
                     <VBox alignment="CENTER" spacing="2">
-                        <FontIcon iconLiteral="fas-layer-group" iconSize="22" styleClass="icon"/>
+                        <FontIcon iconLiteral="fas-users" iconSize="22" styleClass="icon"/>
                         <Text styleClass="label">Groups</Text>
                     </VBox>
                 </graphic>
             </Button>
 
+            <!-- Quizzes -->
             <Button styleClass="nav-btn" fx:id="navQuizzes" onAction="#showQuizzes">
                 <graphic>
                     <VBox alignment="CENTER" spacing="2">
@@ -44,6 +46,7 @@
                 </graphic>
             </Button>
 
+            <!-- Results -->
             <Button styleClass="nav-btn" fx:id="navResults" onAction="#showResults">
                 <graphic>
                     <VBox alignment="CENTER" spacing="2">
@@ -55,6 +58,7 @@
 
             <Region VBox.vgrow="ALWAYS"/>
 
+            <!-- Profile -->
             <Button styleClass="nav-btn" fx:id="navProfile" onAction="#showProfile">
                 <graphic>
                     <VBox alignment="CENTER" spacing="2">

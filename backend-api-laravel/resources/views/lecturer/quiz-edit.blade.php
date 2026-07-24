@@ -136,113 +136,111 @@
             </div>
         </div>
 
-        {{-- Bulk Question Addition --}}
+        {{-- Bulk Question Addition (with Sticky Header) --}}
         <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            <div class="bg-white rounded-lg border border-[#E5E5E5] shadow-sm p-6">
+            <div class="bg-white rounded-lg border border-[#E5E5E5] shadow-sm">
 
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="plus-circle" style="width:20px;height:20px;color:#0A574F;"></i>
-                        <h2 class="text-sm font-bold uppercase tracking-wider text-[#000000]">Add Questions</h2>
-                    </div>
+                {{-- Sticky Header with "Add Questions" and button --}}
+                <div class="sticky top-0 z-10 bg-white border-b border-[#E5E5E5] rounded-t-lg px-6 py-4 flex items-center justify-between">
                     <button type="button" id="add-question-btn"
                             class="flex items-center gap-1 bg-[#0A574F] text-white px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-[#08443e] transition">
-                        <i data-lucide="plus" style="width:12px;height:12px;"></i>
+                        <i data-lucide="plus-circle" style="width:12px;height:12px;"></i>
                         Add Another Question
                     </button>
                 </div>
 
-                <form method="POST" action="{{ route('lecturer.quiz.question.store.bulk', $quiz->id) }}" id="bulk-question-form">
-                    @csrf
-                    <div id="questions-container" class="space-y-4">
+                {{-- Scrollable Questions Container --}}
+                <div class="p-6">
+                    <form method="POST" action="{{ route('lecturer.quiz.question.store.bulk', $quiz->id) }}" id="bulk-question-form">
+                        @csrf
+                        <div id="questions-container" class="space-y-4">
 
-                        {{-- Initial question block --}}
-                        <div class="question-block bg-[#F9F9F9] border border-[#E5E5E5] rounded-lg p-4 relative hover:border-[#0A574F] transition">
-                            <div class="absolute top-3 right-3">
-                                <button type="button" class="remove-question-btn text-[#DC2626] hover:text-[#B91C1C] text-sm font-bold p-1 rounded-lg hover:bg-[#FEF2F2] transition" title="Remove this question">
-                                    <i data-lucide="x" style="width:14px;height:14px;"></i>
-                                </button>
-                            </div>
-                            <div class="grid grid-cols-1 gap-3">
-                                <div class="space-y-1">
-                                    <label class="block text-xs font-bold uppercase tracking-wide text-[#000000] flex items-center gap-1">
-                                        <i data-lucide="help-circle" style="width:12px;height:12px;color:#0A574F;"></i>
-                                        Question
-                                    </label>
-                                    <textarea name="questions[0][question]" rows="2" required
-                                              class="w-full bg-white border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition"
-                                              placeholder="Enter the question..."></textarea>
+                            {{-- Initial question block --}}
+                            <div class="question-block bg-[#F9F9F9] border border-[#E5E5E5] rounded-lg p-4 relative hover:border-[#0A574F] transition">
+                                <div class="absolute top-3 right-3">
+                                    <button type="button" class="remove-question-btn text-[#DC2626] hover:text-[#B91C1C] text-sm font-bold p-1 rounded-lg hover:bg-[#FEF2F2] transition" title="Remove this question">
+                                        <i data-lucide="x" style="width:14px;height:14px;"></i>
+                                    </button>
                                 </div>
-                                <div class="grid grid-cols-2 gap-4">
+                                <div class="grid grid-cols-1 gap-3">
                                     <div class="space-y-1">
+                                        <label class="block text-xs font-bold uppercase tracking-wide text-[#000000] flex items-center gap-1">
+                                            <i data-lucide="help-circle" style="width:12px;height:12px;color:#0A574F;"></i>
+                                            Question
+                                        </label>
+                                        <textarea name="questions[0][question]" rows="2" required
+                                                  class="w-full bg-white border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition"
+                                                  placeholder="Enter the question..."></textarea>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div class="space-y-1">
+                                            <label class="block text-xs font-bold uppercase tracking-wide text-[#000000] flex items-center gap-1">
+                                                <i data-lucide="list" style="width:12px;height:12px;color:#2563EB;"></i>
+                                                Type
+                                            </label>
+                                            <select name="questions[0][type]" class="question-type w-full bg-white border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition">
+                                                <option value="single">Single Choice</option>
+                                                <option value="multiple">Multiple Choice</option>
+                                                <option value="text">Free Text</option>
+                                            </select>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <label class="block text-xs font-bold uppercase tracking-wide text-[#000000] flex items-center gap-1">
+                                                <i data-lucide="star" style="width:12px;height:12px;color:#D97706;"></i>
+                                                Points
+                                            </label>
+                                            <input type="number" name="questions[0][points]" value="1" min="1" max="100"
+                                                   class="w-full bg-white border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition">
+                                        </div>
+                                    </div>
+                                    <div class="space-y-1 options-container">
                                         <label class="block text-xs font-bold uppercase tracking-wide text-[#000000] flex items-center gap-1">
                                             <i data-lucide="list" style="width:12px;height:12px;color:#2563EB;"></i>
-                                            Type
+                                            Options (Enter one per line)
                                         </label>
-                                        <select name="questions[0][type]" class="question-type w-full bg-white border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition">
-                                            <option value="single">Single Choice</option>
-                                            <option value="multiple">Multiple Choice</option>
-                                            <option value="text">Free Text</option>
-                                        </select>
+                                        <textarea name="questions[0][options]" rows="3"
+                                                  class="w-full bg-white border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition"
+                                                  placeholder="Option 1&#10;Option 2&#10;Option 3"></textarea>
                                     </div>
-                                    <div class="space-y-1">
+                                    <div class="space-y-1 correct-container">
                                         <label class="block text-xs font-bold uppercase tracking-wide text-[#000000] flex items-center gap-1">
-                                            <i data-lucide="star" style="width:12px;height:12px;color:#D97706;"></i>
-                                            Points
+                                            <i data-lucide="check-circle" style="width:12px;height:12px;color:#16A34A;"></i>
+                                            Correct Answer(s)
                                         </label>
-                                        <input type="number" name="questions[0][points]" value="1" min="1" max="100"
-                                               class="w-full bg-white border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition">
+                                        <input type="text" name="questions[0][correct_answers]"
+                                               class="correct-input w-full bg-white border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition"
+                                               placeholder="Enter correct option number(s) separated by commas (e.g., 1,3)">
+                                        <p class="text-[9px] text-[#666666] flex items-center gap-1">
+                                            <i data-lucide="info" style="width:10px;height:10px;"></i>
+                                            For text questions, enter the exact expected answer
+                                        </p>
                                     </div>
-                                </div>
-                                <div class="space-y-1 options-container">
-                                    <label class="block text-xs font-bold uppercase tracking-wide text-[#000000] flex items-center gap-1">
-                                        <i data-lucide="list" style="width:12px;height:12px;color:#2563EB;"></i>
-                                        Options (Enter one per line)
-                                    </label>
-                                    <textarea name="questions[0][options]" rows="3"
-                                              class="w-full bg-white border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition"
-                                              placeholder="Option 1&#10;Option 2&#10;Option 3"></textarea>
-                                </div>
-                                <div class="space-y-1 correct-container">
-                                    <label class="block text-xs font-bold uppercase tracking-wide text-[#000000] flex items-center gap-1">
-                                        <i data-lucide="check-circle" style="width:12px;height:12px;color:#16A34A;"></i>
-                                        Correct Answer(s)
-                                    </label>
-                                    <input type="text" name="questions[0][correct_answers]"
-                                           class="correct-input w-full bg-white border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition"
-                                           placeholder="Enter correct option number(s) separated by commas (e.g., 1,3)">
-                                    <p class="text-[9px] text-[#666666] flex items-center gap-1">
-                                        <i data-lucide="info" style="width:10px;height:10px;"></i>
-                                        For text questions, enter the exact expected answer
-                                    </p>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="flex items-center justify-between pt-4 border-t border-[#E5E5E5] mt-4">
-                        <a href="{{ route('lecturer.quizzes') }}"
-                           class="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-[#666666] hover:text-[#0A574F] transition">
-                            <i data-lucide="arrow-left" style="width:12px;height:12px;"></i>
-                            Back to Quizzes
-                        </a>
-                        <div class="flex items-center gap-3">
-                            <span id="question-counter" class="text-xs text-[#666666] flex items-center gap-1">
-                                <i data-lucide="list" style="width:12px;height:12px;"></i>
-                                1 question
-                            </span>
-                            <button type="submit"
-                                    class="flex items-center gap-2 bg-[#0A574F] text-white px-6 py-2 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-[#08443e] transition hover:shadow-sm">
-                                <i data-lucide="save" style="width:14px;height:14px;"></i>
-                                Save All Questions
-                            </button>
+                        <div class="flex items-center justify-between pt-4 border-t border-[#E5E5E5] mt-4">
+                            <a href="{{ route('lecturer.quizzes') }}"
+                               class="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-[#666666] hover:text-[#0A574F] transition">
+                                <i data-lucide="arrow-left" style="width:12px;height:12px;"></i>
+                                Back to Quizzes
+                            </a>
+                            <div class="flex items-center gap-3">
+                                <span id="question-counter" class="text-xs text-[#666666] flex items-center gap-1">
+                                    <i data-lucide="list" style="width:12px;height:12px;"></i>
+                                    1 question
+                                </span>
+                                <button type="submit"
+                                        class="flex items-center gap-2 bg-[#0A574F] text-white px-6 py-2 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-[#08443e] transition hover:shadow-sm">
+                                    <i data-lucide="save" style="width:14px;height:14px;"></i>
+                                    Save All Questions
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
-
-        
 
     </div>
 @endsection
@@ -351,4 +349,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endpush
-

@@ -841,7 +841,9 @@ class StudentController extends Controller
     public function submitQuiz(Request $request, $quizId)
     {
         $user = Auth::user();
-        $quiz = Quiz::findOrFail($quizId);
+        
+        // ─── LOAD QUIZ WITH QUESTIONS ─────────────────────────────
+        $quiz = Quiz::with('questions')->findOrFail($quizId);
 
         $validated = $request->validate([
             'answers' => 'required|array',
@@ -849,7 +851,7 @@ class StudentController extends Controller
             'auto_submitted' => 'nullable|boolean',
         ]);
 
-        // Check if already submitted
+        // ─── CHECK IF ALREADY SUBMITTED ──────────────────────────
         $existing = QuizSubmission::where('quiz_id', $quizId)
             ->where('user_id', $user->id)
             ->first();
@@ -861,70 +863,83 @@ class StudentController extends Controller
             ], 400);
         }
 
-        // Auto-mark answers
+        // ─── SCORING ──────────────────────────────────────────────
         $totalPoints = 0;
         $earnedPoints = 0;
-        $answerDetails = [];
+        $answers = $validated['answers'];
 
         foreach ($quiz->questions as $question) {
             $totalPoints += $question->points;
-            $userAnswer = $validated['answers']['q' . $question->id] ?? '';
+
+            // 1. Get user answer (supports both q{id} and plain id)
+            $userAnswer = null;
+            if (array_key_exists($question->id, $answers)) {
+                $userAnswer = $answers[$question->id];
+            } elseif (array_key_exists('q' . $question->id, $answers)) {
+                $userAnswer = $answers['q' . $question->id];
+            }
+
+            if ($userAnswer === null || $userAnswer === '' || (is_array($userAnswer) && empty($userAnswer))) {
+                continue; // unanswered
+            }
+
+            // 2. Normalise correct answers to an array of strings
+            $correctRaw = $question->correct_answers;
+            if (is_string($correctRaw)) {
+                // If it's a comma-separated string, explode it
+                $correctRaw = array_map('trim', explode(',', $correctRaw));
+            } elseif (!is_array($correctRaw)) {
+                $correctRaw = [ (string) $correctRaw ];
+            }
+            $correctAnswers = array_map('strval', $correctRaw);
+
+            // ─── DEBUG LOG (remove after testing) ──────────────────
+            \Log::info('Question ' . $question->id . ' | User: ' . print_r($userAnswer, true) . ' | Correct: ' . print_r($correctAnswers, true));
 
             $isCorrect = false;
             $pointsEarned = 0;
 
             if ($question->type === 'text') {
-                $correctAnswers = $question->correct_answers ?? [];
-                $isCorrect = in_array(strtolower(trim($userAnswer)), array_map('strtolower', $correctAnswers));
+                $userAnswer = trim((string) $userAnswer);
+                foreach ($correctAnswers as $correct) {
+                    if (strcasecmp($userAnswer, trim($correct)) === 0) {
+                        $isCorrect = true;
+                        break;
+                    }
+                }
                 $pointsEarned = $isCorrect ? $question->points : 0;
-            } else {
-                $correctAnswers = $question->correct_answers ?? [];
+            }
+            elseif ($question->type === 'single') {
+                $userAnswerStr = (string) $userAnswer;
+                if (in_array($userAnswerStr, $correctAnswers, true)) {
+                    $isCorrect = true;
+                    $pointsEarned = $question->points;
+                }
+            }
+            elseif ($question->type === 'multiple') {
                 $userAnswers = is_array($userAnswer) ? $userAnswer : [$userAnswer];
-
-                if ($question->type === 'single') {
-                    $isCorrect = in_array($userAnswers[0] ?? '', $correctAnswers);
-                    $pointsEarned = $isCorrect ? $question->points : 0;
-                } else {
-                    $correctSet = array_map('strval', $correctAnswers);
-                    $userSet = array_map('strval', $userAnswers);
-                    sort($correctSet);
-                    sort($userSet);
-                    $isCorrect = $correctSet === $userSet;
-                    $pointsEarned = $isCorrect ? $question->points : 0;
+                $userSet = array_map('strval', $userAnswers);
+                sort($userSet);
+                sort($correctAnswers);
+                if ($userSet === $correctAnswers) {
+                    $isCorrect = true;
+                    $pointsEarned = $question->points;
                 }
             }
 
             $earnedPoints += $pointsEarned;
-
-            $answerDetails[] = [
-                'question_id' => $question->id,
-                'answer' => is_array($userAnswer) ? json_encode($userAnswer) : $userAnswer,
-                'is_correct' => $isCorrect,
-                'points_earned' => $pointsEarned,
-            ];
         }
 
         $score = $totalPoints > 0 ? round(($earnedPoints / $totalPoints) * 100, 2) : 0;
 
-        // Create submission
+        // ─── SAVE SUBMISSION ──────────────────────────────────────
         $submission = QuizSubmission::create([
             'quiz_id' => $quizId,
             'user_id' => $user->id,
             'score' => $score,
-            'answers_payload' => json_encode($validated['answers']),
+            'answers_payload' => json_encode($answers),
             'is_auto_submitted' => $request->input('auto_submitted', false),
         ]);
-
-        // Save individual answers (if you have the QuizAnswer model)
-        // foreach ($answerDetails as $detail) {
-        //     QuizAnswer::create([
-        //         'submission_id' => $submission->id,
-        //         'question_id' => $detail['question_id'],
-        //         'answer' => $detail['answer'],
-        //         'is_correct' => $detail['is_correct'],
-        //         'points_earned' => $detail['points_earned'],
-        //     ]);
-        // }
 
         return response()->json([
             'success' => true,
@@ -969,18 +984,11 @@ class StudentController extends Controller
     public function performanceReport($quizId)
     {
         $user = Auth::user();
-        $quiz = Quiz::with(['questions', 'group'])->findOrFail($quizId);
+        $quiz = Quiz::with(['questions'])->findOrFail($quizId);
 
-        // Check if quiz has ended
-        if (!$quiz->hasEnded()) {
-            return redirect()->route('student.quizzes')
-                ->with('error', 'Results are locked until the evaluation session finishes.');
-        }
-
-        // Get the user's submission
         $submission = QuizSubmission::where('quiz_id', $quizId)
             ->where('user_id', $user->id)
-            ->with(['answers'])
+            ->whereNotNull('score')
             ->first();
 
         if (!$submission) {
@@ -988,55 +996,71 @@ class StudentController extends Controller
                 ->with('info', 'You have not taken this quiz.');
         }
 
-        // Get all submissions for this quiz (for comparison)
-        $allSubmissions = QuizSubmission::where('quiz_id', $quizId)
-            ->with('user')
-            ->get();
+        // Decode the answers payload
+        $answersPayload = json_decode($submission->answers_payload, true) ?? [];
 
-        // Calculate statistics
-        $scores = $allSubmissions->pluck('score')->filter();
-        $averageScore = $scores->avg() ?? 0;
-        $highestScore = $scores->max() ?? 0;
-        $lowestScore = $scores->min() ?? 0;
-        $passCount = $scores->filter(fn($s) => $s >= 50)->count();
-        $passRate = $allSubmissions->count() > 0 ? round(($passCount / $allSubmissions->count()) * 100, 1) : 0;
-
-        // Get user's rank
-        $rank = $scores->sortDesc()->search($submission->score) + 1;
-        $totalStudents = $scores->count();
-
-        // Prepare answer breakdown
         $questionDetails = [];
         foreach ($quiz->questions as $index => $question) {
-            $userAnswer = $submission->answers->where('question_id', $question->id)->first();
-            $isCorrect = $userAnswer ? $userAnswer->is_correct : false;
-            $pointsEarned = $userAnswer ? $userAnswer->points_earned : 0;
+            // ─── GET USER ANSWER (SUPPORTS BOTH KEY FORMATS) ──────
+            $userAnswer = null;
+            if (array_key_exists('q' . $question->id, $answersPayload)) {
+                $userAnswer = $answersPayload['q' . $question->id];
+            } elseif (array_key_exists($question->id, $answersPayload)) {
+                $userAnswer = $answersPayload[$question->id];
+            }
+
+            // Determine if correct (reuse the same logic as in submit)
+            $isCorrect = false;
+            $correctAnswers = $question->correct_answers ?? [];
+            $correctAnswers = is_array($correctAnswers) ? $correctAnswers : (array) $correctAnswers;
+            $correctAnswers = array_map('strval', $correctAnswers);
+
+            if ($question->type === 'single') {
+                $userAnswerStr = (string) $userAnswer;
+                $isCorrect = in_array($userAnswerStr, $correctAnswers, true);
+            } elseif ($question->type === 'multiple') {
+                $userAnswers = is_array($userAnswer) ? $userAnswer : [$userAnswer];
+                $userSet = array_map('strval', $userAnswers);
+                sort($userSet);
+                sort($correctAnswers);
+                $isCorrect = $userSet === $correctAnswers;
+            } elseif ($question->type === 'text') {
+                $userAnswerStr = trim((string) $userAnswer);
+                foreach ($correctAnswers as $correct) {
+                    if (strcasecmp($userAnswerStr, trim($correct)) === 0) {
+                        $isCorrect = true;
+                        break;
+                    }
+                }
+            }
 
             $questionDetails[] = [
-                'number' => $index + 1,
-                'question' => $question->question,
-                'type' => $question->type,
-                'user_answer' => $userAnswer ? $userAnswer->answer : 'Not answered',
-                'correct_answer' => is_array($question->correct_answers) 
-                    ? implode(', ', $question->correct_answers) 
-                    : $question->correct_answers,
-                'is_correct' => $isCorrect,
-                'points' => $question->points,
-                'points_earned' => $pointsEarned,
-                'options' => $question->options ?? [],
+                'number'        => $index + 1,
+                'question'      => $question->question,
+                'type'          => $question->type,
+                'user_answer'   => is_array($userAnswer) ? implode(', ', $userAnswer) : ($userAnswer ?? 'Not answered'),
+                'correct_answer'=> is_array($correctAnswers) ? implode(', ', $correctAnswers) : $correctAnswers,
+                'is_correct'    => $isCorrect,
+                'points'        => $question->points,
+                'points_earned' => $isCorrect ? $question->points : 0,
+                'options'       => $question->options ?? [],
             ];
         }
+
+        // Calculate stats (keep existing)
+        $allSubmissions = QuizSubmission::where('quiz_id', $quizId)->get();
+        $scores = $allSubmissions->pluck('score')->filter();
+        $averageScore = $scores->avg() ?? 0;
+        $passRate = $allSubmissions->count() > 0 ? round(($scores->filter(fn($s) => $s >= 50)->count() / $allSubmissions->count()) * 100, 1) : 0;
+        $rank = $scores->sortDesc()->search($submission->score) + 1;
 
         return view('student.performance-report', compact(
             'quiz',
             'submission',
             'allSubmissions',
             'averageScore',
-            'highestScore',
-            'lowestScore',
             'passRate',
             'rank',
-            'totalStudents',
             'questionDetails'
         ));
     }

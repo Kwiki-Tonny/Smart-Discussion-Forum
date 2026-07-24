@@ -3,7 +3,6 @@ package com.forum.controllers;
 import com.forum.models.QuizAttempt;
 import com.forum.models.QuizAttemptDetail;
 import com.forum.services.ApiService;
-import com.forum.services.GlobalState;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
@@ -35,6 +34,12 @@ public class QuizResultsController {
 
     public void setAttempts(List<QuizAttempt> attempts) {
         this.attempts = attempts;
+        System.out.println("QuizResultsController.setAttempts: " + (attempts != null ? attempts.size() : 0) + " attempts");
+        if (attempts != null) {
+            for (QuizAttempt a : attempts) {
+                System.out.println("  Attempt ID: " + a.id + ", quizTitle: " + a.quizTitle);
+            }
+        }
         populateList();
     }
 
@@ -59,38 +64,50 @@ public class QuizResultsController {
             VBox item = new VBox(4);
             item.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0; " +
                     "-fx-padding: 12px 14px; -fx-cursor: hand;");
+            item.setMaxWidth(Double.MAX_VALUE);
             item.setOnMouseClicked(e -> showQuizDetail(attempt));
 
             HBox row = new HBox(8);
             row.setAlignment(Pos.CENTER_LEFT);
+            row.setMaxWidth(Double.MAX_VALUE);
 
             VBox infoBox = new VBox(2);
-            Label nameLabel = new Label(attempt.quizTitle != null ? attempt.quizTitle : "Quiz #" + attempt.id);
-            nameLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: 600;");
-            Label scoreLabel = new Label("Score: " + attempt.score + "/" + attempt.totalQuestions);
+            // Build the title with a reliable fallback
+            String title = (attempt.quizTitle != null && !attempt.quizTitle.trim().isEmpty())
+                    ? attempt.quizTitle
+                    : "Quiz #" + attempt.id;
+            Label nameLabel = new Label(title);
+            nameLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: 600; -fx-text-fill: #000000;");
+            nameLabel.setMaxWidth(Double.MAX_VALUE);
+
+            String scoreText = (attempt.score != 0) ? "Score: " + attempt.score + "/" + attempt.totalQuestions : "Incomplete";
+            Label scoreLabel = new Label(scoreText);
             scoreLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #666666;");
             infoBox.getChildren().addAll(nameLabel, scoreLabel);
 
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
 
-            String status = attempt.score == attempt.totalQuestions ? "✅ Completed" : "⚠️ Incomplete";
-            String statusColor = attempt.score == attempt.totalQuestions ? "#065f46" : "#b45309";
-            String statusBg = attempt.score == attempt.totalQuestions ? "#d1fae5" : "#fef3c7";
+            boolean completed = (attempt.score != 0);
+            String status = completed ? "✅ Completed" : "⚠️ Incomplete";
+            String statusColor = completed ? "#065f46" : "#b45309";
+            String statusBg = completed ? "#d1fae5" : "#fef3c7";
             Label statusLabel = new Label(status);
             statusLabel.setStyle("-fx-background-color: " + statusBg + "; -fx-text-fill: " + statusColor + "; " +
                     "-fx-font-size: 9px; -fx-font-weight: 600; -fx-padding: 2px 10px; -fx-background-radius: 12px;");
 
             row.getChildren().addAll(infoBox, spacer, statusLabel);
             item.getChildren().add(row);
+
             resultsList.getChildren().add(item);
+            System.out.println("Added item for attempt ID: " + attempt.id + ", title: " + title);
         }
+        System.out.println("Total items added to resultsList: " + resultsList.getChildren().size());
     }
 
     private void showQuizDetail(QuizAttempt attempt) {
         if (rightPanel == null) return;
 
-        // Show loading state
         rightPanel.getChildren().clear();
         VBox loadingBox = new VBox(12);
         loadingBox.setAlignment(Pos.CENTER);
@@ -100,7 +117,6 @@ public class QuizResultsController {
         loadingBox.getChildren().add(loadingLabel);
         rightPanel.getChildren().add(loadingBox);
 
-        // Fetch detail from API
         Task<QuizAttemptDetail> task = new Task<>() {
             @Override
             protected QuizAttemptDetail call() throws Exception {
@@ -130,13 +146,13 @@ public class QuizResultsController {
         detailBox.setStyle("-fx-background-color: #ffffff;");
         detailBox.setMaxWidth(Double.MAX_VALUE);
 
-        // Title
-        Text title = new Text("📊 " + (detail.quizTitle != null ? detail.quizTitle : "Quiz Results"));
-        title.setStyle("-fx-font-size: 20px; -fx-font-weight: 700; -fx-fill: #000000;");
-
+        String title = (detail.quizTitle != null && !detail.quizTitle.trim().isEmpty())
+                ? detail.quizTitle
+                : "Quiz Results";
+        Text titleText = new Text("📊 " + title);
+        titleText.setStyle("-fx-font-size: 20px; -fx-font-weight: 700; -fx-fill: #000000;");
         Separator separator1 = new Separator();
 
-        // Score Percentage and Progress Bar
         VBox scoreBox = new VBox(8);
         scoreBox.setAlignment(Pos.CENTER);
         Text scorePercentage = new Text(String.format("%.1f%%", detail.percentage));
@@ -146,7 +162,6 @@ public class QuizResultsController {
         progressBar.setStyle("-fx-accent: #16a34a; -fx-background-color: #e5e5e5; -fx-background-radius: 10px; -fx-pref-height: 12px;");
         scoreBox.getChildren().addAll(scorePercentage, progressBar);
 
-        // Stats Grid (Correct, Incorrect, Total)
         GridPane statsGrid = new GridPane();
         statsGrid.setHgap(30);
         statsGrid.setVgap(8);
@@ -168,7 +183,6 @@ public class QuizResultsController {
             statsGrid.add(cell, i, 0);
         }
 
-        // Additional Stats: Unanswered
         GridPane extraGrid = new GridPane();
         extraGrid.setHgap(20);
         extraGrid.setAlignment(Pos.CENTER);
@@ -200,7 +214,7 @@ public class QuizResultsController {
         footer.setStyle("-fx-font-size: 13px; -fx-text-fill: #999999; -fx-font-style: italic; -fx-padding: 10 0 0 0;");
 
         detailBox.getChildren().addAll(
-                title,
+                titleText,
                 separator1,
                 scoreBox,
                 statsGrid,

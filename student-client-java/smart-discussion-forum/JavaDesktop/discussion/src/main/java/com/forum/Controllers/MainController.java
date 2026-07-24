@@ -141,11 +141,9 @@ public class MainController {
                 }
             });
 
-            // ─── AUTO-CLOSE INLINE REPLY ON CLICK OUTSIDE ────────────
             if (threadArea != null) {
                 threadArea.setOnMouseClicked(e -> {
                     if (currentInlineForm != null) {
-                        // Check if the click target is inside the inline form
                         boolean clickedInside = false;
                         javafx.scene.Node target = (javafx.scene.Node) e.getTarget();
                         while (target != null) {
@@ -284,7 +282,6 @@ public class MainController {
         joinedGroups.clear();
         availableGroups.clear();
         for (Group g : allGroups) {
-            // Debug: verify isMember is correctly received
             System.out.println("Group: " + g.name + " isMember: " + g.isMember);
             if (g.isMember) {
                 joinedGroups.add(g);
@@ -324,70 +321,101 @@ public class MainController {
         new Thread(task).start();
     }
 
+    // ─── FIXED: POST LOADING WITH TREE BUILDING FOR BOTH PATHS ───
+
     private void loadPostsForTopic(Topic topic) {
-        Task<List<Post>> task = new Task<>() {
-            @Override
-            protected List<Post> call() throws Exception {
-                return api.getPostsForTopic(topic.id);
-            }
-        };
-        task.setOnSucceeded(e -> {
-            List<Post> flatPosts = task.getValue();
-            // Build the tree
-            List<Post> nestedPosts = buildReplyTree(flatPosts);
-            Platform.runLater(() -> {
-                currentPosts = nestedPosts;
-                renderThread(topic, nestedPosts);
-                replyForm.setVisible(true);
-                replyForm.setManaged(true);
-                currentReplyTarget = null;
-                if (replyToLabel != null) {
-                    replyToLabel.setText("Replying to: Thread");
+        if (state.isOnline()) {
+            Task<List<Post>> task = new Task<>() {
+                @Override
+                protected List<Post> call() throws Exception {
+                    return api.getPostsForTopic(topic.id);
                 }
+            };
+            task.setOnSucceeded(e -> {
+                List<Post> flatPosts = task.getValue();
+                // ✅ BUILD TREE – same as offline
+                List<Post> nestedPosts = buildReplyTree(flatPosts);
+                displayPosts(nestedPosts, topic);
             });
-        });
-        task.setOnFailed(e -> {
-            Platform.runLater(() -> {
-                showErrorInThread("Failed to load posts.");
-                task.getException().printStackTrace();
+            task.setOnFailed(e -> {
+                Throwable ex = task.getException();
+                if (ex != null) {
+                    ex.printStackTrace();
+                    System.err.println("Load posts error: " + ex.getMessage());
+                }
+                // Fallback to local
+                loadLocalPosts(topic);
             });
-        });
-        new Thread(task).start();
+            new Thread(task).start();
+        } else {
+            loadLocalPosts(topic);
+        }
     }
+
+    private void loadLocalPosts(Topic topic) {
+        List<Post> localPosts = DatabaseHandler.getLocalPostsForTopic(topic.id);
+        System.out.println("📂 Local posts loaded: " + localPosts.size());
+        for (Post p : localPosts) {
+            System.out.println("  Local post ID: " + p.id + ", parentId: " + p.parentId);
+        }
+        List<Post> nestedPosts = buildReplyTree(localPosts);
+        displayPosts(nestedPosts, topic);
+    }
+
+    private void displayPosts(List<Post> posts, Topic topic) {
+        System.out.println("📊 displayPosts: " + posts.size() + " top-level posts");
+        Platform.runLater(() -> {
+            currentPosts = posts;
+            renderThread(topic, posts);
+            replyForm.setVisible(true);
+            replyForm.setManaged(true);
+            currentReplyTarget = null;
+            if (replyToLabel != null) {
+                replyToLabel.setText("Replying to: Thread");
+            }
+        });
+    }
+
+    // ─── BUILD REPLY TREE (NESTED REPLIES) ────────────────────────
 
     private List<Post> buildReplyTree(List<Post> flatPosts) {
-    // Map each post by its id
-    Map<Integer, Post> postMap = new HashMap<>();
-    for (Post p : flatPosts) {
-        postMap.put(p.id, p);
-        p.replies = new ArrayList<>(); // ensure replies list exists
-    }
+        System.out.println("🌳 buildReplyTree: flatPosts size = " + flatPosts.size());
+        Map<Integer, Post> postMap = new HashMap<>();
+        for (Post p : flatPosts) {
+            postMap.put(p.id, p);
+            p.replies = new ArrayList<>();
+            System.out.println("  Post ID: " + p.id + ", parentId: " + p.parentId);
+        }
 
-    List<Post> topLevelPosts = new ArrayList<>();
-    for (Post p : flatPosts) {
-        if (p.parentId != null && p.parentId != 0) {
-            Post parent = postMap.get(p.parentId);
-            if (parent != null) {
-                parent.replies.add(p);
+        List<Post> topLevelPosts = new ArrayList<>();
+        for (Post p : flatPosts) {
+            // Treat parentId as valid if > 0 (local_id or server_id)
+            if (p.parentId != null && p.parentId > 0) {
+                Post parent = postMap.get(p.parentId);
+                if (parent != null) {
+                    parent.replies.add(p);
+                    System.out.println("  ➜ Added reply " + p.id + " to parent " + p.parentId);
+                } else {
+                    topLevelPosts.add(p);
+                    System.out.println("  ⚠️ Orphan post " + p.id + " with parent " + p.parentId + " (parent not found)");
+                }
             } else {
-                // orphan – treat as top-level
                 topLevelPosts.add(p);
+                System.out.println("  ✓ Top-level post " + p.id);
             }
-        } else {
-            topLevelPosts.add(p);
         }
-    }
 
-    // Sort replies by created_at (optional)
-    for (Post p : postMap.values()) {
-        if (p.replies != null) {
-            p.replies.sort(Comparator.comparing(p2 -> p2.created_at));
+        // sort replies by creation time
+        for (Post p : postMap.values()) {
+            if (p.replies != null) {
+                p.replies.sort(Comparator.comparing(p2 -> p2.created_at));
+            }
         }
-    }
-    topLevelPosts.sort(Comparator.comparing(p -> p.created_at));
+        topLevelPosts.sort(Comparator.comparing(p -> p.created_at));
 
-    return topLevelPosts;
-}
+        System.out.println("✅ buildReplyTree: " + topLevelPosts.size() + " top-level posts");
+        return topLevelPosts;
+    }
 
     // ─── UI HELPERS ──────────────────────────────────────────────
 
@@ -495,13 +523,8 @@ public class MainController {
         HBox metaRow = new HBox(12);
         metaRow.setAlignment(Pos.CENTER_RIGHT);
 
-        // ─── Dynamic topic count ──────────────────────────────────────
         Label topicsLabel = new Label("📄 " + group.topicsCount + " topics");
         topicsLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #999999;");
-
-        // ─── Dynamic member count (optional – uncomment if needed) ──
-        // Label membersLabel = new Label("👤 " + group.usersCount + " members");
-        // membersLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #999999;");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -512,8 +535,6 @@ public class MainController {
                 "-fx-border-radius: 12px; -fx-background-radius: 12px;");
         joinBtn.setOnAction(new JoinButtonHandler(group, isJoined));
 
-        // ─── Add to metaRow ──────────────────────────────────────────
-        // If you want to include members, add membersLabel before spacer
         metaRow.getChildren().addAll(topicsLabel, spacer, joinBtn);
         item.getChildren().addAll(title, desc, metaRow);
         return item;
@@ -726,7 +747,6 @@ public class MainController {
     private void renderTopics(List<Topic> topicList) {
         contextList.getChildren().clear();
 
-        // ─── Back button ──────────────────────────────────────────────
         HBox backRow = new HBox(8);
         backRow.setAlignment(Pos.CENTER_LEFT);
         backRow.setStyle("-fx-padding: 8px 16px; -fx-background-color: #f5f5f5; -fx-border-color: #e5e7eb; -fx-border-width: 0 0 1px 0;");
@@ -736,7 +756,6 @@ public class MainController {
         backRow.getChildren().add(backBtn);
         contextList.getChildren().add(backRow);
 
-        // ─── Empty state ──────────────────────────────────────────────
         if (topicList.isEmpty()) {
             Label empty = new Label("No topics yet. Start a new discussion!");
             empty.setStyle("-fx-padding: 40px 20px; -fx-text-fill: #999999; -fx-font-size: 14px;");
@@ -745,7 +764,6 @@ public class MainController {
             return;
         }
 
-        // ─── Topic items ──────────────────────────────────────────────
         for (Topic topic : topicList) {
             VBox item = new VBox(4);
             item.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0; " +
@@ -755,7 +773,6 @@ public class MainController {
             Label title = new Label(topic.title);
             title.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #000000;");
 
-            // ─── Author & date ──────────────────────────────────────
             String creatorName = "Unknown";
             if (topic.creator != null && topic.creator.has("name")) {
                 creatorName = topic.creator.path("name").asText("Unknown");
@@ -763,22 +780,17 @@ public class MainController {
             Label sub = new Label("by " + creatorName + " • " + (topic.created_at != null ? topic.created_at : ""));
             sub.setStyle("-fx-font-size: 12px; -fx-text-fill: #666666;");
 
-            // ─── Meta row: replies + category tag ──────────────────
             HBox metaRow = new HBox(12);
             metaRow.setAlignment(Pos.CENTER_LEFT);
-
-            // Dynamic reply count
             Label repliesLabel = new Label("💬 " + topic.postsCount + " replies");
             repliesLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #999999;");
 
-            // Dynamic ML category (fallback to "General")
             String category = (topic.mlCategory != null && !topic.mlCategory.isEmpty())
                     ? topic.mlCategory
                     : "General";
             Label tagLabel = new Label(category);
             tagLabel.setStyle("-fx-font-size: 9px; -fx-font-weight: 700; -fx-padding: 1px 10px; " +
                     "-fx-background-radius: 12px; -fx-background-color: #e5e5e5; -fx-text-fill: #333333;");
-
 
             metaRow.getChildren().addAll(repliesLabel, tagLabel);
             item.getChildren().addAll(title, sub, metaRow);
@@ -948,12 +960,10 @@ public class MainController {
         }
         likeBtn.setOnAction(new LikeButtonHandler(post, likeBtn));
 
-        // ─── REPLY BUTTON ──────────────────────────────────────────
         Button replyBtn = new Button("Reply");
         replyBtn.setStyle("-fx-background-color: transparent; -fx-border-color: #e5e5e5; -fx-border-radius: 12px; " +
                 "-fx-padding: 2px 10px; -fx-font-size: 11px; -fx-cursor: hand; -fx-text-fill: #333333;");
 
-        // ─── SHARE BUTTON ──────────────────────────────────────────
         Button sharePostBtn = new Button("📤 Share");
         sharePostBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 12px; " +
                 "-fx-padding: 2px 10px; -fx-border-radius: 12px; -fx-cursor: hand;");
@@ -975,15 +985,10 @@ public class MainController {
         postBox.getChildren().add(header);
         postBox.getChildren().add(body);
 
-        // ─── INLINE REPLY FORM ──────────────────────────────────────
         VBox inlineForm = createInlineReplyForm(post);
         inlineForm.setVisible(false);
         inlineForm.setManaged(false);
-
-        // Store the form in the reply button's user data
         replyBtn.setUserData(inlineForm);
-
-        // Set the action for replyBtn – uses the stored form
         final Post replyPost = post;
         final String replyAuthor = authorName;
         replyBtn.setOnAction(e -> {
@@ -991,10 +996,8 @@ public class MainController {
             VBox form = (VBox) source.getUserData();
             toggleInlineReply(replyPost, replyAuthor, form);
         });
-
         postBox.getChildren().add(inlineForm);
 
-        // ─── NESTED REPLIES ──────────────────────────────────────────
         if (post.replies != null && !post.replies.isEmpty()) {
             VBox repliesContainer = new VBox(8);
             repliesContainer.setStyle("-fx-padding: 8px 0 0 16px; -fx-border-color: #1A7A64; -fx-border-width: 0 0 0 2px;");
@@ -1022,19 +1025,6 @@ public class MainController {
             handleLike(post, button);
         }
     }
-
-/*     private class ReplyButtonHandler implements EventHandler<ActionEvent> {
-        private final Post post;
-        private final String author;
-        ReplyButtonHandler(Post post, String author) {
-            this.post = post;
-            this.author = author;
-        }
-        @Override
-        public void handle(ActionEvent event) {
-            toggleInlineReply(post, author);
-        }
-    } */
 
     private class SharePostHandler implements EventHandler<ActionEvent> {
         private final Post post;
@@ -1101,19 +1091,16 @@ public class MainController {
     }
 
     private void toggleInlineReply(Post post, String author, VBox form) {
-        // Hide currently visible inline form
         if (currentInlineForm != null) {
             currentInlineForm.setVisible(false);
             currentInlineForm.setManaged(false);
             currentInlineForm = null;
         }
 
-        // Show the passed form
         if (form != null) {
             form.setVisible(true);
             form.setManaged(true);
             currentInlineForm = form;
-            // Focus the text area
             for (var node : form.getChildren()) {
                 if (node instanceof TextArea) {
                     ((TextArea) node).requestFocus();
@@ -1144,6 +1131,8 @@ public class MainController {
         return null;
     }
 
+    // ─── HANDLE INLINE REPLY ──────────────────────────────────────
+
     private void handleInlineReply(Post parentPost, TextArea ta, CheckBox privateCb, VBox form) {
         String content = ta.getText().trim();
         if (content.isEmpty()) {
@@ -1168,11 +1157,11 @@ public class MainController {
             excludedUserIds.clear();
         }
 
-        final Integer parentId = parentPost.id;
+        final Integer parentId = parentPost.id; // may be -1 if parent is not yet saved offline
         final String timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
 
         if (state.isOnline()) {
-            final List<Integer> finalExcludedIds = excludedIds; // final copy for inner class
+            final List<Integer> finalExcludedIds = excludedIds;
             Task<Post> task = new Task<>() {
                 @Override
                 protected Post call() throws Exception {
@@ -1195,10 +1184,13 @@ public class MainController {
             });
             new Thread(task).start();
         } else {
-            boolean saved = DatabaseHandler.saveOfflinePostDraft(
-                    currentTopic.id, userId, content, isPrivate, timestamp, parentId
+            // Offline: save with local_id if parentId > 0, else null
+            Integer finalParentId = (parentId != null && parentId > 0) ? parentId : null;
+            int newLocalId = DatabaseHandler.saveOfflinePostDraftAndGetId(
+                    currentTopic.id, userId, content, isPrivate, timestamp, finalParentId
             );
-            if (saved) {
+
+            if (newLocalId != -1) {
                 ta.clear();
                 privateCb.setSelected(false);
                 excludedUserIds.clear();
@@ -1208,154 +1200,20 @@ public class MainController {
                 showToast("📶 Saved offline – will sync when online.");
 
                 Post newPost = new Post();
-                newPost.id = -1;
+                newPost.id = newLocalId;
                 newPost.content = content;
                 newPost.is_private = isPrivate;
                 newPost.created_at = timestamp;
                 newPost.author = null;
                 newPost.likes_count = 0;
                 newPost.is_liked = false;
+                newPost.parentId = finalParentId;
 
                 if (parentPost.replies == null) parentPost.replies = new ArrayList<>();
                 parentPost.replies.add(newPost);
                 loadPostsForTopic(currentTopic);
             } else {
                 showToast("Failed to save offline reply.");
-            }
-        }
-    }
-
-    // ─── LIKE ─────────────────────────────────────────────────────
-
-    private void handleLike(Post post, Button likeBtn) {
-        if (state.isOnline()) {
-            Task<Post> task = new Task<>() {
-                @Override
-                protected Post call() throws Exception {
-                    return api.toggleLike(post.id);
-                }
-            };
-            task.setOnSucceeded(e -> {
-                Post updated = task.getValue();
-                // Safely update the post object
-                post.is_liked = updated.is_liked;
-                post.likes_count = updated.likes_count;
-                Platform.runLater(() -> updateLikeUI(post, likeBtn));
-            });
-            task.setOnFailed(e -> {
-                Throwable ex = task.getException();
-                String msg = ex.getMessage();
-                if (msg != null && msg.contains("401")) {
-                    showToast("Session expired. Please login again.");
-                    state.clearSession();
-                    try { MainApp.switchToLogin(); } catch (Exception ex2) { ex2.printStackTrace(); }
-                } else {
-                    showToast("Failed to like: " + msg);
-                }
-                ex.printStackTrace();
-            });
-            new Thread(task).start();
-        } else {
-            // Offline toggle
-            post.is_liked = !post.is_liked;
-            if (post.likes_count == null) post.likes_count = 0;
-            post.likes_count += post.is_liked ? 1 : -1;
-            updateLikeUI(post, likeBtn);
-            showToast("📶 Like saved offline – will sync when online.");
-        }
-    }
-
-    private void updateLikeUI(Post post, Button likeBtn) {
-        int newCount = (post.likes_count != null) ? post.likes_count : 0;
-        likeBtn.setText("❤️ " + newCount);
-        if (post.is_liked != null && post.is_liked) {
-            likeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #dc2626; -fx-font-size: 13px; -fx-cursor: hand;");
-        } else {
-            likeBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #666666; -fx-font-size: 13px; -fx-cursor: hand;");
-        }
-    }
-
-    // ─── USER SELECTION FOR PRIVATE POSTS ────────────────────────
-
-    private List<Integer> showUserSelectionDialog() {
-        List<Integer> selectedIds = new ArrayList<>();
-        CountDownLatch latch = new CountDownLatch(1);
-
-        Alert loadingAlert = new Alert(Alert.AlertType.INFORMATION);
-        loadingAlert.setTitle("Loading");
-        loadingAlert.setHeaderText(null);
-        loadingAlert.setContentText("Loading users...");
-        loadingAlert.show();
-
-        Task<List<User>> task = new Task<>() {
-            @Override
-            protected List<User> call() throws Exception {
-                return api.getUsers();
-            }
-        };
-
-        task.setOnSucceeded(e -> {
-            loadingAlert.close();
-            List<User> users = task.getValue();
-            User currentUser = state.getCurrentUser();
-            if (currentUser != null) {
-                users.removeIf(u -> u.id == currentUser.id);
-            }
-            Platform.runLater(() -> {
-                try {
-                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/fxmlfiles/user_selection_dialog.fxml"));
-                    Parent root = loader.load();
-                    UserSelectionDialog controller = loader.getController();
-                    controller.setUsers(users);
-
-                    Stage stage = new Stage();
-                    stage.initModality(Modality.APPLICATION_MODAL);
-                    stage.initStyle(StageStyle.UNDECORATED);
-                    stage.setTitle("Select Users");
-                    Scene scene = new Scene(root);
-                    scene.getStylesheets().add(getClass().getResource("/com/forum/css/style.css").toExternalForm());
-                    stage.setScene(scene);
-
-                    stage.showAndWait();
-                    selectedIds.addAll(controller.getSelectedUserIds());
-                    if (!selectedIds.isEmpty()) {
-                        excludedUserIds = selectedIds;
-                        updateSelectedUsersLabel();
-                    }
-                    latch.countDown();
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                    showToast("Error loading user selection: " + ex.getMessage());
-                    latch.countDown();
-                }
-            });
-        });
-
-        task.setOnFailed(e -> {
-            loadingAlert.close();
-            showToast("Failed to load users: " + task.getException().getMessage());
-            task.getException().printStackTrace();
-            latch.countDown();
-        });
-
-        new Thread(task).start();
-
-        try {
-            latch.await();
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-        }
-        return selectedIds;
-    }
-
-    private void updateSelectedUsersLabel() {
-        if (excludedUserIds.isEmpty()) {
-            if (selectUsersBtn != null) {
-                selectUsersBtn.setText("👤 Select Users");
-            }
-        } else {
-            if (selectUsersBtn != null) {
-                selectUsersBtn.setText("👤 " + excludedUserIds.size() + " users excluded");
             }
         }
     }
@@ -1395,7 +1253,7 @@ public class MainController {
         final String timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
 
         if (state.isOnline()) {
-            final List<Integer> finalExcludedIds = excludedIds; // final copy for inner class
+            final List<Integer> finalExcludedIds = excludedIds;
             Task<Post> task = new Task<>() {
                 @Override
                 protected Post call() throws Exception {
@@ -1418,10 +1276,13 @@ public class MainController {
             });
             new Thread(task).start();
         } else {
-            boolean saved = DatabaseHandler.saveOfflinePostDraft(
-                    currentTopic.id, userId, content, isPrivate, timestamp, parentId
+            // Offline: save with local_id if parentId > 0, else null
+            Integer finalParentId = (parentId != null && parentId > 0) ? parentId : null;
+            int newLocalId = DatabaseHandler.saveOfflinePostDraftAndGetId(
+                    currentTopic.id, userId, content, isPrivate, timestamp, finalParentId
             );
-            if (saved) {
+
+            if (newLocalId != -1) {
                 replyText.clear();
                 privateCheck.setSelected(false);
                 excludedUserIds.clear();
@@ -1431,17 +1292,168 @@ public class MainController {
                 showToast("📶 Saved offline – will sync when online.");
 
                 Post newPost = new Post();
-                newPost.id = -1;
+                newPost.id = newLocalId;
                 newPost.content = content;
                 newPost.is_private = isPrivate;
                 newPost.created_at = timestamp;
                 newPost.author = null;
                 newPost.likes_count = 0;
                 newPost.is_liked = false;
+                newPost.parentId = finalParentId;
+
                 currentPosts.add(newPost);
                 loadPostsForTopic(currentTopic);
             } else {
                 showToast("Failed to save offline reply.");
+            }
+        }
+    }
+
+    // ─── LIKE ─────────────────────────────────────────────────────
+
+    private void handleLike(Post post, Button likeBtn) {
+        System.out.println("❤️ handleLike called for post " + post.id + ", current is_liked: " + post.is_liked);
+        if (state.isOnline()) {
+            Task<Post> task = new Task<>() {
+                @Override
+                protected Post call() throws Exception {
+                    return api.toggleLike(post.id);
+                }
+            };
+            task.setOnSucceeded(e -> {
+                Post updated = task.getValue();
+                post.is_liked = updated.is_liked;
+                post.likes_count = updated.likes_count;
+                System.out.println("  ✅ API success: is_liked = " + post.is_liked + ", likes = " + post.likes_count);
+                Platform.runLater(() -> updateLikeUI(post, likeBtn));
+            });
+            task.setOnFailed(e -> {
+                System.out.println("  ⚠️ API failed, storing offline");
+                storeLikeOffline(post, likeBtn);
+            });
+            new Thread(task).start();
+        } else {
+            storeLikeOffline(post, likeBtn);
+        }
+    }
+
+    private void storeLikeOffline(Post post, Button likeBtn) {
+        boolean newLikeState = !post.is_liked;
+        post.is_liked = newLikeState;
+        if (post.likes_count == null) post.likes_count = 0;
+        post.likes_count += newLikeState ? 1 : -1;
+        System.out.println("  💾 Offline toggle: is_liked = " + post.is_liked + ", likes = " + post.likes_count);
+        updateLikeUI(post, likeBtn);
+
+        int userId = state.getCurrentUserId();
+        if (userId != -1) {
+            boolean saved = DatabaseHandler.saveOfflineLike(post.id, userId, newLikeState);
+            if (saved) {
+                showToast("📶 Like saved offline – will sync when online.");
+            } else {
+                showToast("❌ Failed to save like offline.");
+            }
+        } else {
+            showToast("❌ User not logged in.");
+        }
+    }
+
+    private void updateLikeUI(Post post, Button likeBtn) {
+        int newCount = (post.likes_count != null) ? post.likes_count : 0;
+        likeBtn.setText("❤️ " + newCount);
+
+        // Force style update with explicit colors
+        if (post.is_liked != null && post.is_liked) {
+            likeBtn.setStyle("-fx-text-fill: #dc2626; -fx-background-color: transparent; -fx-font-size: 13px; -fx-cursor: hand;");
+        } else {
+            likeBtn.setStyle("-fx-text-fill: #666666; -fx-background-color: transparent; -fx-font-size: 13px; -fx-cursor: hand;");
+        }
+
+        // Force immediate CSS application
+        likeBtn.applyCss();
+        System.out.println("  🎨 Updated like button: text = " + likeBtn.getText() + ", style = " + likeBtn.getStyle());
+    }
+
+    // ─── USER SELECTION FOR PRIVATE POSTS ────────────────────────
+
+    private List<Integer> showUserSelectionDialog() {
+        List<Integer> selectedIds = new ArrayList<>();
+        CountDownLatch latch = new CountDownLatch(1);
+
+        Alert loadingAlert = new Alert(Alert.AlertType.INFORMATION);
+        loadingAlert.setTitle("Loading");
+        loadingAlert.setHeaderText(null);
+        loadingAlert.setContentText("Loading users...");
+        loadingAlert.show();
+
+        Task<List<User>> task = new Task<>() {
+            @Override
+            protected List<User> call() throws Exception {
+                return api.getUsers();
+            }
+        };
+        task.setOnSucceeded(e -> {
+            loadingAlert.close();
+            List<User> users = task.getValue();
+            User currentUser = state.getCurrentUser();
+            if (currentUser != null) {
+                users.removeIf(u -> u.id == currentUser.id);
+            }
+            Platform.runLater(() -> {
+                try {
+                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/fxmlfiles/user_selection_dialog.fxml"));
+                    Parent root = loader.load();
+                    UserSelectionDialog controller = loader.getController();
+                    controller.setUsers(users);
+
+                    Stage stage = new Stage();
+                    stage.initModality(Modality.APPLICATION_MODAL);
+                    stage.initStyle(StageStyle.UNDECORATED);
+                    stage.setTitle("Select Users");
+                    Scene scene = new Scene(root);
+                    scene.getStylesheets().add(getClass().getResource("/com/forum/css/style.css").toExternalForm());
+                    stage.setScene(scene);
+
+                    stage.showAndWait();
+                    selectedIds.addAll(controller.getSelectedUserIds());
+                    if (!selectedIds.isEmpty()) {
+                        excludedUserIds = selectedIds;
+                        updateSelectedUsersLabel();
+                    }
+                    latch.countDown();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    showToast("Error loading user selection: " + ex.getMessage());
+                    latch.countDown();
+                }
+            });
+        });
+        task.setOnFailed(e -> {
+            loadingAlert.close();
+            Throwable ex = task.getException();
+            ex.printStackTrace();
+            showToast("Failed to load users: " + ex.getMessage());
+            latch.countDown();
+        });
+
+        new Thread(task).start();
+
+        try {
+            latch.await();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
+        return selectedIds;
+    }
+
+    private void updateSelectedUsersLabel() {
+        if (excludedUserIds.isEmpty()) {
+            if (selectUsersBtn != null) {
+                selectUsersBtn.setText("👤 Select Users");
+            }
+        } else {
+            if (selectUsersBtn != null) {
+                selectUsersBtn.setText("👤 " + excludedUserIds.size() + " users excluded");
             }
         }
     }
@@ -1876,6 +1888,10 @@ public class MainController {
         };
         task.setOnSucceeded(e -> {
             List<Quiz> quizzes = task.getValue();
+            System.out.println("Quizzes received: " + quizzes.size() + " quizzes");
+            for (Quiz q : quizzes) {
+                System.out.println("  Quiz ID: " + q.id + ", Title: '" + q.title + "'");
+            }
             Platform.runLater(() -> {
                 renderQuizList(quizzes);
             });
@@ -1912,68 +1928,75 @@ public class MainController {
         contextList.getChildren().add(quizzesBox);
     }
 
-    private VBox createQuizCard(Quiz quiz) {
-        VBox card = new VBox(6);
-        card.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-radius: 8px; -fx-background-radius: 8px; -fx-padding: 12px 14px;");
-        card.setPrefWidth(240);
+        private VBox createQuizCard(Quiz quiz) {
+            VBox card = new VBox(6);
+            card.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-radius: 8px; -fx-background-radius: 8px; -fx-padding: 12px 14px;");
+            card.setPrefWidth(240);
 
-        HBox headerRow = new HBox();
-        headerRow.setAlignment(Pos.CENTER_LEFT);
-        Label titleLabel = new Label(quiz.title);
-        titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 600;");
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+            HBox headerRow = new HBox();
+            headerRow.setAlignment(Pos.CENTER_LEFT);
+            Label titleLabel = new Label(quiz.title);
+            titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 600;");
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        String statusText;
-        String statusColor;
-        String bgColor;
-        switch (quiz.status) {
-            case "started":
-                statusText = "🔵 Started";
-                statusColor = "#1d4ed8";
-                bgColor = "#dbeafe";
-                break;
-            case "ended":
-                statusText = "🔴 Ended";
-                statusColor = "#dc2626";
-                bgColor = "#fef2f2";
-                break;
-            case "upcoming":
-            default:
-                statusText = "🟡 Upcoming";
-                statusColor = "#b45309";
-                bgColor = "#fef3c7";
-                break;
-        }
-        Label statusLabel = new Label(statusText);
-        statusLabel.setStyle("-fx-background-color: " + bgColor + "; -fx-text-fill: " + statusColor + "; " +
-                "-fx-font-size: 9px; -fx-font-weight: 600; -fx-padding: 2px 10px; -fx-background-radius: 12px;");
-        headerRow.getChildren().addAll(titleLabel, spacer, statusLabel);
-
-        Label infoLabel = new Label(quiz.totalQuestions + " questions · " + quiz.durationMinutes + " min");
-        infoLabel.setStyle("-fx-text-fill: #666666; -fx-font-size: 12px;");
-
-        Button startBtn = new Button("▶ Start Quiz");
-        startBtn.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-padding: 4px; " +
-                "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
-
-        if ("started".equals(quiz.status)) {
-            startBtn.setDisable(false);
-            startBtn.setOnAction(new QuizStartHandler(quiz));
-        } else {
-            startBtn.setDisable(true);
-            startBtn.setStyle("-fx-background-color: #e5e5e5; -fx-text-fill: #999999; -fx-padding: 4px; " +
-                    "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
-            if ("ended".equals(quiz.status)) {
-                startBtn.setText("🔒 Ended");
-            } else {
-                startBtn.setText("⏳ Coming Soon");
+            String statusText;
+            String statusColor;
+            String bgColor;
+            switch (quiz.status) {
+                case "started":
+                    statusText = "🔵 Started";
+                    statusColor = "#1d4ed8";
+                    bgColor = "#dbeafe";
+                    break;
+                case "ended":
+                    statusText = "🔴 Ended";
+                    statusColor = "#dc2626";
+                    bgColor = "#fef2f2";
+                    break;
+                case "upcoming":
+                default:
+                    statusText = "🟡 Upcoming";
+                    statusColor = "#b45309";
+                    bgColor = "#fef3c7";
+                    break;
             }
-        }
+            Label statusLabel = new Label(statusText);
+            statusLabel.setStyle("-fx-background-color: " + bgColor + "; -fx-text-fill: " + statusColor + "; " +
+                    "-fx-font-size: 9px; -fx-font-weight: 600; -fx-padding: 2px 10px; -fx-background-radius: 12px;");
+            headerRow.getChildren().addAll(titleLabel, spacer, statusLabel);
 
-        card.getChildren().addAll(headerRow, infoLabel, startBtn);
-        return card;
-    }
+            Label infoLabel = new Label(quiz.totalQuestions + " questions · " + quiz.durationMinutes + " min");
+            infoLabel.setStyle("-fx-text-fill: #666666; -fx-font-size: 12px;");
+
+            Button startBtn = new Button("▶ Start Quiz");
+            startBtn.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-padding: 4px; " +
+                    "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
+
+            if ("started".equals(quiz.status) && !quiz.hasTaken) {
+                startBtn.setDisable(false);
+                startBtn.setOnAction(new QuizStartHandler(quiz));
+            } else if (quiz.hasTaken) {
+                startBtn.setDisable(true);
+                startBtn.setText("✅ Done");
+                startBtn.setStyle("-fx-background-color: #e5e5e5; -fx-text-fill: #16a34a; -fx-padding: 4px; " +
+                        "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
+            } else if ("ended".equals(quiz.status)) {
+                startBtn.setDisable(true);
+                startBtn.setText("🔒 Ended");
+                startBtn.setStyle("-fx-background-color: #e5e5e5; -fx-text-fill: #999999; -fx-padding: 4px; " +
+                        "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
+            } else {
+                // upcoming
+                startBtn.setDisable(true);
+                startBtn.setText("⏳ Coming Soon");
+                startBtn.setStyle("-fx-background-color: #e5e5e5; -fx-text-fill: #999999; -fx-padding: 4px; " +
+                        "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
+            }
+
+            card.getChildren().addAll(headerRow, infoLabel, startBtn);
+            return card;
+        }
 
     // ─── QUIZ START HANDLER ──────────────────────────────────────
 
@@ -2001,6 +2024,17 @@ public class MainController {
             };
             task.setOnSucceeded(e -> {
                 QuizAttempt attempt = task.getValue();
+                System.out.println("QuizAttempt received:");
+                System.out.println("  ID: " + attempt.id);
+                System.out.println("  startedAt: " + attempt.startedAt);
+                System.out.println("  durationSeconds: " + attempt.durationSeconds);
+                System.out.println("  quiz: " + attempt.quiz);
+                if (attempt.quiz != null) {
+                    System.out.println("  quiz.title: " + attempt.quiz.title);
+                    System.out.println("  quiz.questions count: " + (attempt.quiz.questions != null ? attempt.quiz.questions.size() : 0));
+                } else {
+                    System.out.println("  attempt.quiz is NULL!");
+                }
                 Platform.runLater(() -> {
                     try {
                         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/fxmlfiles/Quiz.fxml"));
@@ -2029,9 +2063,10 @@ public class MainController {
                 });
             });
             task.setOnFailed(e -> {
+                Throwable ex = task.getException();
+                ex.printStackTrace();
                 Platform.runLater(() -> {
-                    showToast("Failed to start quiz: " + task.getException().getMessage());
-                    task.getException().printStackTrace();
+                    showToast("Failed to start quiz: " + ex.getMessage());
                 });
             });
             new Thread(task).start();
@@ -2077,6 +2112,10 @@ public class MainController {
             };
             task.setOnSucceeded(e -> {
                 List<QuizAttempt> attempts = task.getValue();
+                System.out.println("Attempts count: " + attempts.size());
+                for (QuizAttempt a : attempts) {
+                    System.out.println("  Attempt ID: " + a.id + ", quizTitle: " + a.quizTitle);
+                }
                 Platform.runLater(() -> {
                     controller.setAttempts(attempts);
                 });

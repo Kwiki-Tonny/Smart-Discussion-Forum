@@ -58,20 +58,19 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // ============================================================
-    // 1. INITIALIZE WITH REAL QUESTIONS FROM SERVER
-    // ============================================================
+    // ──────────────────────────────────────────────────────────────
+    // 1. INITIALIZE
+    // ──────────────────────────────────────────────────────────────
     const quizId = {{ $quiz->id }};
     let remainingSeconds = {{ $remainingSeconds }};
+    const initialRemainingSeconds = remainingSeconds; // store for time_spent calculation
     let timerInterval = null;
     let isSubmitted = false;
     let warningCount = 0;
     const maxWarnings = 3;
 
-    // REAL QUESTIONS passed from Laravel
     const questions = @json($quiz->questions);
 
-    // If no questions, show a message and disable submit
     if (!questions || questions.length === 0) {
         document.getElementById('quiz-questions').innerHTML = `
             <div class="bg-white border border-[#E5E5E5] p-6 text-center">
@@ -83,9 +82,9 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // ============================================================
+    // ──────────────────────────────────────────────────────────────
     // 2. RENDER QUESTIONS
-    // ============================================================
+    // ──────────────────────────────────────────────────────────────
     function renderQuestions() {
         const container = document.getElementById('quiz-questions');
         let html = '';
@@ -101,7 +100,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <input type="text" name="q${q.id}" class="w-full bg-[#F9F9F9] border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition" placeholder="Type your answer...">
                 `;
             } else {
-                // single or multiple choice
                 const options = q.options || [];
                 const inputType = q.type === 'multiple' ? 'checkbox' : 'radio';
                 options.forEach((opt, optIndex) => {
@@ -129,9 +127,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('question-counter').textContent = `Question ${Math.min(answered + 1, total)} of ${total}`;
     }
 
-    // ============================================================
+    // ──────────────────────────────────────────────────────────────
     // 3. TIMER
-    // ============================================================
+    // ──────────────────────────────────────────────────────────────
     function startTimer() {
         updateTimerDisplay();
         timerInterval = setInterval(function() {
@@ -155,9 +153,9 @@ document.addEventListener('DOMContentLoaded', function() {
             String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
     }
 
-    // ============================================================
-    // 4. LOCKDOWN (Copy/Paste prevention & tab switch detection)
-    // ============================================================
+    // ──────────────────────────────────────────────────────────────
+    // 4. LOCKDOWN
+    // ──────────────────────────────────────────────────────────────
     document.addEventListener('copy', function(e) { e.preventDefault(); showWarning('Copying is disabled.'); });
     document.addEventListener('paste', function(e) { e.preventDefault(); showWarning('Pasting is disabled.'); });
     document.addEventListener('contextmenu', function(e) { e.preventDefault(); showWarning('Right-click is disabled.'); });
@@ -185,9 +183,9 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => { if (warning) warning.remove(); }, 4000);
     }
 
-    // ============================================================
-    // 5. SUBMIT QUIZ
-    // ============================================================
+    // ──────────────────────────────────────────────────────────────
+    // 5. SUBMIT QUIZ (FIXED: time_spent as integer)
+    // ──────────────────────────────────────────────────────────────
     function submitQuiz(autoSubmitted = false) {
         if (isSubmitted) return;
         isSubmitted = true;
@@ -210,21 +208,26 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        // Compute time spent in seconds (integer)
+        const timeSpent = initialRemainingSeconds - remainingSeconds;
+
         const submitBtn = document.getElementById('submit-quiz-btn');
         const originalText = submitBtn.textContent;
         submitBtn.textContent = 'Submitting...';
         submitBtn.disabled = true;
 
-        const token = document.querySelector('meta[name="csrf-token"]')?.content;
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         if (!token) {
-            alert('CSRF token missing. Please refresh.');
+            alert('CSRF token missing. Please refresh the page and try again.');
             submitBtn.textContent = originalText;
             submitBtn.disabled = false;
             isSubmitted = false;
             return;
         }
 
-        fetch('{{ route("student.quiz.submit", $quiz->id) }}', {
+        const url = '{{ route("student.quiz.submit", $quiz->id) }}';
+
+        fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -233,14 +236,19 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({
                 answers: answers,
-                time_spent: {{ $quiz->duration * 60 }} - remainingSeconds,
+                time_spent: timeSpent,
                 auto_submitted: autoSubmitted
-            })
+            }),
+            credentials: 'same-origin'
         })
         .then(async response => {
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(`HTTP ${response.status}: ${errorData.message || response.statusText}`);
+                let errorMsg = response.statusText;
+                try {
+                    const errorData = await response.json();
+                    if (errorData.message) errorMsg = errorData.message;
+                } catch (_) {}
+                throw new Error(`HTTP ${response.status}: ${errorMsg}`);
             }
             return response.json();
         })
@@ -261,16 +269,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
             } else {
-                alert(data.message || 'Submission failed.');
+                alert(data.message || 'Submission failed. Please try again.');
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                isSubmitted = false;
             }
         })
         .catch(error => {
-            console.error('Submit error:', error);
+            console.error('Submission error:', error);
             alert('Failed to submit quiz: ' + error.message);
-        })
-        .finally(() => {
             submitBtn.textContent = originalText;
             submitBtn.disabled = false;
+            isSubmitted = false;
         });
     }
 
@@ -280,9 +290,9 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => { submitQuiz(true); }, 2000);
     }
 
-    // ============================================================
+    // ──────────────────────────────────────────────────────────────
     // 6. EVENT LISTENERS
-    // ============================================================
+    // ──────────────────────────────────────────────────────────────
     document.getElementById('submit-quiz-btn').addEventListener('click', function() {
         if (confirm('Are you sure you want to submit your answers?')) {
             submitQuiz(false);
@@ -295,9 +305,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // ============================================================
+    // ──────────────────────────────────────────────────────────────
     // 7. INITIALIZATION
-    // ============================================================
+    // ──────────────────────────────────────────────────────────────
     renderQuestions();
     startTimer();
 });

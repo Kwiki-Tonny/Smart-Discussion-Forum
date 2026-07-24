@@ -275,7 +275,7 @@ public class ApiService {
     }
 
     // ============================================================
-    //  NEW STUDENT-SPECIFIC API METHODS (Phase 3)
+    //  NEW STUDENT-SPECIFIC API METHODS
     // ============================================================
 
     // ─── GROUP MEMBERSHIP ────────────────────────────────────────
@@ -286,12 +286,9 @@ public class ApiService {
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        // 200 OK or 204 No Content expected. Our parseResponse handles 2xx.
-        // But for 204, there is no body, so we need to check before parsing.
         if (response.statusCode() == 204) {
-            return; // Success, no content
+            return;
         }
-        // For 200 OK, parse it anyway just in case there's a message.
         parseResponse(response);
     }
 
@@ -324,8 +321,6 @@ public class ApiService {
         return groups;
     }
 
-    // ─── GROUP RULES ──────────────────────────────────────────────────
-
     public void acceptRules(int groupId) throws Exception {
         HttpRequest request = authenticatedRequest()
                 .uri(URI.create(BASE_URL + "/groups/" + groupId + "/rules/accept"))
@@ -334,7 +329,7 @@ public class ApiService {
                 .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() == 204 || response.statusCode() == 200) {
-            return; // Success
+            return;
         }
         parseResponse(response);
     }
@@ -383,19 +378,15 @@ public class ApiService {
                 .GET()
                 .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        System.out.println("startQuiz response body: " + response.body()); // DEBUG
         JsonNode root = parseResponse(response);
         JsonNode data = root.path("data");
         return mapper.treeToValue(data, QuizAttempt.class);
     }
 
-    // ─── QUIZ SUBMISSION (Supports Single, Multiple, Free Text) ────
-
     public QuizAttemptDetail submitQuiz(int attemptId, Map<Integer, Object> answers) throws Exception {
-        // The payload must match what the backend expects.
-        // For Laravel, we need to format it as: { "answers": { "1": 2, "2": [0, 2], "3": "Free text" } }
         Map<String, Object> payload = new HashMap<>();
         payload.put("answers", answers);
-        
         String json = mapper.writeValueAsString(payload);
         HttpRequest request = authenticatedRequest()
                 .uri(URI.create(BASE_URL + "/quizzes/" + attemptId + "/submit"))
@@ -427,6 +418,7 @@ public class ApiService {
                 .GET()
                 .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        System.out.println("getQuizAttempts response: " + response.body()); // DEBUG
         JsonNode root = parseResponse(response);
         JsonNode data = root.path("data");
         List<QuizAttempt> attempts = new ArrayList<>();

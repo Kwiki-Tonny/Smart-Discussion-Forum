@@ -47,27 +47,27 @@
         @endif
     </div>
 
-{{-- Quick Stats --}}
-<div class="p-4 bg-white border-b border-[#E5E5E5]">
-    <div class="grid grid-cols-4 gap-3">
-        <div class="text-center p-2.5 rounded-lg bg-white border border-[#E5E5E5] hover:shadow-md hover:border-[#0A574F] transition-all">
-            <p class="text-xl font-bold text-[#000000]">{{ $totalTopics }}</p>
-            <p class="text-[8px] text-[#666666] uppercase tracking-wider font-medium">Topics</p>
-        </div>
-        <div class="text-center p-2.5 rounded-lg bg-white border border-[#E5E5E5] hover:shadow-md hover:border-[#0A574F] transition-all">
-            <p class="text-xl font-bold text-[#000000]">{{ $totalPosts }}</p>
-            <p class="text-[8px] text-[#666666] uppercase tracking-wider font-medium">Posts</p>
-        </div>
-        <div class="text-center p-2.5 rounded-lg bg-white border border-[#E5E5E5] hover:shadow-md hover:border-[#0A574F] transition-all">
-            <p class="text-xl font-bold text-[#000000]">{{ $totalLikes }}</p>
-            <p class="text-[8px] text-[#666666] uppercase tracking-wider font-medium">Likes</p>
-        </div>
-        <div class="text-center p-2.5 rounded-lg bg-white border border-[#E5E5E5] hover:shadow-md hover:border-[#0A574F] transition-all">
-            <p class="text-xl font-bold text-[#000000]">{{ $totalQuizzesTaken }}</p>
-            <p class="text-[8px] text-[#666666] uppercase tracking-wider font-medium">Quizzes</p>
+    {{-- Quick Stats --}}
+    <div class="p-4 bg-white border-b border-[#E5E5E5]">
+        <div class="grid grid-cols-4 gap-3">
+            <div class="text-center p-2.5 rounded-lg bg-white border border-[#E5E5E5] hover:shadow-md hover:border-[#0A574F] transition-all">
+                <p class="text-xl font-bold text-[#000000]">{{ $totalTopics }}</p>
+                <p class="text-[8px] text-[#666666] uppercase tracking-wider font-medium">Topics</p>
+            </div>
+            <div class="text-center p-2.5 rounded-lg bg-white border border-[#E5E5E5] hover:shadow-md hover:border-[#0A574F] transition-all">
+                <p class="text-xl font-bold text-[#000000]">{{ $totalPosts }}</p>
+                <p class="text-[8px] text-[#666666] uppercase tracking-wider font-medium">Posts</p>
+            </div>
+            <div class="text-center p-2.5 rounded-lg bg-white border border-[#E5E5E5] hover:shadow-md hover:border-[#0A574F] transition-all">
+                <p class="text-xl font-bold text-[#000000]">{{ $totalLikes }}</p>
+                <p class="text-[8px] text-[#666666] uppercase tracking-wider font-medium">Likes</p>
+            </div>
+            <div class="text-center p-2.5 rounded-lg bg-white border border-[#E5E5E5] hover:shadow-md hover:border-[#0A574F] transition-all">
+                <p class="text-xl font-bold text-[#000000]">{{ $totalQuizzesTaken }}</p>
+                <p class="text-[8px] text-[#666666] uppercase tracking-wider font-medium">Quizzes</p>
+            </div>
         </div>
     </div>
-</div>
 
     {{-- Vertical Navigation Tabs with Colored Icons --}}
     <div class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1 bg-[#F9F9F9]">
@@ -163,7 +163,7 @@
             @endif
         </div>
 
-        {{-- Tab Content: Quizzes --}}
+        {{-- Tab Content: Quizzes (UPDATED with clickable links) --}}
         <div class="tab-content flex-1 overflow-y-auto p-6 custom-scrollbar hidden" id="tab-quizzes">
             <div class="flex items-center gap-2 mb-4">
                 <div class="w-8 h-8 bg-[#D97706] rounded-lg flex items-center justify-center">
@@ -182,7 +182,8 @@
             @else
                 <div class="space-y-3">
                     @foreach($quizSubmissions as $submission)
-                        <div class="bg-white rounded-lg border-l-4 border-[#D97706] shadow-sm hover:shadow-md transition p-4">
+                        <a href="{{ route('quiz.report', $submission->quiz_id) }}?from=profile" 
+                           class="block bg-white rounded-lg border-l-4 border-[#D97706] shadow-sm hover:shadow-md transition hover:border-l-[#0A574F] p-4">
                             <div class="flex items-center justify-between">
                                 <div class="min-w-0 flex-1">
                                     <h3 class="text-sm font-bold text-[#000000] flex items-center gap-2">
@@ -211,18 +212,11 @@
                                     {{ $submission->created_at->format('M d, Y') }}
                                 </span>
                             </div>
-                            @if($submission->answers_payload)
-                                <details class="mt-2">
-                                    <summary class="text-[10px] text-[#666666] cursor-pointer hover:text-[#0A574F] flex items-center gap-1">
-                                        <i data-lucide="eye" style="width:10px;height:10px;"></i>
-                                        View Answers
-                                    </summary>
-                                    <div class="mt-2 p-3 bg-[#F9F9F9] border border-[#E5E5E5] rounded-lg text-xs text-[#666666] overflow-x-auto">
-                                        <pre class="whitespace-pre-wrap">{{ json_encode($submission->answers_payload, JSON_PRETTY_PRINT) }}</pre>
-                                    </div>
-                                </details>
-                            @endif
-                        </div>
+                            <div class="mt-2 flex items-center gap-1 text-[10px] text-[#0A574F]">
+                                <i data-lucide="arrow-right" style="width:12px;height:12px;"></i>
+                                View detailed report
+                            </div>
+                        </a>
                     @endforeach
                 </div>
             @endif
@@ -465,6 +459,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const firstTab = document.querySelector('.tab-btn');
     if (firstTab) firstTab.click();
+
+    // ─── ACTIVATE QUIZZES TAB FROM URL ──────────────────────────
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam) {
+        const targetTab = document.querySelector(`.tab-btn[data-tab="${tabParam}"]`);
+        if (targetTab) {
+            targetTab.click();
+        }
+    }
 
     // ─── AFFINITY CHART ──────────────────────────────────────────
     const ctx = document.getElementById('profileAffinityChart');

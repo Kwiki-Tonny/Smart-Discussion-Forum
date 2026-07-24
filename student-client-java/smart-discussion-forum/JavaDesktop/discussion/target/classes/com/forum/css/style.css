@@ -185,9 +185,9 @@
     -fx-background-color: #f9f9f9;
 }
 
-/* ───────────── SIDEBAR (DARK GREEN) ───────────── */
+/* ───────────── SIDEBAR (SOFT MUTED TEAL) ───────────── */
 .sidebar {
-    -fx-background-color: #0f2b24;
+    -fx-background-color: #1a4f46;
     -fx-padding: 20px 0 16px 0;
     -fx-min-width: 72px;
     -fx-pref-width: 72px;
@@ -197,7 +197,7 @@
 
 .sidebar .nav-btn {
     -fx-background-color: transparent;
-    -fx-text-fill: rgba(255,255,255,0.6);
+    -fx-text-fill: rgba(255,255,255,0.8);
     -fx-min-width: 48px;
     -fx-min-height: 48px;
     -fx-background-radius: 14px;
@@ -208,19 +208,20 @@
 
 /* Icon style (both FontIcon and Text) */
 .sidebar .nav-btn .icon {
-    -fx-fill: rgba(255,255,255,0.6);
-    -fx-icon-color: rgba(255,255,255,0.6);
+    -fx-fill: rgba(255,255,255,0.9);
+    -fx-icon-color: rgba(255,255,255,0.9);
     -fx-icon-size: 22px;
 }
 
 .sidebar .nav-btn .label {
     -fx-font-size: 9px;
-    -fx-text-fill: rgba(255,255,255,0.6);
+    -fx-text-fill: rgba(255,255,255,0.9);
+    -fx-font-weight: bold;
 }
 
 /* Hover effect */
 .sidebar .nav-btn:hover {
-    -fx-background-color: rgba(255,255,255,0.1);
+    -fx-background-color: rgba(255,255,255,0.12);
     -fx-text-fill: #ffffff;
 }
 .sidebar .nav-btn:hover .icon {
@@ -234,14 +235,15 @@
 /* Active state */
 .sidebar .nav-btn.active {
     -fx-background-color: #ffffff;
-    -fx-text-fill: #0f2b24;
+    -fx-text-fill: #1a4f46;
 }
 .sidebar .nav-btn.active .icon {
-    -fx-fill: #0f2b24;
-    -fx-icon-color: #0f2b24;
+    -fx-fill: #1a4f46;
+    -fx-icon-color: #1a4f46;
 }
 .sidebar .nav-btn.active .label {
-    -fx-text-fill: #0f2b24;
+    -fx-text-fill: #1a4f46;
+    -fx-font-weight: bold;
 }
 
 /* Badge (e.g., quiz count) */

@@ -118,77 +118,74 @@ class StudentController extends Controller
      * Start a quiz: returns questions, started_at, duration_seconds.
      * Also creates a submission record with null score to track the attempt.
      */
-    public function takeQuiz($quizId)
-    {
-        $user = Auth::user();
-        $quiz = Quiz::with(['questions' => function ($q) {
-            $q->select('id', 'question', 'type', 'options', 'points');
-        }])->findOrFail($quizId);
+public function takeQuiz($quizId)
+{
+    $user = Auth::user();
+    $quiz = Quiz::with(['questions' => function ($q) {
+        $q->select('id', 'question', 'type', 'options', 'points');
+    }])->findOrFail($quizId);
 
-        // Validate availability
-        if ($quiz->starts_at > now()) {
-            return response()->json([
-                'message' => 'This quiz has not started yet.'
-            ], 403);
-        }
-        if ($quiz->ends_at < now()) {
-            return response()->json([
-                'message' => 'This quiz has already ended.'
-            ], 410);
-        }
-
-        // Check for existing submission
-        $existing = QuizSubmission::where('quiz_id', $quizId)
-            ->where('user_id', $user->id)
-            ->first();
-
-        if ($existing && $existing->score !== null) {
-            return response()->json([
-                'message' => 'You have already completed this quiz.'
-            ], 409);
-        }
-
-        // If no active submission, create one with null score
-        if (!$existing) {
-            $submission = QuizSubmission::create([
-                'quiz_id' => $quizId,
-                'user_id' => $user->id,
-                'score' => null,
-                'answers_payload' => null,
-                'is_auto_submitted' => false,
-            ]);
-        } else {
-            $submission = $existing;
-        }
-
-        // Prepare questions with options (ensure options is array)
-        $questions = $quiz->questions->map(function ($q) {
-            return [
-                'id' => $q->id,
-                'text' => $q->question,
-                'type' => $q->type ?? 'single', // default to single
-                'options' => is_array($q->options) ? $q->options : json_decode($q->options, true) ?? [],
-            ];
-        });
-
-        // Compute duration and started_at
-        $startedAt = $submission->created_at; // when the submission was created (or use now)
-        $expiresAt = $quiz->ends_at;
-        $durationSeconds = $expiresAt->diffInSeconds($startedAt); // total seconds from start to expiry
-
-        return response()->json([
-            'data' => [
-                'id' => $submission->id,
-                'started_at' => $startedAt->toISOString(),
-                'duration_seconds' => (int) $durationSeconds,
-                'quiz' => [
-                    'id' => $quiz->id,
-                    'title' => $quiz->title,
-                    'questions' => $questions,
-                ]
-            ]
-        ]);
+    // ─── VALIDATE AVAILABILITY ──────────────────────────────
+    $now = now();
+    if ($quiz->starts_at > $now) {
+        return response()->json(['message' => 'This quiz has not started yet.'], 403);
     }
+    if ($quiz->ends_at < $now) {
+        return response()->json(['message' => 'This quiz has already ended.'], 410);
+    }
+
+    // ─── CHECK EXISTING SUBMISSION ──────────────────────────
+    $existing = QuizSubmission::where('quiz_id', $quizId)
+        ->where('user_id', $user->id)
+        ->first();
+
+    if ($existing && $existing->score !== null) {
+        return response()->json(['message' => 'You have already completed this quiz.'], 409);
+    }
+
+    // ─── CREATE OR RETRIEVE SUBMISSION ──────────────────────
+    if (!$existing) {
+        $submission = QuizSubmission::create([
+            'quiz_id' => $quizId,
+            'user_id' => $user->id,
+            'score' => null,
+            'answers_payload' => null,
+            'is_auto_submitted' => false,
+        ]);
+    } else {
+        $submission = $existing;
+    }
+
+    // ─── CALCULATE DURATION (SECONDS) ──────────────────────
+    // ✅ USE THE QUIZ'S 'duration' FIELD (in minutes) INSTEAD OF ends_at - started_at
+    $durationSeconds = $quiz->duration * 60; // always positive
+
+    // ─── STARTED_AT ──────────────────────────────────────────
+    $startedAt = $submission->created_at; // when the submission was created
+
+    // ─── BUILD QUESTIONS ─────────────────────────────────────
+    $questions = $quiz->questions->map(function ($q) {
+        return [
+            'id' => $q->id,
+            'text' => $q->question,
+            'type' => $q->type ?? 'single',
+            'options' => is_array($q->options) ? $q->options : json_decode($q->options, true) ?? [],
+        ];
+    });
+
+    return response()->json([
+        'data' => [
+            'id' => $submission->id,
+            'started_at' => $startedAt->toISOString(),
+            'duration_seconds' => $durationSeconds, // ✅ now positive
+            'quiz' => [
+                'id' => $quiz->id,
+                'title' => $quiz->title,
+                'questions' => $questions,
+            ]
+        ]
+    ]);
+}
 
 
     /**
@@ -212,7 +209,7 @@ class StudentController extends Controller
      * Expects { "answers": { question_id: answer, ... } } where answer can be integer, array, or string.
      * Returns { correct, incorrect, unanswered, percentage, total_questions, quiz_title }.
      */
-    public function submitQuiz(Request $request, $quizId)
+/*     public function submitQuiz(Request $request, $quizId)
     {
         $user = Auth::user();
         $quiz = Quiz::with(['questions'])->findOrFail($quizId);
@@ -304,6 +301,108 @@ class StudentController extends Controller
                 'quiz_title' => $quiz->title,
             ]
         ]);
+    } */
+    public function submitQuiz(Request $request, $quizId)
+    {
+        $user = Auth::user();
+        
+        // ─── LOAD QUIZ WITH QUESTIONS ─────────────────────────────
+        $quiz = Quiz::with('questions')->findOrFail($quizId);
+
+        // ─── FIND ACTIVE SUBMISSION ──────────────────────────────
+        $submission = QuizSubmission::where('quiz_id', $quizId)
+            ->where('user_id', $user->id)
+            ->whereNull('score')
+            ->first();
+
+        if (!$submission) {
+            return response()->json([
+                'message' => 'No active attempt found or quiz already submitted.'
+            ], 404);
+        }
+
+        $answers = $request->input('answers', []);
+        $totalQuestions = $quiz->questions->count();
+        $correct = 0;
+        $incorrect = 0;
+        $unanswered = 0;
+
+        // ─── SCORING ──────────────────────────────────────────────
+        foreach ($quiz->questions as $question) {
+            // 1. Get user answer (supports both q{id} and plain id)
+            $userAnswer = null;
+            if (array_key_exists($question->id, $answers)) {
+                $userAnswer = $answers[$question->id];
+            } elseif (array_key_exists('q' . $question->id, $answers)) {
+                $userAnswer = $answers['q' . $question->id];
+            }
+
+            if ($userAnswer === null || $userAnswer === '' || (is_array($userAnswer) && empty($userAnswer))) {
+                $unanswered++;
+                continue;
+            }
+
+            // 2. Normalise correct answers to an array of strings
+            $correctRaw = $question->correct_answers;
+            if (is_string($correctRaw)) {
+                $correctRaw = array_map('trim', explode(',', $correctRaw));
+            } elseif (!is_array($correctRaw)) {
+                $correctRaw = [ (string) $correctRaw ];
+            }
+            $correctAnswers = array_map('strval', $correctRaw);
+
+            $isCorrect = false;
+
+            if ($question->type === 'text') {
+                $userAnswerStr = trim((string) $userAnswer);
+                foreach ($correctAnswers as $correct) {
+                    if (strcasecmp($userAnswerStr, trim($correct)) === 0) {
+                        $isCorrect = true;
+                        break;
+                    }
+                }
+            }
+            elseif ($question->type === 'single') {
+                $userAnswerStr = (string) $userAnswer;
+                if (in_array($userAnswerStr, $correctAnswers, true)) {
+                    $isCorrect = true;
+                }
+            }
+            elseif ($question->type === 'multiple') {
+                $userAnswers = is_array($userAnswer) ? $userAnswer : [$userAnswer];
+                $userSet = array_map('strval', $userAnswers);
+                sort($userSet);
+                sort($correctAnswers);
+                if ($userSet === $correctAnswers) {
+                    $isCorrect = true;
+                }
+            }
+
+            if ($isCorrect) {
+                $correct++;
+            } else {
+                $incorrect++;
+            }
+        }
+
+        $percentage = $totalQuestions > 0 ? round(($correct / $totalQuestions) * 100, 2) : 0;
+
+        // ─── UPDATE SUBMISSION ──────────────────────────────────
+        $submission->score = $percentage;
+        $submission->answers_payload = json_encode($answers);
+        $submission->is_auto_submitted = $request->input('auto_submitted', false);
+        $submission->save();
+
+        return response()->json([
+            'data' => [
+                'correct'        => $correct,
+                'incorrect'      => $incorrect,
+                'unanswered'     => $unanswered,
+                'percentage'     => $percentage,
+                'total_questions'=> $totalQuestions,
+                'quiz_title'     => $quiz->title,
+            ]
+        ]);
     }
 
     /**
@@ -342,11 +441,11 @@ class StudentController extends Controller
             ->get()
             ->map(function ($sub) {
                 return [
-                    'id' => $sub->id,
-                    'quiz_title' => $sub->quiz->title ?? 'Unknown Quiz',
-                    'score' => (int) $sub->score,
-                    'total_questions' => $sub->quiz->questions()->count(),
-                    'date' => $sub->created_at->toDateTimeString(),
+                    'id'               => $sub->id,
+                    'quiz_title'       => $sub->quiz->title ?? 'Unknown Quiz',
+                    'score'            => (int) $sub->score,
+                    'total_questions'  => $sub->quiz->questions()->count(),
+                    'date'             => $sub->created_at->toDateTimeString(),
                 ];
             });
 
@@ -356,7 +455,7 @@ class StudentController extends Controller
     /**
      * Get detailed breakdown of a specific attempt.
      */
-    public function attemptDetail($attemptId)
+/*     public function attemptDetail($attemptId)
     {
         $user = Auth::user();
         $submission = QuizSubmission::with(['quiz.questions'])
@@ -419,6 +518,90 @@ class StudentController extends Controller
                 'percentage' => $percentage,
                 'total_questions' => $totalQuestions,
                 'quiz_title' => $submission->quiz->title ?? 'Unknown Quiz',
+            ]
+        ]);
+    } */
+    public function attemptDetail($attemptId)
+    {
+        $user = Auth::user();
+        $submission = QuizSubmission::with(['quiz.questions'])
+            ->where('id', $attemptId)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+
+        $answersPayload = json_decode($submission->answers_payload, true) ?? [];
+
+        $correct = 0;
+        $incorrect = 0;
+        $unanswered = 0;
+
+        foreach ($submission->quiz->questions as $question) {
+            // ─── GET USER ANSWER (SUPPORTS BOTH KEY FORMATS) ──────
+            $userAnswer = null;
+            if (array_key_exists($question->id, $answersPayload)) {
+                $userAnswer = $answersPayload[$question->id];
+            } elseif (array_key_exists('q' . $question->id, $answersPayload)) {
+                $userAnswer = $answersPayload['q' . $question->id];
+            }
+
+            if ($userAnswer === null || $userAnswer === '' || (is_array($userAnswer) && empty($userAnswer))) {
+                $unanswered++;
+                continue;
+            }
+
+            // ─── NORMALISE CORRECT ANSWERS ──────────────────────────
+            $correctRaw = $question->correct_answers;
+            if (is_string($correctRaw)) {
+                $correctRaw = array_map('trim', explode(',', $correctRaw));
+            } elseif (!is_array($correctRaw)) {
+                $correctRaw = [ (string) $correctRaw ];
+            }
+            $correctAnswers = array_map('strval', $correctRaw);
+
+            $isCorrect = false;
+
+            // ─── EVALUATE BY TYPE ──────────────────────────────────────
+            if ($question->type === 'text') {
+                $userAnswerStr = trim((string) $userAnswer);
+                foreach ($correctAnswers as $correct) {
+                    if (strcasecmp($userAnswerStr, trim($correct)) === 0) {
+                        $isCorrect = true;
+                        break;
+                    }
+                }
+            } elseif ($question->type === 'single') {
+                $userAnswerStr = (string) $userAnswer;
+                if (in_array($userAnswerStr, $correctAnswers, true)) {
+                    $isCorrect = true;
+                }
+            } elseif ($question->type === 'multiple') {
+                $userAnswers = is_array($userAnswer) ? $userAnswer : [$userAnswer];
+                $userSet = array_map('strval', $userAnswers);
+                sort($userSet);
+                sort($correctAnswers);
+                if ($userSet === $correctAnswers) {
+                    $isCorrect = true;
+                }
+            }
+
+            if ($isCorrect) {
+                $correct++;
+            } else {
+                $incorrect++;
+            }
+        }
+
+        $totalQuestions = $submission->quiz->questions->count();
+        $percentage = $totalQuestions > 0 ? round(($correct / $totalQuestions) * 100, 2) : 0;
+
+        return response()->json([
+            'data' => [
+                'correct'         => $correct,
+                'incorrect'       => $incorrect,
+                'unanswered'      => $unanswered,
+                'percentage'      => $percentage,
+                'total_questions' => $totalQuestions,
+                'quiz_title'      => $submission->quiz->title ?? 'Unknown Quiz',
             ]
         ]);
     }

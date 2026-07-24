@@ -18,14 +18,12 @@ class ForumController extends Controller
     public function getGroups(Request $request)
     {
         $user = $request->user();
-        $groupIds = $user->groups()->pluck('groups.id')->toArray(); // all group IDs the user is in
-
         $groups = Group::select('id', 'name', 'description', 'created_at')
-        ->withCount(['topics', 'users'])
-        ->get();
+            ->withCount(['topics', 'users'])
+            ->get();
 
-        $groups->each(function ($group) use ($groupIds) {
-            $group->is_member = in_array($group->id, $groupIds);
+        $groups->each(function ($group) use ($user) {
+            $group->is_member = $user->groups()->where('group_id', $group->id)->exists();
         });
 
         return response()->json([
@@ -64,10 +62,11 @@ class ForumController extends Controller
     public function getTopicsByGroup($groupId)
     {
         $group = Group::findOrFail($groupId);
+
         $topics = $group->topics()
             ->with('creator:id,name,role')
             ->withCount('posts')
-            ->get(['id', 'group_id', 'title', 'description', 'creator_id', 'created_at', 'ml_category']); // ← added ml_category
+            ->get(['id', 'group_id', 'title', 'description', 'creator_id', 'created_at', 'ml_category']);
 
         return response()->json([
             'status' => 'success',
@@ -116,7 +115,7 @@ class ForumController extends Controller
             'is_private' => 'required|boolean',
             'excluded_user_ids' => 'nullable|array',
             'excluded_user_ids.*' => 'exists:users,id',
-            'parent_id' => 'nullable|exists:posts,id',          // ← ADD THIS
+            'parent_id' => 'nullable|exists:posts,id',   // ✅ support parent_id
         ]);
 
         $post = Post::create([
@@ -124,7 +123,7 @@ class ForumController extends Controller
             'user_id' => $validatedData['user_id'],
             'content' => $validatedData['content'],
             'is_private' => $validatedData['is_private'],
-            'parent_id' => $validatedData['parent_id'] ?? null, // ← ADD THIS
+            'parent_id' => $validatedData['parent_id'] ?? null,
         ]);
 
         if ($validatedData['is_private'] && !empty($validatedData['excluded_user_ids'])) {
@@ -138,7 +137,7 @@ class ForumController extends Controller
         return response()->json([
             'status' => 'created',
             'message' => 'Post successfully recorded.',
-            'data' => $post->load('excludedUsers'),
+            'data' => $post->load('excludedUsers', 'author:id,name,email,role'),
         ], 201);
     }
 
@@ -153,19 +152,16 @@ class ForumController extends Controller
         $posts = Post::where('topic_id', $topicId)
             ->visibleToUser($userId)
             ->with('author:id,name,email,role')
-            ->withCount('likes')                                 // → likes_count
-            ->with(['likes' => function ($q) use ($userId) {     // → is_liked
+            ->withCount('likes')
+            ->with(['likes' => function ($q) use ($userId) {
                 $q->where('user_id', $userId);
             }])
-            // optional: load excluded users if the client needs them
-            // ->with('excludedUsers:id,name,email')
             ->orderBy('created_at', 'asc')
             ->get(['id', 'topic_id', 'user_id', 'content', 'is_private', 'created_at', 'parent_id']);
 
         // Add is_liked attribute
         $posts->each(function ($post) {
             $post->is_liked = $post->likes->isNotEmpty();
-            // remove the 'likes' relation from the response to keep it clean
             unset($post->likes);
         });
 
@@ -177,27 +173,47 @@ class ForumController extends Controller
     }
 
     /**
-     * Endpoint 6: Sync Upload (Stubbed for Sprint 3).
+     * Endpoint 6: Sync Upload (REAL implementation).
      */
     public function syncUpload(Request $request)
     {
-        // Implementation pending Sprint 3.
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Sync upload endpoint ready (Sprint 3 implementation pending).',
-        ]);
+        $user = $request->user();
+        $posts = $request->input('posts', []);
+        $created = [];
+
+        foreach ($posts as $postData) {
+            // Validate required fields
+            if (!isset($postData['topic_id']) || !isset($postData['content'])) {
+                continue;
+            }
+
+            $post = Post::create([
+                'topic_id' => $postData['topic_id'],
+                'user_id' => $postData['user_id'] ?? $user->id,
+                'content' => $postData['content'],
+                'is_private' => $postData['is_private'] ?? false,
+                'parent_id' => $postData['parent_id'] ?? null,
+                'created_at' => $postData['created_at'] ?? now(),
+                'updated_at' => now(),
+            ]);
+
+            $created[] = ['id' => $post->id];
+        }
+
+        return response()->json(['data' => $created]);
     }
 
     /**
-     * Endpoint 7: Sync Download (Stubbed for Sprint 3).
+     * Endpoint 7: Sync Download (REAL implementation).
      */
     public function syncDownload(Request $request)
     {
         $since = $request->input('since', now()->subDays(30));
-        // Implementation pending Sprint 3.
-        return response()->json([
-            'status' => 'success',
-            'data' => [],
-        ]);
+        $posts = Post::where('created_at', '>', $since)
+                    ->with(['author:id,name,email,role'])
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+
+        return response()->json(['data' => $posts]);
     }
 }

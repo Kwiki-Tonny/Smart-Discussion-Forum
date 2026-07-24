@@ -14,4 +14,7 @@ public class Quiz {
     @JsonProperty("duration_minutes")
     public int durationMinutes;
     public List<Question> questions;
+
+    @JsonProperty("has_taken")
+    public boolean hasTaken;   // ✅ indicates if the user has submitted this quiz
 }
