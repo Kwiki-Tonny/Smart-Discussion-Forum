@@ -34,15 +34,25 @@ WORKDIR /var/www/html
 # Copy all application files
 COPY . /var/www/html
 
-# Install PHP dependencies (production only)
-RUN composer install --no-dev --optimize-autoloader
+# ============================================================
+# FIX: Install dependencies WITHOUT running scripts first,
+#      then run the post-autoload-dump script separately.
+#      This prevents the "Class 'JsonResponse' not found" error.
+# ============================================================
+RUN composer install --no-dev --optimize-autoloader --no-scripts
+RUN composer run-script post-autoload-dump
+# Optional: regenerate autoloader to be safe
+RUN composer dump-autoload --optimize
 
 # Build frontend assets (Vite)
 RUN npm ci && npm run build
 
-# Cache configuration, routes, and views for performance
-# Note: we do NOT run config:clear to avoid SQLite errors during build
-RUN php artisan config:cache && \
+# ============================================================
+# Cache configuration, routes, and views for performance.
+# Clear any stale config first (we're using PostgreSQL, so it's safe).
+# ============================================================
+RUN php artisan config:clear && \
+    php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache
 
