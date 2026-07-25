@@ -31,30 +31,28 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Set environment variables for build (so that artisan commands use pgsql and not sqlite)
-ENV DB_CONNECTION=pgsql
-ENV CACHE_DRIVER=array
-
 # Copy all application files
 COPY . /var/www/html
 
-# Install PHP dependencies
+# Install PHP dependencies (production only)
 RUN composer install --no-dev --optimize-autoloader
 
-# Build frontend assets
+# Build frontend assets (Vite)
 RUN npm ci && npm run build
 
-# Cache configuration, routes, and views (no clearing needed)
+# Cache configuration, routes, and views for performance
+# Note: we do NOT run config:clear to avoid SQLite errors during build
 RUN php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache
 
-# Set permissions
+# Set proper permissions for storage and bootstrap/cache
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Expose the port provided by Render
 EXPOSE $PORT
 
-# Run migrations at container start, then serve
+# Start the application: run migrations, then serve
 CMD php artisan migrate --force && \
     php artisan serve --host=0.0.0.0 --port=$PORT
