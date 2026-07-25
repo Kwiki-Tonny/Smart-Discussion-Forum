@@ -9,12 +9,20 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libjpeg-dev \
     libfreetype6-dev \
-    zip \
+    libzip-dev \
     unzip \
     libpq-dev \
     npm \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) gd pdo pdo_pgsql \
+    && docker-php-ext-install -j$(nproc) \
+        gd \
+        pdo_pgsql \
+        mbstring \
+        xml \
+        zip \
+        simplexml \
+        bcmath \
+        opcache \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
@@ -26,7 +34,9 @@ WORKDIR /var/www/html
 # Copy existing application directory contents
 COPY . /var/www/html
 
-# Install dependencies (including dev if needed? but we use --no-dev)
+# Install dependencies (disable platform checks as fallback)
+RUN composer install --no-dev --optimize-autoloader --ignore-platform-req=ext-gd || true
+# Actually, let's do it properly:
 RUN composer install --no-dev --optimize-autoloader
 
 # Build frontend assets
