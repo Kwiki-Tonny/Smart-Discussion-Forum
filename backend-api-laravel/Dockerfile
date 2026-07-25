@@ -1,3 +1,4 @@
+# Use the official PHP 8.2 FPM image (lightweight and fast)
 FROM php:8.2-fpm
 
 # Install system dependencies and PHP extensions
@@ -25,29 +26,41 @@ RUN apt-get update && apt-get install -y \
         opcache \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Composer
+# Install Composer (latest)
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy existing application directory contents
+# Copy all application files
 COPY . /var/www/html
 
-# Install dependencies (disable platform checks as fallback)
-RUN composer install --no-dev --optimize-autoloader --ignore-platform-req=ext-gd || true
-# Actually, let's do it properly:
+# Install PHP dependencies (exclude dev, optimize autoloader)
 RUN composer install --no-dev --optimize-autoloader
 
-# Build frontend assets
+# Build frontend assets (Vite)
 RUN npm ci && npm run build
 
-# Set permissions
+# Generate application key (prevents "no key" error)
+RUN php artisan key:generate --force
+
+# Clear any cached config to avoid stale settings
+RUN php artisan config:clear && \
+    php artisan cache:clear && \
+    php artisan view:clear
+
+# Cache config, routes, and views for production performance
+RUN php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache
+
+# Set correct permissions for storage and bootstrap/cache
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Expose port
+# Expose the port that Render provides
 EXPOSE $PORT
 
-# Start PHP server
-CMD php artisan serve --host=0.0.0.0 --port=$PORT
+# Start the application – run migrations and then start the server
+CMD php artisan migrate --force && \
+    php artisan serve --host=0.0.0.0 --port=$PORT
