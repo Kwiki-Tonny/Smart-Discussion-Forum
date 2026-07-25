@@ -28,7 +28,14 @@ RUN apt-get update && apt-get install -y \
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+# Set working directory
 WORKDIR /var/www/html
+
+# Set environment variables for build (so that artisan commands use pgsql and not sqlite)
+ENV DB_CONNECTION=pgsql
+ENV CACHE_DRIVER=array
+
+# Copy all application files
 COPY . /var/www/html
 
 # Install PHP dependencies
@@ -37,11 +44,7 @@ RUN composer install --no-dev --optimize-autoloader
 # Build frontend assets
 RUN npm ci && npm run build
 
-# Clear and cache configuration (no .env needed)
-RUN php artisan config:clear && \
-    php artisan cache:clear && \
-    php artisan view:clear
-
+# Cache configuration, routes, and views (no clearing needed)
 RUN php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache
@@ -52,6 +55,6 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 
 EXPOSE $PORT
 
-# Run migrations and start the server
+# Run migrations at container start, then serve
 CMD php artisan migrate --force && \
     php artisan serve --host=0.0.0.0 --port=$PORT
