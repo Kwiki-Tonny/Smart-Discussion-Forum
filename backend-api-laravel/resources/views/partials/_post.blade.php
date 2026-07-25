@@ -1,52 +1,59 @@
-{{-- resources/views/partials/_post.blade.php --}}
-<div class="bg-white border border-[#E5E5E5] p-4 {{ isset($inPinned) && $inPinned ? 'border-l-4 border-l-[#000000]' : '' }}" id="post-{{ $post->id }}" data-post-id="{{ $post->id }}">
-    <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center space-x-3 min-w-0">
-            <span class="text-sm font-bold text-[#000000]">{{ $post->author->name ?? 'Unknown' }}</span>
-            <span class="text-[10px] text-[#666666] flex-shrink-0">{{ $post->created_at->diffForHumans() }}</span>
-            @if($post->is_private)
-                <span class="text-[8px] font-bold uppercase tracking-wider text-[#DC2626] border border-[#DC2626] px-1.5 py-0.5 flex-shrink-0">Private</span>
-            @endif
-            @if($post->parent_id)
-                <span class="text-[8px] font-bold uppercase tracking-wider text-[#666666] border border-[#E5E5E5] px-1.5 py-0.5 flex-shrink-0">Reply</span>
-            @endif
-            {{-- 📌 Pinned Badge --}}
-            @if($post->is_pinned)
-                <span class="text-[8px] font-bold uppercase tracking-wider text-[#000000] border border-[#000000] px-1.5 py-0.5 flex-shrink-0">📌 Pinned</span>
-            @endif
+@php
+    $isLiked = $post->isLikedByUser(Auth::id());
+    $likeIcon = $isLiked
+        ? '<i data-lucide="heart" style="width:14px;height:14px;fill:#DC2626;color:#DC2626;"></i>'
+        : '<i data-lucide="heart" style="width:14px;height:14px;"></i>';
+    $fileInputId = 'reply-file-' . $post->id;
+    $fileNamesId = 'reply-file-names-' . $post->id;
+    $isChild = isset($inPinned) && $inPinned ? false : ($post->parent_id ? true : false);
+    $childrenCount = $post->children ? count($post->children) : 0;
+@endphp
+
+<div class="post-bubble {{ $isChild ? 'bg-[#F9F9F9]' : 'bg-white' }} rounded-2xl shadow-sm border border-[#E5E5E5] p-3 transition hover:shadow-md" id="post-{{ $post->id }}" data-post-id="{{ $post->id }}">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 min-w-0 flex-1">
+            <div class="w-7 h-7 bg-[#ECFDF5] rounded-full flex items-center justify-center flex-shrink-0">
+                <i data-lucide="user" style="width:14px;height:14px;color:#0A574F;"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+                <div class="flex items-center flex-wrap gap-1">
+                    <span class="text-sm font-bold text-[#000000]">{{ $post->author->name ?? 'Unknown' }}</span>
+                    <span class="text-[10px] text-[#666666]">{{ $post->created_at->diffForHumans() }}</span>
+                    @if($post->is_private)
+                        <span class="text-[8px] font-bold uppercase tracking-wider text-[#DC2626] border border-[#DC2626] px-1.5 py-0.5 rounded-full">Private</span>
+                    @endif
+                    @if($post->parent_id)
+                        <span class="text-[8px] font-bold uppercase tracking-wider text-[#666666] border border-[#E5E5E5] px-1.5 py-0.5 rounded-full">Reply</span>
+                    @endif
+                    @if($post->is_pinned)
+                        <span class="text-[8px] font-bold uppercase tracking-wider text-[#000000] border border-[#000000] px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                            <i data-lucide="pin" style="width:10px;height:10px;"></i> Pinned
+                        </span>
+                    @endif
+                </div>
+            </div>
         </div>
-        <div class="flex items-center space-x-3 flex-shrink-0">
-            {{-- Like Button (AJAX) --}}
-            <button class="like-btn text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center space-x-1" data-post-id="{{ $post->id }}">
-                <span class="like-icon">{{ $post->isLikedByUser(Auth::id()) ? '❤️' : '🤍' }}</span>
-                <span class="like-count">{{ $post->likes_count ?? 0 }}</span>
+        <div class="flex items-center gap-0.5 flex-shrink-0 ml-1">
+            <button class="like-btn text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center gap-1 px-1.5 py-1 rounded-lg hover:bg-[#F0F0F0]" data-post-id="{{ $post->id }}">
+                <span class="like-icon">{!! $likeIcon !!}</span>
+                <span class="like-count text-sm font-medium">{{ $post->likes_count ?? 0 }}</span>
             </button>
-
-            {{-- Reply Button (toggles reply form) --}}
-            <button class="reply-toggle text-xs text-[#666666] hover:text-[#000000] transition-colors" data-post-id="{{ $post->id }}">
-                💬 Reply
+            <button class="reply-toggle text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center gap-1 px-1.5 py-1 rounded-lg hover:bg-[#F0F0F0]" data-post-id="{{ $post->id }}">
+                <i data-lucide="reply" style="width:14px;height:14px;"></i>
             </button>
-
-            {{-- Pin Button (all authenticated users) --}}
             @auth
-                <button class="pin-btn text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center space-x-1" data-post-id="{{ $post->id }}">
-                    {{ $post->is_pinned ? '📌 Unpin' : '📌 Pin' }}
+                <button class="pin-btn text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center gap-1 px-1.5 py-1 rounded-lg hover:bg-[#F0F0F0]" data-post-id="{{ $post->id }}">
+                    <i data-lucide="{{ $post->is_pinned ? 'pin-off' : 'pin' }}" style="width:14px;height:14px;"></i>
                 </button>
             @endauth
-
-            {{-- Jump to thread (if in pinned section) --}}
-            @if(isset($inPinned) && $inPinned)
-                <button class="jump-to-post ...">↳ Jump to thread</button>
-            @endif
         </div>
     </div>
 
-    {{-- Post Content --}}
-    <p class="text-sm text-[#000000] leading-relaxed">{{ $post->content }}</p>
+    <p class="text-sm text-[#000000] leading-relaxed mt-1">{{ $post->content }}</p>
 
-    {{-- 📎 Attachments --}}
+    {{-- ✅ Attachments – fixed count() usage --}}
     @if($post->attachments && count($post->attachments) > 0)
-        <div class="mt-3 flex flex-wrap gap-2">
+        <div class="mt-2 flex flex-wrap gap-2">
             @foreach($post->attachments as $file)
                 @php
                     $ext = pathinfo($file, PATHINFO_EXTENSION);
@@ -54,53 +61,56 @@
                     $url = asset('storage/' . $file);
                 @endphp
                 @if($isImage)
-                    <a href="{{ $url }}" target="_blank" class="block border">
+                    <a href="{{ $url }}" target="_blank" class="block border rounded-lg overflow-hidden">
                         <img src="{{ $url }}" class="max-w-xs max-h-48 object-contain">
                     </a>
                 @else
-                    <a href="{{ $url }}" target="_blank" class="text-xs text-[#2563EB] border border-[#E5E5E5] px-3 py-1 hover:bg-[#F5F5F5] transition-colors">
-                        📎 {{ basename($file) }}
+                    <a href="{{ $url }}" target="_blank" class="flex items-center gap-1 text-xs text-[#2563EB] border border-[#E5E5E5] rounded-lg px-3 py-1.5 hover:bg-[#F9F9F9] transition">
+                        <i data-lucide="file" style="width:12px;height:12px;"></i>
+                        {{ basename($file) }}
                     </a>
                 @endif
             @endforeach
         </div>
     @endif
 
-    {{-- Reply Form (hidden by default) --}}
-    <div class="mt-3 hidden reply-form" id="reply-form-{{ $post->id }}">
+    {{-- Toggle button for nested replies --}}
+    @if($childrenCount > 0)
+        <button class="toggle-replies-btn text-xs text-[#2563EB] hover:underline mt-2 flex items-center gap-1" data-post-id="{{ $post->id }}">
+            <i data-lucide="chevron-down" style="width:12px;height:12px;"></i>
+            Show {{ $childrenCount }} repl{{ $childrenCount > 1 ? 'ies' : 'y' }}
+        </button>
+    @endif
+
+    {{-- Reply form (hidden by default) --}}
+    <div class="mt-2 hidden reply-form" id="reply-form-{{ $post->id }}">
         <form class="reply-form-ajax" data-parent-id="{{ $post->id }}" data-topic-id="{{ $post->topic_id }}">
             @csrf
-            <div class="border-l-2 border-[#E5E5E5] pl-4 space-y-2">
-                <textarea name="content" rows="2" required 
-                          class="w-full bg-white border border-[#E5E5E5] px-3 py-2 text-sm focus:outline-none focus:border-[#000000] transition-colors"
-                          placeholder="Write a reply..."></textarea>
-
-                {{-- File attachment input for replies --}}
-                <div>
-                    <label class="block text-[10px] font-bold uppercase tracking-wide text-[#666666]">Attach Files</label>
-                    <input type="file" name="attachments[]" multiple
-                           accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-                           class="w-full bg-white border border-[#E5E5E5] px-3 py-1 text-sm">
-                    <p class="text-[9px] text-[#666666]">Max 5MB per file. Supported: images, PDF, Word, Excel, TXT</p>
+            <div class="flex items-end gap-2">
+                <label for="{{ $fileInputId }}" class="cursor-pointer text-[#666666] hover:text-[#0A574F] transition p-1.5 rounded-full hover:bg-[#F0F0F0] flex-shrink-0">
+                    <i data-lucide="paperclip" style="width:16px;height:16px;"></i>
+                </label>
+                <input type="file" name="attachments[]" multiple id="{{ $fileInputId }}"
+                       accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                       class="hidden reply-file-input">
+                <span id="{{ $fileNamesId }}" class="text-[9px] text-[#666666] truncate max-w-[80px] hidden"></span>
+                <div class="flex-1 relative">
+                    <textarea name="content" rows="1" required
+                              class="w-full bg-[#F9F9F9] border border-[#E5E5E5] rounded-lg px-3 py-1.5 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition resize-none"
+                              placeholder="Write a reply..." style="min-height:36px; max-height:100px;"
+                              oninput="this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 100) + 'px';"></textarea>
                 </div>
-
-                <div class="flex items-center justify-between">
-                    <label class="flex items-center space-x-2 cursor-pointer">
-                        <input type="checkbox" name="is_private" value="1" class="accent-black">
-                        <span class="text-xs text-[#666666]">Private</span>
-                    </label>
-                    <button type="submit" 
-                            class="reply-submit-btn bg-[#000000] text-white px-4 py-1.5 text-xs font-bold uppercase tracking-wider hover:bg-[#333333] transition-colors">
-                        Post Reply
-                    </button>
-                </div>
+                <button type="submit"
+                        class="reply-submit-btn flex items-center justify-center bg-[#0A574F] text-white p-1.5 rounded-full hover:bg-[#08443e] transition w-8 h-8 flex-shrink-0">
+                    <i data-lucide="send" style="width:14px;height:14px;"></i>
+                </button>
             </div>
         </form>
     </div>
 
-    {{-- Nested replies (recursive) --}}
-    @if($post->children && $post->children->count())
-        <div class="ml-6 mt-3 space-y-3 border-l-2 border-[#E5E5E5] pl-4">
+    {{-- Nested replies – initially hidden --}}
+    @if($childrenCount > 0)
+        <div class="children-container mt-3 space-y-3 hidden" id="children-container-{{ $post->id }}">
             @foreach($post->children as $child)
                 @include('partials._post', ['post' => $child])
             @endforeach

@@ -85,11 +85,13 @@
         </div>
 
         {{-- Posts Container --}}
-        <div id="posts-container" class="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
+        <div id="posts-container" class="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4 pb-32">
 
-            {{-- Compact Pinned Section --}}
+            {{-- ========== PINNED SECTION ========== --}}
             @php
                 $pinnedPosts = $posts->where('is_pinned', true);
+                $regularPosts = $posts->where('is_pinned', false);
+                $lastPostId = $posts->last()->id ?? 0;
             @endphp
 
             @if($pinnedPosts->count() > 0)
@@ -122,8 +124,8 @@
                 </div>
             @endif
 
-            {{-- All Posts --}}
-            @forelse($posts as $post)
+            {{-- ========== REGULAR POSTS (non‑pinned) ========== --}}
+            @forelse($regularPosts as $post)
                 @include('partials._post', ['post' => $post, 'inPinned' => false])
             @empty
                 <div class="bg-white rounded-lg border border-dashed border-[#E5E5E5] p-12 text-center" id="empty-state">
@@ -133,48 +135,39 @@
                 </div>
             @endforelse
 
-            {{-- Reply Form --}}
-            <div class="bg-white rounded-lg border-2 border-[#0A574F] shadow-sm p-5" id="main-reply-form">
-                <div class="flex items-center gap-2 border-b border-[#E5E5E5] pb-3 mb-4">
-                    <i data-lucide="message-square" style="width:18px;height:18px;color:#0A574F;"></i>
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-[#000000]">Write a Reply</h3>
-                </div>
-                <form method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
-                    @csrf
-                    <input type="hidden" name="topic_id" value="{{ $topic->id }}">
-                    <div class="space-y-3">
-                        <textarea name="content" rows="3" required
-                                  class="w-full bg-[#F9F9F9] border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition"
-                                  placeholder="Share your thoughts..."></textarea>
+            <div class="h-4"></div>
+        </div>
 
-                        <div>
-                            <label class="block text-[10px] font-bold uppercase tracking-wide text-[#666666] flex items-center gap-1">
-                                <i data-lucide="paperclip" style="width:12px;height:12px;"></i>
-                                Attach Files
-                            </label>
-                            <input type="file" name="attachments[]" multiple
-                                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-                                   class="w-full bg-white border border-[#E5E5E5] rounded-lg px-3 py-1.5 text-sm file:mr-3 file:py-1 file:px-3 file:text-xs file:font-bold file:border-0 file:bg-[#0A574F] file:text-white hover:file:bg-[#08443e] transition">
-                            <p class="text-[9px] text-[#666666] mt-1 flex items-center gap-1">
-                                <i data-lucide="info" style="width:10px;height:10px;"></i>
-                                Max 5MB per file. Supported: images, PDF, Word, Excel, TXT
-                            </p>
-                        </div>
+        {{-- ========== STICKY REPLY BAR ========== --}}
+        <div class="sticky bottom-0 bg-white border-t border-[#E5E5E5] p-3 shadow-lg" id="main-reply-form">
+            <form method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data" id="main-form">
+                @csrf
+                <input type="hidden" name="topic_id" value="{{ $topic->id }}">
+                <div class="flex items-end gap-2">
+                    {{-- Paperclip (left) --}}
+                    <label for="main-file-input" class="cursor-pointer text-[#666666] hover:text-[#0A574F] transition p-2 rounded-full hover:bg-[#F0F0F0] flex-shrink-0">
+                        <i data-lucide="paperclip" style="width:20px;height:20px;"></i>
+                    </label>
+                    <input type="file" name="attachments[]" multiple id="main-file-input"
+                           accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                           class="hidden">
+                    <span id="main-file-names" class="text-[10px] text-[#666666] truncate max-w-[100px] hidden"></span>
 
-                        <div class="flex items-center justify-between flex-wrap gap-2">
-                            <label class="flex items-center gap-2 cursor-pointer text-xs text-[#666666]">
-                                <input type="checkbox" name="is_private" value="1" class="accent-[#0A574F] w-4 h-4 rounded">
-                                <span>Make this post private</span>
-                            </label>
-                            <button type="submit"
-                                    class="flex items-center gap-2 bg-[#0A574F] text-white px-6 py-2 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-[#08443e] transition hover:shadow-sm">
-                                <i data-lucide="send" style="width:14px;height:14px;"></i>
-                                Post Reply
-                            </button>
-                        </div>
+                    {{-- Text input --}}
+                    <div class="flex-1 relative">
+                        <textarea name="content" rows="1" required
+                                  class="w-full bg-[#F9F9F9] border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition resize-none"
+                                  placeholder="Write a reply..." style="min-height:40px; max-height:120px;"
+                                  oninput="this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 120) + 'px';"></textarea>
                     </div>
-                </form>
-            </div>
+
+                    {{-- Send --}}
+                    <button type="submit"
+                            class="flex items-center justify-center bg-[#0A574F] text-white p-2 rounded-full hover:bg-[#08443e] transition hover:shadow-sm w-10 h-10 flex-shrink-0">
+                        <i data-lucide="send" style="width:18px;height:18px;"></i>
+                    </button>
+                </div>
+            </form>
         </div>
 
     </div>
@@ -183,8 +176,26 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+
     // ============================================================
-    // 1. BIND REPLY TOGGLES
+    // 1. FILE INPUT – main form
+    // ============================================================
+    const mainFileInput = document.getElementById('main-file-input');
+    const mainFileNames = document.getElementById('main-file-names');
+    if (mainFileInput) {
+        mainFileInput.addEventListener('change', function() {
+            const names = Array.from(this.files).map(f => f.name).join(', ');
+            if (names) {
+                mainFileNames.textContent = names;
+                mainFileNames.classList.remove('hidden');
+            } else {
+                mainFileNames.classList.add('hidden');
+            }
+        });
+    }
+
+    // ============================================================
+    // 2. REPLY TOGGLES
     // ============================================================
     function bindReplyToggles() {
         document.querySelectorAll('.reply-toggle').forEach(button => {
@@ -202,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // 2. BIND REPLY FORMS (AJAX)
+    // 3. REPLY FORMS (AJAX)
     // ============================================================
     function bindReplyForms() {
         document.querySelectorAll('.reply-form-ajax').forEach(form => {
@@ -219,14 +230,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const content = this.querySelector('textarea[name="content"]').value.trim();
         const isPrivate = this.querySelector('input[name="is_private"]')?.checked ? 1 : 0;
         const submitBtn = this.querySelector('.reply-submit-btn');
-        const originalText = submitBtn.textContent;
+        const originalHTML = submitBtn.innerHTML;
 
         if (!content) {
             alert('Please enter a reply.');
             return;
         }
 
-        submitBtn.textContent = 'Posting...';
+        submitBtn.innerHTML = '<i data-lucide="loader-circle" style="width:14px;height:14px;animation:spin 1s linear infinite;"></i>';
         submitBtn.disabled = true;
 
         const formData = new FormData(this);
@@ -250,20 +261,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 let childrenContainer = parentPost.querySelector('.children-container');
                 if (!childrenContainer) {
                     childrenContainer = document.createElement('div');
-                    childrenContainer.className = 'ml-6 mt-3 space-y-3 border-l-2 border-[#E5E5E5] pl-4 children-container';
+                    childrenContainer.className = 'children-container mt-3 space-y-3 hidden';
+                    childrenContainer.id = 'children-container-' + parentId;
                     parentPost.appendChild(childrenContainer);
                 }
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = newPost;
                 childrenContainer.appendChild(tempDiv.firstElementChild);
 
+                // Update toggle button if it exists
+                const toggleBtn = parentPost.querySelector('.toggle-replies-btn');
+                if (toggleBtn) {
+                    const count = childrenContainer.querySelectorAll('.post-bubble').length;
+                    toggleBtn.innerHTML = `<i data-lucide="chevron-down" style="width:12px;height:12px;"></i> Show ${count} repl${count > 1 ? 'ies' : 'y'}`;
+                    if (childrenContainer.classList.contains('hidden')) {
+                        // keep hidden, no change
+                    } else {
+                        // if visible, keep visible
+                    }
+                } else {
+                    // if no toggle button yet (first reply), create one
+                    const newToggle = document.createElement('button');
+                    newToggle.className = 'toggle-replies-btn text-xs text-[#2563EB] hover:underline mt-2 flex items-center gap-1';
+                    newToggle.dataset.postId = parentId;
+                    newToggle.innerHTML = `<i data-lucide="chevron-down" style="width:12px;height:12px;"></i> Show 1 reply`;
+                    parentPost.insertBefore(newToggle, childrenContainer);
+                    // bind toggle event
+                    newToggle.addEventListener('click', toggleRepliesHandler);
+                }
+
                 this.querySelector('textarea[name="content"]').value = '';
                 this.closest('.reply-form').classList.add('hidden');
 
-                bindLikeEvents();
-                bindPinEvents();
-                bindReplyToggles();
-                bindReplyForms();
+                bindAllEvents();
                 lucide.createIcons();
             }
         })
@@ -272,23 +302,24 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Failed to post reply. Please try again.');
         })
         .finally(() => {
-            submitBtn.textContent = originalText;
+            submitBtn.innerHTML = '<i data-lucide="send" style="width:14px;height:14px;"></i>';
             submitBtn.disabled = false;
+            lucide.createIcons();
         });
     }
 
     // ============================================================
-    // 3. BIND MAIN POST FORM (AJAX)
+    // 4. MAIN POST FORM (AJAX)
     // ============================================================
-    const mainForm = document.getElementById('main-reply-form')?.querySelector('form');
+    const mainForm = document.getElementById('main-form');
     if (mainForm) {
         mainForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const formData = new FormData(this);
             const submitBtn = this.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
+            const originalHTML = submitBtn.innerHTML;
 
-            submitBtn.textContent = 'Posting...';
+            submitBtn.innerHTML = '<i data-lucide="loader-circle" style="width:18px;height:18px;animation:spin 1s linear infinite;"></i>';
             submitBtn.disabled = true;
 
             fetch('{{ route("posts.store") }}', {
@@ -312,11 +343,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     tempDiv.innerHTML = newPost;
                     postsContainer.insertBefore(tempDiv.firstElementChild, mainReplyForm);
                     this.querySelector('textarea[name="content"]').value = '';
+                    const fileInput = document.getElementById('main-file-input');
+                    if (fileInput) fileInput.value = '';
+                    document.getElementById('main-file-names').textContent = '';
+                    document.getElementById('main-file-names').classList.add('hidden');
+
                     updateReplyCount();
-                    bindLikeEvents();
-                    bindPinEvents();
-                    bindReplyToggles();
-                    bindReplyForms();
+                    bindAllEvents();
                     lucide.createIcons();
                 }
             })
@@ -325,14 +358,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Failed to post. Please try again.');
             })
             .finally(() => {
-                submitBtn.textContent = originalText;
+                submitBtn.innerHTML = originalHTML;
                 submitBtn.disabled = false;
+                lucide.createIcons();
             });
         });
     }
 
     // ============================================================
-    // 4. BIND LIKE EVENTS
+    // 5. LIKE EVENTS
     // ============================================================
     function bindLikeEvents() {
         document.querySelectorAll('.like-btn').forEach(button => {
@@ -376,7 +410,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // 5. BIND PIN EVENTS
+    // 6. PIN EVENTS
     // ============================================================
     function bindPinEvents() {
         document.querySelectorAll('.pin-btn').forEach(button => {
@@ -402,7 +436,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                window.location.reload();
+                window.location.reload(); // Pins affect ordering, simple reload
             } else {
                 alert(data.message || 'Failed to pin/unpin.');
             }
@@ -417,7 +451,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // 6. BIND JUMP TO POST
+    // 7. JUMP TO POST
     // ============================================================
     function bindJumpToPost() {
         document.querySelectorAll('.jump-to-post').forEach(el => {
@@ -438,7 +472,65 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // 7. HELPER FUNCTIONS
+    // 8. TOGGLE REPLIES (collapsible nested replies)
+    // ============================================================
+    function bindToggleReplies() {
+        document.querySelectorAll('.toggle-replies-btn').forEach(button => {
+            button.removeEventListener('click', toggleRepliesHandler);
+            button.addEventListener('click', toggleRepliesHandler);
+        });
+    }
+
+    function toggleRepliesHandler(e) {
+        const postId = this.dataset.postId;
+        const container = document.getElementById('children-container-' + postId);
+        if (!container) return;
+
+        const isHidden = container.classList.contains('hidden');
+        if (isHidden) {
+            container.classList.remove('hidden');
+            this.innerHTML = '<i data-lucide="chevron-up" style="width:12px;height:12px;"></i> Hide replies';
+        } else {
+            container.classList.add('hidden');
+            const count = container.querySelectorAll('.post-bubble').length;
+            this.innerHTML = `<i data-lucide="chevron-down" style="width:12px;height:12px;"></i> Show ${count} repl${count > 1 ? 'ies' : 'y'}`;
+        }
+        lucide.createIcons();
+    }
+
+    // ============================================================
+    // 9. BIND ALL EVENTS
+    // ============================================================
+    function bindAllEvents() {
+        bindReplyToggles();
+        bindReplyForms();
+        bindLikeEvents();
+        bindPinEvents();
+        bindJumpToPost();
+        bindToggleReplies();
+        // file inputs for reply forms
+        document.querySelectorAll('.reply-file-input').forEach(input => {
+            input.removeEventListener('change', replyFileChangeHandler);
+            input.addEventListener('change', replyFileChangeHandler);
+        });
+    }
+
+    function replyFileChangeHandler(e) {
+        const input = e.target;
+        const namesSpan = document.getElementById(input.id.replace('file-input', 'file-names'));
+        if (namesSpan) {
+            const names = Array.from(input.files).map(f => f.name).join(', ');
+            namesSpan.textContent = names;
+            if (names) {
+                namesSpan.classList.remove('hidden');
+            } else {
+                namesSpan.classList.add('hidden');
+            }
+        }
+    }
+
+    // ============================================================
+    // 10. createPostHTML (WhatsApp style, with collapsible replies)
     // ============================================================
     function createPostHTML(post) {
         const isLiked = post.is_liked
@@ -447,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let attachmentsHtml = '';
         if (post.attachments && post.attachments.length > 0) {
-            attachmentsHtml = '<div class="mt-3 flex flex-wrap gap-2">';
+            attachmentsHtml = '<div class="mt-2 flex flex-wrap gap-2">';
             post.attachments.forEach(file => {
                 if (file.is_image) {
                     attachmentsHtml += `
@@ -467,86 +559,104 @@ document.addEventListener('DOMContentLoaded', function() {
             attachmentsHtml += '</div>';
         }
 
+        const fileInputId = 'reply-file-' + post.id;
+        const fileNamesId = 'reply-file-names-' + post.id;
+
+        // Build nested children HTML recursively
+        let childrenHtml = '';
+        let toggleHtml = '';
+        if (post.children && post.children.length > 0) {
+            const childHtml = post.children.map(child => createPostHTML(child)).join('');
+            childrenHtml = `
+                <div class="children-container mt-3 space-y-3 hidden" id="children-container-${post.id}">
+                    ${childHtml}
+                </div>
+            `;
+            toggleHtml = `
+                <button class="toggle-replies-btn text-xs text-[#2563EB] hover:underline mt-2 flex items-center gap-1" data-post-id="${post.id}">
+                    <i data-lucide="chevron-down" style="width:12px;height:12px;"></i>
+                    Show ${post.children.length} repl${post.children.length > 1 ? 'ies' : 'y'}
+                </button>
+            `;
+        }
+
         return `
-            <div class="bg-white rounded-lg border border-[#E5E5E5] shadow-sm hover:shadow-md transition p-5" id="post-${post.id}" data-post-id="${post.id}">
+            <div class="post-bubble bg-white rounded-2xl shadow-sm border border-[#E5E5E5] p-3 transition hover:shadow-md" id="post-${post.id}" data-post-id="${post.id}">
                 <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3 min-w-0 flex-1">
-                        <div class="w-8 h-8 bg-[#ECFDF5] rounded-full flex items-center justify-center flex-shrink-0">
+                    <div class="flex items-center gap-2 min-w-0 flex-1">
+                        <div class="w-7 h-7 bg-[#ECFDF5] rounded-full flex items-center justify-center flex-shrink-0">
                             <i data-lucide="user" style="width:14px;height:14px;color:#0A574F;"></i>
                         </div>
                         <div class="min-w-0 flex-1">
-                            <div class="flex items-center flex-wrap gap-2">
+                            <div class="flex items-center flex-wrap gap-1">
                                 <span class="text-sm font-bold text-[#000000]">${post.author.name}</span>
                                 <span class="text-[10px] text-[#666666]">${post.created_at}</span>
                                 ${post.is_private ? '<span class="text-[8px] font-bold uppercase tracking-wider text-[#DC2626] border border-[#DC2626] px-1.5 py-0.5 rounded-full">Private</span>' : ''}
+                                ${post.parent_id ? '<span class="text-[8px] font-bold uppercase tracking-wider text-[#666666] border border-[#E5E5E5] px-1.5 py-0.5 rounded-full">Reply</span>' : ''}
+                                ${post.is_pinned ? '<span class="text-[8px] font-bold uppercase tracking-wider text-[#000000] border border-[#000000] px-1.5 py-0.5 rounded-full flex items-center gap-1"><i data-lucide="pin" style="width:10px;height:10px;"></i> Pinned</span>' : ''}
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 flex-shrink-0 ml-2">
-                        <button class="like-btn text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[#F9F9F9]" data-post-id="${post.id}">
+                    <div class="flex items-center gap-0.5 flex-shrink-0 ml-1">
+                        <button class="like-btn text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center gap-1 px-1.5 py-1 rounded-lg hover:bg-[#F0F0F0]" data-post-id="${post.id}">
                             <span class="like-icon">${isLiked}</span>
                             <span class="like-count text-sm font-medium">${post.likes_count || 0}</span>
                         </button>
-                        <button class="reply-toggle text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[#F9F9F9]" data-post-id="${post.id}">
+                        <button class="reply-toggle text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center gap-1 px-1.5 py-1 rounded-lg hover:bg-[#F0F0F0]" data-post-id="${post.id}">
                             <i data-lucide="reply" style="width:14px;height:14px;"></i>
-                            Reply
                         </button>
-                        <button class="pin-btn text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[#F9F9F9]" data-post-id="${post.id}">
+                        <button class="pin-btn text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center gap-1 px-1.5 py-1 rounded-lg hover:bg-[#F0F0F0]" data-post-id="${post.id}">
                             <i data-lucide="${post.is_pinned ? 'pin-off' : 'pin'}" style="width:14px;height:14px;"></i>
-                            ${post.is_pinned ? 'Unpin' : 'Pin'}
                         </button>
                     </div>
                 </div>
-                <p class="text-sm text-[#000000] leading-relaxed mt-2">${post.content}</p>
+                <p class="text-sm text-[#000000] leading-relaxed mt-1">${post.content}</p>
                 ${attachmentsHtml}
-                <div class="mt-3 hidden reply-form" id="reply-form-${post.id}">
+                ${toggleHtml}
+                <div class="mt-2 hidden reply-form" id="reply-form-${post.id}">
                     <form class="reply-form-ajax" data-parent-id="${post.id}" data-topic-id="{{ $topic->id }}">
                         @csrf
-                        <div class="border-l-2 border-[#0A574F] pl-4 space-y-2">
-                            <textarea name="content" rows="2" required
-                                      class="w-full bg-[#F9F9F9] border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition"
-                                      placeholder="Write a reply..."></textarea>
-                            <div>
-                                <label class="block text-[10px] font-bold uppercase tracking-wide text-[#666666] flex items-center gap-1">
-                                    <i data-lucide="paperclip" style="width:12px;height:12px;"></i>
-                                    Attach Files
-                                </label>
-                                <input type="file" name="attachments[]" multiple
-                                       accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-                                       class="w-full bg-white border border-[#E5E5E5] rounded-lg px-3 py-1.5 text-sm">
-                                <p class="text-[9px] text-[#666666] mt-1">Max 5MB per file. Supported: images, PDF, Word, Excel, TXT</p>
+                        <div class="flex items-end gap-2">
+                            <label for="${fileInputId}" class="cursor-pointer text-[#666666] hover:text-[#0A574F] transition p-1.5 rounded-full hover:bg-[#F0F0F0] flex-shrink-0">
+                                <i data-lucide="paperclip" style="width:16px;height:16px;"></i>
+                            </label>
+                            <input type="file" name="attachments[]" multiple id="${fileInputId}"
+                                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                                   class="hidden reply-file-input">
+                            <span id="${fileNamesId}" class="text-[9px] text-[#666666] truncate max-w-[80px] hidden"></span>
+                            <div class="flex-1 relative">
+                                <textarea name="content" rows="1" required
+                                          class="w-full bg-[#F9F9F9] border border-[#E5E5E5] rounded-lg px-3 py-1.5 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition resize-none"
+                                          placeholder="Write a reply..." style="min-height:36px; max-height:100px;"
+                                          oninput="this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 100) + 'px';"></textarea>
                             </div>
-                            <div class="flex items-center justify-between flex-wrap gap-2">
-                                <label class="flex items-center gap-2 cursor-pointer text-xs text-[#666666]">
-                                    <input type="checkbox" name="is_private" value="1" class="accent-[#0A574F] w-4 h-4 rounded">
-                                    Private
-                                </label>
-                                <button type="submit"
-                                        class="reply-submit-btn flex items-center gap-1 bg-[#0A574F] text-white px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-[#08443e] transition">
-                                    <i data-lucide="send" style="width:12px;height:12px;"></i>
-                                    Post Reply
-                                </button>
-                            </div>
+                            <button type="submit"
+                                    class="reply-submit-btn flex items-center justify-center bg-[#0A574F] text-white p-1.5 rounded-full hover:bg-[#08443e] transition w-8 h-8 flex-shrink-0">
+                                <i data-lucide="send" style="width:14px;height:14px;"></i>
+                            </button>
                         </div>
                     </form>
                 </div>
+                ${childrenHtml}
             </div>
         `;
     }
 
+    // ============================================================
+    // 11. UPDATE REPLY COUNT
+    // ============================================================
     function updateReplyCount() {
-        const posts = document.querySelectorAll('#posts-container > .bg-white.rounded-lg');
-        const count = posts.length - 1;
+        const totalPosts = document.querySelectorAll('#posts-container > .post-bubble').length;
         const replySpan = document.querySelector('.context_panel .p-2.text-xs.font-bold');
         if (replySpan) {
-            replySpan.textContent = `• ${count} replies`;
+            replySpan.textContent = `• ${totalPosts} replies`;
         }
     }
 
     // ============================================================
-    // 8. LONG POLLING
+    // 12. LONG POLLING
     // ============================================================
-    let lastPostId = {{ $posts->last()->id ?? 0 }};
+    let lastPostId = {{ $lastPostId }};
     let isPolling = false;
     let longPollTimeout = null;
     const userId = {{ Auth::id() }};
@@ -562,15 +672,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Accept': 'application/json',
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
         .then(data => {
             isPolling = false;
-            if (data.has_updates && data.post) {
-                if (data.post.author_id != userId) {
-                    showNewPostNotification(data.post);
-                    lastPostId = data.post.id;
-                } else {
-                    lastPostId = Math.max(lastPostId, data.post.id);
+            if (data.has_updates && data.posts && data.posts.length) {
+                const newPosts = data.posts.filter(p => p.author_id != userId);
+                if (newPosts.length > 0) {
+                    const container = document.getElementById('posts-container');
+                    const mainForm = document.getElementById('main-reply-form');
+                    newPosts.forEach(post => {
+                        const html = createPostHTML(post);
+                        const temp = document.createElement('div');
+                        temp.innerHTML = html;
+                        container.insertBefore(temp.firstElementChild, mainForm);
+                        if (post.id > lastPostId) lastPostId = post.id;
+                    });
+                    bindAllEvents();
+                    lucide.createIcons();
+                    showNewPostNotification(newPosts.length);
                 }
             }
             longPollTimeout = setTimeout(startLongPoll, 2000);
@@ -582,9 +704,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function showNewPostNotification(post) {
-        dismissNotification();
+    // ============================================================
+    // 13. NEW POST NOTIFICATION
+    // ============================================================
+    let notificationTimer = null;
 
+    function showNewPostNotification(count) {
+        dismissNotification();
         const banner = document.createElement('div');
         banner.id = 'new-post-notification';
         banner.className = 'fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-[#0A574F] text-white px-6 py-4 z-50 rounded-lg shadow-xl max-w-lg w-full border border-[#08443e]';
@@ -592,52 +718,33 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-4 min-w-0">
                     <i data-lucide="message-circle" style="width:20px;height:20px;flex-shrink:0;"></i>
-                    <span class="text-sm font-medium text-white truncate">new reply from ${post.author}</span>
+                    <span class="text-sm font-medium text-white truncate">${count} new repl${count > 1 ? 'ies' : 'y'}</span>
                 </div>
                 <div class="flex items-center gap-3 flex-shrink-0">
-                    <button onclick="dismissNotification()"
-                            class="text-xs text-white/70 hover:text-white transition">
-                        Later
-                    </button>
-                    <button onclick="reloadPage()"
-                            class="bg-white text-[#0A574F] px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-[#F9F9F9] transition">
-                        View Now
-                    </button>
+                    <button onclick="dismissNotification()" class="text-xs text-white/70 hover:text-white transition">Dismiss</button>
                 </div>
-            </div>
-            <div class="mt-2 text-xs text-white/50 border-t border-white/10 pt-2 flex items-center gap-1">
-                <i data-lucide="clock" style="width:12px;height:12px;"></i>
-                Auto-refreshing in 5 seconds...
             </div>
         `;
         document.body.appendChild(banner);
         lucide.createIcons();
-
-        window.reloadTimer = setTimeout(() => {
-            reloadPage();
-        }, 5000);
+        notificationTimer = setTimeout(dismissNotification, 5000);
     }
 
     function dismissNotification() {
         const existing = document.getElementById('new-post-notification');
-        if (existing) {
-            existing.remove();
-        }
-        if (window.reloadTimer) {
-            clearTimeout(window.reloadTimer);
-            window.reloadTimer = null;
+        if (existing) existing.remove();
+        if (notificationTimer) {
+            clearTimeout(notificationTimer);
+            notificationTimer = null;
         }
     }
+    window.dismissNotification = dismissNotification;
 
-    function reloadPage() {
-        dismissNotification();
-        window.location.reload();
-    }
-
-    // ─── SHARE ──────────────────────────────────────────────────
+    // ============================================================
+    // 14. SHARE LINK
+    // ============================================================
     window.copyLink = function() {
         const url = window.location.href;
-
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(url)
                 .then(() => alert('Link copied to clipboard!'))
@@ -661,22 +768,32 @@ document.addEventListener('DOMContentLoaded', function() {
         input.remove();
     }
 
-    // ─── CSS for Highlight Flash ──────────────────────────────
-    const style = document.createElement('style');
-    style.textContent = `
-        .highlight-flash {
-            animation: flashBg 2s ease;
-        }
-        @keyframes flashBg {
-            0% { background-color: #fef3c7; }
-            100% { background-color: transparent; }
-        }
-    `;
-    document.head.appendChild(style);
+    // ============================================================
+    // 15. STYLES
+    // ============================================================
+    if (!document.getElementById('topic-styles')) {
+        const style = document.createElement('style');
+        style.id = 'topic-styles';
+        style.textContent = `
+            .highlight-flash { animation: flashBg 2s ease; }
+            @keyframes flashBg { 0% { background-color: #fef3c7; } 100% { background-color: transparent; } }
+            .children-container { margin-left: 1.5rem; padding-left: 1rem; border-left: 2px solid #E5E5E5; }
+            .children-container .post-bubble { background-color: #F9F9F9; border-radius: 1.25rem 1.25rem 1.25rem 0.5rem; }
+            .children-container .post-bubble:last-child { border-bottom-left-radius: 1.25rem; }
+            .post-bubble { transition: all 0.15s ease; }
+            .reply-form textarea { resize: none; }
+        `;
+        document.head.appendChild(style);
+    }
 
     // ============================================================
-    // 9. CLEANUP
+    // 16. INIT
     // ============================================================
+    bindAllEvents();
+    lucide.createIcons();
+
+    setTimeout(startLongPoll, 3000);
+
     window.addEventListener('beforeunload', function() {
         if (longPollTimeout) {
             clearTimeout(longPollTimeout);
@@ -685,16 +802,6 @@ document.addEventListener('DOMContentLoaded', function() {
         isPolling = false;
     });
 
-    // ============================================================
-    // 10. INITIALIZATION
-    // ============================================================
-    bindReplyToggles();
-    bindReplyForms();
-    bindLikeEvents();
-    bindPinEvents();
-    bindJumpToPost();
-
-    setTimeout(startLongPoll, 3000);
 });
 </script>
 @endpush
