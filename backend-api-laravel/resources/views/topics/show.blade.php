@@ -123,10 +123,9 @@
                     </div>
                 </div>
 
-                {{-- ===== FIX: Hidden full post bubbles for pinned posts ===== --}}
+                {{-- Hidden full post bubbles for pinned posts --}}
                 <div class="hidden-pinned-posts">
                     @foreach($pinnedPosts as $post)
-                        {{-- The partial must set id="post-{{ $post->id }}" on its root --}}
                         <div id="post-{{ $post->id }}" style="display: none;">
                             @include('partials._post', ['post' => $post, 'inPinned' => false])
                         </div>
@@ -145,10 +144,11 @@
                 </div>
             @endforelse
 
+            {{-- Spacer – used as insertion point for new posts --}}
             <div class="h-4"></div>
         </div>
 
-        {{-- ========== STICKY REPLY BAR ========== --}}
+        {{-- ========== STICKY REPLY BAR (sibling of posts-container) ========== --}}
         <div class="sticky bottom-0 bg-white border-t border-[#E5E5E5] p-3 shadow-lg" id="main-reply-form">
             <form method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data" id="main-form">
                 @csrf
@@ -230,11 +230,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function replyFormHandler(e) {
         e.preventDefault();
 
-        const parentId = this.dataset.parentId;
-        const topicId = this.dataset.topicId;
-        const content = this.querySelector('textarea[name="content"]').value.trim();
-        const isPrivate = this.querySelector('input[name="is_private"]')?.checked ? 1 : 0;
-        const submitBtn = this.querySelector('.reply-submit-btn');
+        const form = e.currentTarget;
+        const parentId = form.dataset.parentId;
+        const topicId = form.dataset.topicId;
+        const content = form.querySelector('textarea[name="content"]').value.trim();
+        const isPrivate = form.querySelector('input[name="is_private"]')?.checked ? 1 : 0;
+        const submitBtn = form.querySelector('.reply-submit-btn');
         const originalHTML = submitBtn.innerHTML;
 
         if (!content) {
@@ -245,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.innerHTML = '<i data-lucide="loader-circle" style="width:14px;height:14px;animation:spin 1s linear infinite;"></i>';
         submitBtn.disabled = true;
 
-        const formData = new FormData(this);
+        const formData = new FormData(form);
         formData.append('topic_id', topicId);
         formData.append('parent_id', parentId);
         formData.append('content', content);
@@ -254,11 +255,24 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('{{ route("posts.reply") }}', {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
             },
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.message || 'Server error');
+                }).catch(() => {
+                    return response.text().then(text => {
+                        throw new Error('Server error: ' + text.substring(0, 100));
+                    });
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 const newPost = createPostHTML(data.post);
@@ -274,29 +288,44 @@ document.addEventListener('DOMContentLoaded', function() {
                 tempDiv.innerHTML = newPost;
                 childrenContainer.appendChild(tempDiv.firstElementChild);
 
+                // Update or create toggle button
                 const toggleBtn = parentPost.querySelector('.toggle-replies-btn');
+                const count = childrenContainer.querySelectorAll('.post-bubble').length;
                 if (toggleBtn) {
-                    const count = childrenContainer.querySelectorAll('.post-bubble').length;
                     toggleBtn.innerHTML = `<i data-lucide="chevron-down" style="width:12px;height:12px;"></i> Show ${count} repl${count > 1 ? 'ies' : 'y'}`;
+                    if (childrenContainer.classList.contains('hidden')) {
+                        childrenContainer.classList.remove('hidden');
+                        toggleBtn.innerHTML = `<i data-lucide="chevron-up" style="width:12px;height:12px;"></i> Hide replies`;
+                    }
                 } else {
                     const newToggle = document.createElement('button');
                     newToggle.className = 'toggle-replies-btn text-xs text-[#2563EB] hover:underline mt-2 flex items-center gap-1';
                     newToggle.dataset.postId = parentId;
-                    newToggle.innerHTML = `<i data-lucide="chevron-down" style="width:12px;height:12px;"></i> Show 1 reply`;
+                    newToggle.innerHTML = `<i data-lucide="chevron-down" style="width:12px;height:12px;"></i> Show ${count} repl${count > 1 ? 'ies' : 'y'}`;
                     parentPost.insertBefore(newToggle, childrenContainer);
                     newToggle.addEventListener('click', toggleRepliesHandler);
                 }
 
-                this.querySelector('textarea[name="content"]').value = '';
-                this.closest('.reply-form').classList.add('hidden');
+                // Clear form
+                form.querySelector('textarea[name="content"]').value = '';
+                const fileInput = form.querySelector('input[type="file"]');
+                if (fileInput) fileInput.value = '';
+                const fileNamesSpan = document.getElementById(fileInput?.id?.replace('file-input', 'file-names'));
+                if (fileNamesSpan) {
+                    fileNamesSpan.textContent = '';
+                    fileNamesSpan.classList.add('hidden');
+                }
+                form.closest('.reply-form').classList.add('hidden');
 
                 bindAllEvents();
                 lucide.createIcons();
+            } else {
+                alert(data.message || 'Failed to post reply.');
             }
         })
         .catch(error => {
             console.error('Error posting reply:', error);
-            alert('Failed to post reply. Please try again.');
+            alert('Error: ' + error.message);
         })
         .finally(() => {
             submitBtn.innerHTML = '<i data-lucide="send" style="width:14px;height:14px;"></i>';
@@ -312,9 +341,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (mainForm) {
         mainForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            const formData = new FormData(this);
-            const submitBtn = this.querySelector('button[type="submit"]');
+
+            const form = this;
+            const formData = new FormData(form);
+            const submitBtn = form.querySelector('button[type="submit"]');
             const originalHTML = submitBtn.innerHTML;
+            const topicId = form.querySelector('input[name="topic_id"]').value;
 
             submitBtn.innerHTML = '<i data-lucide="loader-circle" style="width:18px;height:18px;animation:spin 1s linear infinite;"></i>';
             submitBtn.disabled = true;
@@ -322,24 +354,44 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch('{{ route("posts.store") }}', {
                 method: 'POST',
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
                 },
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || 'Server error (status ' + response.status + ')');
+                    }).catch(() => {
+                        return response.text().then(text => {
+                            throw new Error('Server error: ' + text.substring(0, 100));
+                        });
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     const newPost = createPostHTML(data.post);
                     const postsContainer = document.getElementById('posts-container');
-                    const mainReplyForm = document.getElementById('main-reply-form');
+                    const spacer = postsContainer.querySelector('.h-4');
 
+                    // Remove empty state if present
                     const emptyState = postsContainer.querySelector('#empty-state');
                     if (emptyState) emptyState.remove();
 
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = newPost;
-                    postsContainer.insertBefore(tempDiv.firstElementChild, mainReplyForm);
-                    this.querySelector('textarea[name="content"]').value = '';
+                    if (spacer) {
+                        postsContainer.insertBefore(tempDiv.firstElementChild, spacer);
+                    } else {
+                        postsContainer.appendChild(tempDiv.firstElementChild);
+                    }
+
+                    // Clear form
+                    form.querySelector('textarea[name="content"]').value = '';
                     const fileInput = document.getElementById('main-file-input');
                     if (fileInput) fileInput.value = '';
                     document.getElementById('main-file-names').textContent = '';
@@ -348,11 +400,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateReplyCount();
                     bindAllEvents();
                     lucide.createIcons();
+                } else {
+                    alert(data.message || 'Failed to post.');
                 }
             })
             .catch(error => {
                 console.error('Error posting:', error);
-                alert('Failed to post. Please try again.');
+                alert('Error: ' + error.message);
             })
             .finally(() => {
                 submitBtn.innerHTML = originalHTML;
@@ -448,7 +502,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // 7. JUMP TO POST – FIXED for pinned posts
+    // 7. JUMP TO POST
     // ============================================================
     function bindJumpToPost() {
         const container = document.getElementById('posts-container');
@@ -463,21 +517,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const postId = target.dataset.postId;
         if (!postId) return;
 
-        // Get the target post element (it may be hidden for pinned posts)
         let postElement = document.getElementById('post-' + postId);
-        if (!postElement) {
-            // If not found, maybe it's not in the DOM yet? (shouldn't happen)
-            return;
-        }
+        if (!postElement) return;
 
-        // If the post is hidden (style="display:none" or has class 'hidden')
+        // If hidden (pinned post hidden), show it
         if (postElement.style.display === 'none') {
             postElement.style.display = 'block';
-            // Optionally also remove a 'hidden' class if you use one
-            // postElement.classList.remove('hidden');
         }
 
-        // Expand any parent containers (same logic as before)
+        // Expand any parent containers
         let parent = postElement.closest('.children-container');
         while (parent) {
             if (parent.classList.contains('hidden')) {
@@ -490,10 +538,7 @@ document.addEventListener('DOMContentLoaded', function() {
             parent = parent.parentElement.closest('.children-container');
         }
 
-        // Remove old highlights
         document.querySelectorAll('.highlight-flash').forEach(el => el.classList.remove('highlight-flash'));
-
-        // Scroll and highlight instantly
         postElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         postElement.classList.add('highlight-flash');
         setTimeout(() => postElement.classList.remove('highlight-flash'), 2000);
@@ -534,7 +579,7 @@ document.addEventListener('DOMContentLoaded', function() {
         bindReplyForms();
         bindLikeEvents();
         bindPinEvents();
-        bindJumpToPost(); // only needs to be called once, but safe
+        bindJumpToPost();
         bindToggleReplies();
         document.querySelectorAll('.reply-file-input').forEach(input => {
             input.removeEventListener('change', replyFileChangeHandler);
@@ -557,9 +602,99 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // 10. createPostHTML (unchanged – keep your existing function)
+    // 10. createPostHTML – WhatsApp style, paperclip left
+    //     ✅ Uses file.url, file.name, file.is_image from server
     // ============================================================
-    // ... (your existing createPostHTML function goes here)
+    function createPostHTML(post) {
+        const isLiked = post.is_liked
+            ? '<i data-lucide="heart" style="width:14px;height:14px;fill:#DC2626;color:#DC2626;"></i>'
+            : '<i data-lucide="heart" style="width:14px;height:14px;"></i>';
+
+        let attachmentsHtml = '';
+        if (post.attachments && post.attachments.length > 0) {
+            attachmentsHtml = '<div class="mt-2 flex flex-wrap gap-2">';
+            post.attachments.forEach(file => {
+                const fileName = file.name || 'file';
+                const isImage = file.is_image || false;
+                const url = file.url || '#';
+                if (isImage) {
+                    attachmentsHtml += `
+                        <a href="${url}" target="_blank" rel="noopener noreferrer" class="block border rounded-lg overflow-hidden hover:opacity-80 transition">
+                            <img src="${url}" class="max-w-xs max-h-48 object-contain" alt="${fileName}">
+                        </a>
+                    `;
+                } else {
+                    attachmentsHtml += `
+                        <a href="${url}" download="${fileName}" class="flex items-center gap-1 text-xs text-[#2563EB] border border-[#E5E5E5] rounded-lg px-3 py-1.5 hover:bg-[#F9F9F9] transition">
+                            <i data-lucide="file" style="width:12px;height:12px;"></i>
+                            ${fileName}
+                        </a>
+                    `;
+                }
+            });
+            attachmentsHtml += '</div>';
+        }
+
+        const fileInputId = 'reply-file-' + post.id;
+        const fileNamesId = 'reply-file-names-' + post.id;
+
+        return `
+            <div class="post-bubble bg-white rounded-2xl shadow-sm border border-[#E5E5E5] p-3 transition hover:shadow-md" id="post-${post.id}" data-post-id="${post.id}">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2 min-w-0 flex-1">
+                        <div class="w-7 h-7 bg-[#ECFDF5] rounded-full flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="user" style="width:14px;height:14px;color:#0A574F;"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center flex-wrap gap-1">
+                                <span class="text-sm font-bold text-[#000000]">${post.author.name}</span>
+                                <span class="text-[10px] text-[#666666]">${post.created_at}</span>
+                                ${post.is_private ? '<span class="text-[8px] font-bold uppercase tracking-wider text-[#DC2626] border border-[#DC2626] px-1.5 py-0.5 rounded-full">Private</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-0.5 flex-shrink-0 ml-1">
+                        <button class="like-btn text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center gap-1 px-1.5 py-1 rounded-lg hover:bg-[#F0F0F0]" data-post-id="${post.id}">
+                            <span class="like-icon">${isLiked}</span>
+                            <span class="like-count text-sm font-medium">${post.likes_count || 0}</span>
+                        </button>
+                        <button class="reply-toggle text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center gap-1 px-1.5 py-1 rounded-lg hover:bg-[#F0F0F0]" data-post-id="${post.id}">
+                            <i data-lucide="reply" style="width:14px;height:14px;"></i>
+                        </button>
+                        <button class="pin-btn text-xs text-[#666666] hover:text-[#000000] transition-colors flex items-center gap-1 px-1.5 py-1 rounded-lg hover:bg-[#F0F0F0]" data-post-id="${post.id}">
+                            <i data-lucide="${post.is_pinned ? 'pin-off' : 'pin'}" style="width:14px;height:14px;"></i>
+                        </button>
+                    </div>
+                </div>
+                <p class="text-sm text-[#000000] leading-relaxed mt-1">${post.content}</p>
+                ${attachmentsHtml}
+                <div class="mt-2 hidden reply-form" id="reply-form-${post.id}">
+                    <form class="reply-form-ajax" data-parent-id="${post.id}" data-topic-id="{{ $topic->id }}">
+                        @csrf
+                        <div class="flex items-end gap-2">
+                            <label for="${fileInputId}" class="cursor-pointer text-[#666666] hover:text-[#0A574F] transition p-1.5 rounded-full hover:bg-[#F0F0F0] flex-shrink-0">
+                                <i data-lucide="paperclip" style="width:16px;height:16px;"></i>
+                            </label>
+                            <input type="file" name="attachments[]" multiple id="${fileInputId}"
+                                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                                   class="hidden reply-file-input">
+                            <span id="${fileNamesId}" class="text-[9px] text-[#666666] truncate max-w-[80px] hidden"></span>
+                            <div class="flex-1 relative">
+                                <textarea name="content" rows="1" required
+                                          class="w-full bg-[#F9F9F9] border border-[#E5E5E5] rounded-lg px-3 py-1.5 text-sm focus:border-[#0A574F] focus:ring-2 focus:ring-[#0A574F]/20 outline-none transition resize-none"
+                                          placeholder="Write a reply..." style="min-height:36px; max-height:100px;"
+                                          oninput="this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 100) + 'px';"></textarea>
+                            </div>
+                            <button type="submit"
+                                    class="reply-submit-btn flex items-center justify-center bg-[#0A574F] text-white p-1.5 rounded-full hover:bg-[#08443e] transition w-8 h-8 flex-shrink-0">
+                                <i data-lucide="send" style="width:14px;height:14px;"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
 
     // ============================================================
     // 11. UPDATE REPLY COUNT
@@ -601,12 +736,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 const newPosts = data.posts.filter(p => p.author_id != userId);
                 if (newPosts.length > 0) {
                     const container = document.getElementById('posts-container');
-                    const mainForm = document.getElementById('main-reply-form');
+                    const spacer = container.querySelector('.h-4');
                     newPosts.forEach(post => {
                         const html = createPostHTML(post);
                         const temp = document.createElement('div');
                         temp.innerHTML = html;
-                        container.insertBefore(temp.firstElementChild, mainForm);
+                        if (spacer) {
+                            container.insertBefore(temp.firstElementChild, spacer);
+                        } else {
+                            container.appendChild(temp.firstElementChild);
+                        }
                         if (post.id > lastPostId) lastPostId = post.id;
                     });
                     bindAllEvents();

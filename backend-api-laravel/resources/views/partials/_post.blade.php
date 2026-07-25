@@ -51,23 +51,25 @@
 
     <p class="text-sm text-[#000000] leading-relaxed mt-1">{{ $post->content }}</p>
 
-    {{-- ✅ Attachments – fixed count() usage --}}
+    {{-- Attachments – images open in new tab, others download --}}
     @if($post->attachments && count($post->attachments) > 0)
         <div class="mt-2 flex flex-wrap gap-2">
             @foreach($post->attachments as $file)
                 @php
-                    $ext = pathinfo($file, PATHINFO_EXTENSION);
-                    $isImage = in_array(strtolower($ext), ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']);
-                    $url = asset('storage/' . $file);
+                    // If $file is an object (from formatted attachments) use it, else treat as string path
+                    $path = is_array($file) ? ($file['path'] ?? $file) : $file;
+                    $url = is_array($file) ? ($file['url'] ?? asset('storage/' . $path)) : asset('storage/' . $path);
+                    $name = is_array($file) ? ($file['name'] ?? basename($path)) : basename($path);
+                    $isImage = is_array($file) ? ($file['is_image'] ?? false) : in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['jpg','jpeg','png','gif','svg','webp']);
                 @endphp
                 @if($isImage)
                     <a href="{{ $url }}" target="_blank" class="block border rounded-lg overflow-hidden">
-                        <img src="{{ $url }}" class="max-w-xs max-h-48 object-contain">
+                        <img src="{{ $url }}" class="max-w-xs max-h-48 object-contain" alt="{{ $name }}">
                     </a>
                 @else
-                    <a href="{{ $url }}" target="_blank" class="flex items-center gap-1 text-xs text-[#2563EB] border border-[#E5E5E5] rounded-lg px-3 py-1.5 hover:bg-[#F9F9F9] transition">
+                    <a href="{{ $url }}" download="{{ $name }}" class="flex items-center gap-1 text-xs text-[#2563EB] border border-[#E5E5E5] rounded-lg px-3 py-1.5 hover:bg-[#F9F9F9] transition">
                         <i data-lucide="file" style="width:12px;height:12px;"></i>
-                        {{ basename($file) }}
+                        {{ $name }}
                     </a>
                 @endif
             @endforeach

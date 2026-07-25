@@ -472,7 +472,7 @@ class StudentController extends Controller
             'is_private' => 'boolean',
             'excluded_user_ids' => 'nullable|array',
             'attachments' => 'nullable|array',
-            'attachments.*' => 'file|mimes:jpg,jpeg,png,gif,svg,pdf,doc,docx,xls,xlsx,txt|max:5120', // 5MB max
+            'attachments.*' => 'file|mimes:jpg,jpeg,png,gif,svg,pdf,doc,docx,xls,xlsx,txt|max:10240', // 10MB max
         ]);
 
         // Handle file attachments
@@ -662,7 +662,7 @@ class StudentController extends Controller
             'is_private' => 'boolean',
             'excluded_user_ids' => 'nullable|array',
             'attachments' => 'nullable|array',
-            'attachments.*' => 'file|mimes:jpg,jpeg,png,gif,svg,pdf,doc,docx,xls,xlsx,txt|max:5120',
+            'attachments.*' => 'file|mimes:jpg,jpeg,png,gif,svg,pdf,doc,docx,xls,xlsx,txt|max:10240',
         ]);
 
         // Handle file attachments
