@@ -15,8 +15,8 @@ use App\Http\Controllers\Api\PollController;
 
 // ==================== PUBLIC ROUTES ====================
 
-// 1. Root Redirect
-Route::redirect('/', '/login')->name('root.redirect');
+// 1. Root → Welcome Page
+Route::get('/', [AuthController::class, 'welcome'])->name('welcome');
 
 // 2. Authentication Routes
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');

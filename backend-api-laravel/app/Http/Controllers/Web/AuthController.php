@@ -12,13 +12,17 @@ use Illuminate\Support\Facades\Password;
 class AuthController extends Controller
 {
     /**
-     * Show the login form.
+     * Show the login form and welcome page
      */
     public function showLoginForm()
     {
         return view('auth.login');
     }
 
+        public function welcome()
+    {
+        return view('welcome');
+    }
     /**
      * Handle login request.
      */
