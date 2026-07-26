@@ -94,7 +94,7 @@ class StudentController extends Controller
         ));
     }
 
-        /**
+    /**
      * Clear user's affinity cache (useful after interactions)
      */
     public function clearAffinityCache()
@@ -237,6 +237,7 @@ class StudentController extends Controller
             'interactionCounts'
         ));
     }
+
     /**
      * List All Groups (Index) - Shows ALL groups with membership status
      */
@@ -355,12 +356,12 @@ class StudentController extends Controller
     }
 
     /**
-     * List Topics in a Group
+     * List Topics in a Group (with privacy filter)
      */
     public function topics($groupId)
     {
         $user = Auth::user();
-        $group = Group::withCount('topics')->findOrFail($groupId);
+        $group = Group::withCount(['topics', 'users'])->findOrFail($groupId);
         
         // Check if user has agreed to rules
         $hasAgreed = $user->groups()
@@ -373,6 +374,7 @@ class StudentController extends Controller
         }
         
         $topics = Topic::where('group_id', $groupId)
+            ->visibleToUser($user->id)
             ->with(['creator', 'posts'])
             ->withCount('posts')
             ->latest()
@@ -393,7 +395,7 @@ class StudentController extends Controller
     }
 
     /**
-     * Store a new topic
+     * Store a new topic (with private support)
      */
     public function storeTopic(Request $request)
     {
@@ -401,6 +403,9 @@ class StudentController extends Controller
             'group_id' => 'required|exists:groups,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'is_private' => 'nullable|boolean',
+            'included_user_ids' => 'nullable|array',
+            'included_user_ids.*' => 'exists:users,id',
         ]);
 
         $groupId = $validated['group_id'];
@@ -420,9 +425,15 @@ class StudentController extends Controller
             'description' => $validated['description'] ?? null,
             'creator_id' => Auth::id(),
             'ml_category' => $mlCategory,
+            'is_private' => $validated['is_private'] ?? false,
         ]);
 
-        // ✅ Check if topic was created successfully
+        // If private, attach included users (creator is always included)
+        if ($topic->is_private && !empty($validated['included_user_ids'])) {
+            $included = array_unique(array_merge($validated['included_user_ids'], [Auth::id()]));
+            $topic->includedUsers()->sync($included);
+        }
+
         if (!$topic) {
             return redirect()->back()
                 ->with('error', 'Failed to create topic. Please try again.')
@@ -436,12 +447,13 @@ class StudentController extends Controller
     }
 
     /**
-     * Show a single topic with its posts
+     * Show a single topic with its posts (with privacy check)
      */
     public function showTopic($groupId, $topicId)
     {
-        // Topic must belong to the group
+        // Topic must belong to the group AND be visible to the user
         $topic = Topic::where('group_id', $groupId)
+            ->visibleToUser(Auth::id())
             ->with(['creator', 'group'])
             ->findOrFail($topicId);
         
@@ -530,76 +542,6 @@ class StudentController extends Controller
             ]
         ]);
     }
-
-    /**
-     * Server-Sent Events stream for topic updates
-     */
-/*     public function sseStream($topicId)
-    {
-        $response = response()->stream(function () use ($topicId) {
-            // Set headers for SSE
-            header('Content-Type: text/event-stream');
-            header('Cache-Control: no-cache');
-            header('Connection: keep-alive');
-            header('X-Accel-Buffering: no');
-
-            $lastCheck = now()->subSeconds(5);
-            $lastPostId = 0;
-
-            while (true) {
-                // Check for new posts
-                $newPosts = Post::where('topic_id', $topicId)
-                    ->where('created_at', '>', $lastCheck)
-                    ->where('id', '>', $lastPostId)
-                    ->with('author')
-                    ->orderBy('id', 'asc')
-                    ->get();
-
-                if ($newPosts->isNotEmpty()) {
-                    foreach ($newPosts as $post) {
-                        // Skip if post is by current user
-                        if ($post->user_id == Auth::id()) {
-                            continue;
-                        }
-                        
-                        $data = [
-                            'id' => $post->id,
-                            'content' => $post->content,
-                            'author' => $post->author->name ?? 'Unknown',
-                            'author_id' => $post->user_id,
-                            'created_at' => $post->created_at->diffForHumans(),
-                            'total' => Post::where('topic_id', $topicId)->count(),
-                        ];
-
-                        echo "event: new_post\n";
-                        echo "data: " . json_encode($data) . "\n\n";
-                        ob_flush();
-                        flush();
-
-                        $lastPostId = $post->id;
-                    }
-                }
-
-                $lastCheck = now();
-                
-                // Keep connection alive
-                echo ": heartbeat\n\n";
-                ob_flush();
-                flush();
-
-                // Sleep for 2 seconds
-                sleep(2);
-            }
-        }, 200, [
-            'Content-Type' => 'text/event-stream',
-            'Cache-Control' => 'no-cache',
-            'Connection' => 'keep-alive',
-            'X-Accel-Buffering' => 'no',
-        ]);
-
-        return $response;
-    } */
-
 
     /**
      * Long polling - waits for new posts
@@ -978,6 +920,7 @@ class StudentController extends Controller
         $filename = Str::slug($topic->title) . '_history.pdf';
         return $pdf->download($filename);
     }
+
     /**
      * Show performance report for a quiz
      */
@@ -1085,11 +1028,8 @@ class StudentController extends Controller
     }
 
     /**
-     * pinned message for a group      
+     * Toggle pin status of a post (any authenticated user)
      */
-/**
- * Toggle pin status of a post (any authenticated user)
- */
     public function togglePin($postId)
     {
         $user = Auth::user();
@@ -1112,4 +1052,19 @@ class StudentController extends Controller
         ]);
     }
 
+    /**
+     * Get members of a group (for private topic user selection)
+     * AJAX endpoint for the create topic form.
+     */
+    public function getGroupMembers($groupId)
+    {
+        $group = Group::with('users')->findOrFail($groupId);
+        
+        return response()->json([
+            'users' => $group->users->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+            ])
+        ]);
+    }
 }

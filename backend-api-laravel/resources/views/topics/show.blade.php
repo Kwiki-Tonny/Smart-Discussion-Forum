@@ -45,9 +45,15 @@
         <div class="bg-white border-b border-[#E5E5E5] px-8 py-6">
             <div class="flex items-center justify-between">
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 flex-wrap">
                         <i data-lucide="message-circle" style="width:28px;height:28px;color:#0A574F;"></i>
                         <h1 class="text-2xl font-bold text-[#000000] truncate">{{ $topic->title }}</h1>
+                        @if($topic->is_private)
+                            <span class="text-[8px] font-bold uppercase tracking-wider text-[#DC2626] border-2 border-[#DC2626] px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <i data-lucide="lock" style="width:10px;height:10px;"></i>
+                                Private
+                            </span>
+                        @endif
                     </div>
                     @if($topic->description)
                         <p class="text-sm text-[#666666] mt-1 pl-9">{{ $topic->description }}</p>

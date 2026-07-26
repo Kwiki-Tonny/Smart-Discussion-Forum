@@ -54,6 +54,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/groups/{group}/join', [StudentController::class, 'joinGroup'])->name('groups.join');
     Route::post('/groups/{group}/leave', [StudentController::class, 'leaveGroup'])->name('groups.leave');
 
+    // ---------- Group Members (for private topic user selection) ----------
+    Route::get('/group/{group}/members', [StudentController::class, 'getGroupMembers'])->name('group.members');
+
     // ---------- Topics ----------
     Route::get('/topics/create', [StudentController::class, 'createTopic'])->name('topics.create');
     Route::post('/topics', [StudentController::class, 'storeTopic'])->name('topics.store');
