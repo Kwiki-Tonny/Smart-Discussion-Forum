@@ -433,4 +433,91 @@ class AdminController extends Controller
 
         return view('admin.groups-list', compact('groups'));
     }
+
+    /**
+     * Export full admin report as PDF
+     */
+    public function exportReport()
+    {
+        // Basic stats
+        $data = [
+            'totalUsers' => User::count(),
+            'totalStudents' => User::where('role', 'student')->count(),
+            'totalLecturers' => User::where('role', 'lecturer')->count(),
+            'totalAdmins' => User::where('role', 'admin')->count(),
+            'totalGroups' => Group::count(),
+            'totalTopics' => Topic::count(),
+            'totalPosts' => Post::count(),
+            'totalQuizzes' => Quiz::count(),
+            'totalSubmissions' => QuizSubmission::count(),
+            'pendingRegistrations' => User::where('role', 'student')->where('status', 'pending')->count(),
+            'blacklistedUsers' => User::where('status', 'blacklisted')->count(),
+            'warnedOnce' => User::where('status', 'warned_once')->count(),
+            'warnedTwice' => User::where('status', 'warned_twice')->count(),
+            'generatedAt' => now()->format('Y-m-d H:i:s'),
+        ];
+
+        // Groups with topic and post counts (replies)
+        $groups = Group::withCount(['topics', 'users'])
+            ->withCount(['topics as posts_count' => function($q) {
+                // Count all posts in all topics of this group
+                $q->selectRaw('sum((
+                    select count(*) from posts where posts.topic_id = topics.id
+                ))');
+            }])
+            ->orderBy('topics_count', 'desc')
+            ->get();
+
+        // Add a calculated "replies" as posts_count minus topics? Actually posts are replies to topics, but we treat all posts as replies.
+        // We'll use posts_count directly.
+        $data['groupRankByTopics'] = $groups->sortByDesc('topics_count')->take(10);
+        $data['groupRankByReplies'] = $groups->sortByDesc('posts_count')->take(10);
+
+        // User rankings by posts (total posts written)
+        $topPosters = User::where('role', 'student')
+            ->withCount('posts')
+            ->orderBy('posts_count', 'desc')
+            ->take(10)
+            ->get();
+        $data['topPosters'] = $topPosters;
+
+        // User rankings by replies (if reply is a separate field, but we treat all posts as replies; if you have a parent_id, count replies separately)
+        // For simplicity, we count posts where parent_id is not null (replies to other posts)
+        $topRepliers = User::where('role', 'student')
+            ->withCount(['posts as replies_count' => function($q) {
+                $q->whereNotNull('parent_id');
+            }])
+            ->orderBy('replies_count', 'desc')
+            ->take(10)
+            ->get();
+        $data['topRepliers'] = $topRepliers;
+
+        // Quiz performance: summary stats
+        $quizStats = [
+            'total_quizzes' => Quiz::count(),
+            'total_submissions' => QuizSubmission::count(),
+            'avg_score' => QuizSubmission::avg('score') ?? 0,
+            'pass_rate' => QuizSubmission::where('passed', true)->count() / max(QuizSubmission::count(), 1) * 100,
+            'top_students' => User::where('role', 'student')
+                ->withAvg('quizSubmissions as avg_score', 'score')
+                ->having('avg_score', '>', 0)
+                ->orderBy('avg_score', 'desc')
+                ->take(10)
+                ->get(),
+            'quiz_performance' => Quiz::withCount('submissions')
+                ->withAvg('submissions as avg_score', 'score')
+                ->orderBy('submissions_count', 'desc')
+                ->take(10)
+                ->get(),
+        ];
+        $data['quizStats'] = $quizStats;
+
+        // Also recent blacklist logs
+        $data['recentBlacklistLogs'] = BlacklistLog::with('user')->latest()->limit(20)->get();
+        $data['recentUsers'] = User::latest()->limit(20)->get();
+
+        $pdf = \PDF::loadView('admin.report-pdf', $data);
+        $pdf->setPaper('A4', 'portrait');
+        return $pdf->download('admin-report-' . now()->format('Y-m-d') . '.pdf');
+    }
 }
