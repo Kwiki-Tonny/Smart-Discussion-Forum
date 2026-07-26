@@ -118,6 +118,11 @@
                         <i data-lucide="refresh-cw" style="width:12px;height:12px;"></i>
                         Refresh
                     </button>
+                    <a href="{{ route('admin.report.export') }}"
+                    class="bg-[#0A574F] text-white px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-[#08443e] transition flex items-center gap-1">
+                        <i data-lucide="file-text" style="width:14px;height:14px;"></i>
+                        Export Report PDF
+                    </a>
                 </div>
             </div>
         </div>

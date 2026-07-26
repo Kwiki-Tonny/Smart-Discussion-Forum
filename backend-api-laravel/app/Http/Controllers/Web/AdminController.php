@@ -435,89 +435,124 @@ class AdminController extends Controller
     }
 
     /**
-     * Export full admin report as PDF
+     * Export full admin report as PDF (A4 portrait)
      */
     public function exportReport()
     {
-        // Basic stats
-        $data = [
-            'totalUsers' => User::count(),
-            'totalStudents' => User::where('role', 'student')->count(),
-            'totalLecturers' => User::where('role', 'lecturer')->count(),
-            'totalAdmins' => User::where('role', 'admin')->count(),
-            'totalGroups' => Group::count(),
-            'totalTopics' => Topic::count(),
-            'totalPosts' => Post::count(),
-            'totalQuizzes' => Quiz::count(),
-            'totalSubmissions' => QuizSubmission::count(),
-            'pendingRegistrations' => User::where('role', 'student')->where('status', 'pending')->count(),
-            'blacklistedUsers' => User::where('status', 'blacklisted')->count(),
-            'warnedOnce' => User::where('status', 'warned_once')->count(),
-            'warnedTwice' => User::where('status', 'warned_twice')->count(),
-            'generatedAt' => now()->format('Y-m-d H:i:s'),
-        ];
+        // ---- Base Stats ----
+        $totalUsers      = User::count();
+        $totalStudents   = User::where('role', 'student')->count();
+        $totalLecturers  = User::where('role', 'lecturer')->count();
+        $totalAdmins     = User::where('role', 'admin')->count();
+        $totalGroups     = Group::count();
+        $totalTopics     = Topic::count();
+        $totalPosts      = Post::count();
+        $totalQuizzes    = Quiz::count();
+        $totalSubmissions= QuizSubmission::count();
 
-        // Groups with topic and post counts (replies)
-        $groups = Group::withCount(['topics', 'users'])
-            ->withCount(['topics as posts_count' => function($q) {
-                // Count all posts in all topics of this group
-                $q->selectRaw('sum((
-                    select count(*) from posts where posts.topic_id = topics.id
-                ))');
-            }])
-            ->orderBy('topics_count', 'desc')
+        $pendingRegistrations = User::where('role', 'student')->where('status', 'pending')->count();
+        $blacklistedUsers     = User::where('status', 'blacklisted')->count();
+        $warnedOnce   = User::where('status', 'warned_once')->count();
+        $warnedTwice  = User::where('status', 'warned_twice')->count();
+
+        // ---- Group Rankings ----
+        // By topics
+        $groupRankByTopics = Group::withCount('topics')
+            ->orderByDesc('topics_count')
+            ->limit(20)
             ->get();
 
-        // Add a calculated "replies" as posts_count minus topics? Actually posts are replies to topics, but we treat all posts as replies.
-        // We'll use posts_count directly.
-        $data['groupRankByTopics'] = $groups->sortByDesc('topics_count')->take(10);
-        $data['groupRankByReplies'] = $groups->sortByDesc('posts_count')->take(10);
+        // By replies (total posts across all topics in the group)
+        $groupRankByReplies = Group::withCount(['topics as posts_count' => function ($q) {
+            $q->withCount('posts');
+        }])
+        ->orderByDesc('posts_count')
+        ->limit(20)
+        ->get();
 
-        // User rankings by posts (total posts written)
+        // ---- Student Rankings ----
+        // By total posts (replies)
         $topPosters = User::where('role', 'student')
             ->withCount('posts')
-            ->orderBy('posts_count', 'desc')
-            ->take(10)
+            ->orderByDesc('posts_count')
+            ->limit(20)
             ->get();
-        $data['topPosters'] = $topPosters;
 
-        // User rankings by replies (if reply is a separate field, but we treat all posts as replies; if you have a parent_id, count replies separately)
-        // For simplicity, we count posts where parent_id is not null (replies to other posts)
+        // By replies (same as posts, but we can also compute separately if needed)
         $topRepliers = User::where('role', 'student')
-            ->withCount(['posts as replies_count' => function($q) {
-                $q->whereNotNull('parent_id');
-            }])
-            ->orderBy('replies_count', 'desc')
-            ->take(10)
+            ->withCount('posts')
+            ->orderByDesc('posts_count')
+            ->limit(20)
             ->get();
-        $data['topRepliers'] = $topRepliers;
 
-        // Quiz performance: summary stats
+        // ---- Quiz Performance ----
         $quizStats = [
-            'total_quizzes' => Quiz::count(),
-            'total_submissions' => QuizSubmission::count(),
-            'avg_score' => QuizSubmission::avg('score') ?? 0,
-            'pass_rate' => QuizSubmission::where('passed', true)->count() / max(QuizSubmission::count(), 1) * 100,
-            'top_students' => User::where('role', 'student')
-                ->withAvg('quizSubmissions as avg_score', 'score')
-                ->having('avg_score', '>', 0)
-                ->orderBy('avg_score', 'desc')
-                ->take(10)
-                ->get(),
-            'quiz_performance' => Quiz::withCount('submissions')
-                ->withAvg('submissions as avg_score', 'score')
-                ->orderBy('submissions_count', 'desc')
-                ->take(10)
-                ->get(),
+            'total_quizzes'    => $totalQuizzes,
+            'total_submissions'=> $totalSubmissions,
+            'avg_score'        => $totalSubmissions > 0 ? QuizSubmission::avg('score') : 0,
+            'pass_rate'        => 0,
+            'top_students'     => collect([]),
+            'quiz_performance' => collect([]),
         ];
-        $data['quizStats'] = $quizStats;
 
-        // Also recent blacklist logs
-        $data['recentBlacklistLogs'] = BlacklistLog::with('user')->latest()->limit(20)->get();
-        $data['recentUsers'] = User::latest()->limit(20)->get();
+        if ($totalSubmissions > 0) {
+            // Pass rate (score >= 50)
+            $passed = QuizSubmission::where('score', '>=', 50)->count();
+            $quizStats['pass_rate'] = round(($passed / $totalSubmissions) * 100, 1);
+
+            // Top students by average score (at least 5 submissions to avoid outliers)
+            $topStudents = \DB::table('quiz_submissions')
+                ->select('user_id', \DB::raw('AVG(score) as avg_score'))
+                ->groupBy('user_id')
+                ->having('avg_score', '>=', 50)
+                ->orderByDesc('avg_score')
+                ->limit(20)
+                ->get();
+
+            $userIds = $topStudents->pluck('user_id')->toArray();
+            $users = User::whereIn('id', $userIds)->get()->keyBy('id');
+
+            $quizStats['top_students'] = $topStudents->map(function ($item) use ($users) {
+                $user = $users->get($item->user_id);
+                return (object) [
+                    'name'      => $user ? $user->name : 'Unknown',
+                    'avg_score' => round($item->avg_score, 1),
+                ];
+            });
+
+            // Per-quiz performance (only quizzes with submissions)
+            $quizStats['quiz_performance'] = Quiz::whereHas('submissions')
+                ->withCount('submissions')
+                ->withAvg('submissions', 'score')
+                ->orderByDesc('submissions_count')
+                ->limit(20)
+                ->get()
+                ->map(function ($q) {
+                    $q->avg_score = round($q->submissions_avg_score ?? 0, 1);
+                    return $q;
+                });
+        }
+
+        // ---- Recent Activity ----
+        $recentUsers = User::latest()->limit(20)->get();
+        $recentBlacklistLogs = BlacklistLog::with('user')->latest()->limit(20)->get();
+
+        // ---- Pass all variables to view ----
+        $data = compact(
+            'totalUsers', 'totalStudents', 'totalLecturers', 'totalAdmins',
+            'totalGroups', 'totalTopics', 'totalPosts',
+            'totalQuizzes', 'totalSubmissions',
+            'pendingRegistrations', 'blacklistedUsers', 'warnedOnce', 'warnedTwice',
+            'groupRankByTopics', 'groupRankByReplies',
+            'topPosters', 'topRepliers',
+            'quizStats',
+            'recentUsers', 'recentBlacklistLogs'
+        );
+        $data['generatedAt'] = now()->format('Y-m-d H:i:s');
 
         $pdf = \PDF::loadView('admin.report-pdf', $data);
         $pdf->setPaper('A4', 'portrait');
+
         return $pdf->download('admin-report-' . now()->format('Y-m-d') . '.pdf');
     }
 }

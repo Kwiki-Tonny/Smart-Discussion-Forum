@@ -135,6 +135,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/configuration', [AdminController::class, 'updateConfiguration'])->name('admin.configuration.update');
         Route::get('/group/{group}/statistics', [AdminController::class, 'groupStatistics'])->name('admin.group.statistics');
         Route::get('/groups', [AdminController::class, 'groupsList'])->name('admin.groups');
+        Route::get('/report/export', [AdminController::class, 'exportReport'])->name('admin.report.export');
     });
 
 
