@@ -24,35 +24,98 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
+/**
+ * Controller managing the dynamic quiz evaluation interface in JavaFX.
+ *
+ * Handles dynamic question rendering (text, single choice, and multiple choice),
+ * real-time timer countdowns, asynchronous API submissions, and focus-loss anti-cheat enforcement.
+ */
 public class QuizController {
 
+    /* =========================================================================
+     * FXML UI COMPONENTS
+     * ========================================================================= */
+
+    /** Header text display for the active quiz title. */
     @FXML private Text quizTitleText;
+
+    /** Display label showing remaining quiz time in MM:SS format. */
     @FXML private Text timerText;
+
+    /** Text display tracking current question position (e.g., "Question 1 of 5"). */
     @FXML private Text qNumText;
+
+    /** Main prompt text container for the currently displayed question. */
     @FXML private Text qText;
+
+    /** Dynamic container holding input controls (radio buttons, checkboxes, text areas) for options. */
     @FXML private VBox optionsContainer;
+
+    /** Graphical indicator region for visual completion progress. */
     @FXML private Region progressFill;
+
+    /** Numerical progress label showing answered count. */
     @FXML private Text progressText;
+
+    /** Navigation button to step back to the previous question. */
     @FXML private Button prevBtn;
+
+    /** Navigation button to advance to the next question. */
     @FXML private Button nextBtn;
+
+    /** Submission action button to complete and finalize the quiz attempt. */
     @FXML private Button submitBtn;
 
+    /* =========================================================================
+     * STATE MANAGEMENT & DATA FIELDS
+     * ========================================================================= */
+
+    /** Index pointer of the currently rendered question (0-indexed). */
     private int currentQuestion = 0;
+
+    /** In-memory store linking question index to selected/typed candidate responses. */
     private Map<Integer, Object> answers = new HashMap<>();
+
+    /** Counter tracking the number of times the window loses desktop focus during an active quiz. */
     private int focusLossCount = 0;
+
+    /** Animation timer executing per-second countdown updates. */
     private Timeline timer;
+
+    /** Seconds remaining before automated quiz expiry and submission. */
     private int remainingSeconds = 0;
+
+    /** Unique server-assigned identifier for the current quiz attempt session. */
     private int attemptId = -1;
+
+    /** List of question instances associated with this quiz attempt. */
     private List<Question> questions = new ArrayList<>();
+
+    /** Cleanup callback action executed when the quiz window is closed. */
     private Runnable onClose;
+
+    /** Flag indicating if the current attempt has been submitted to prevent duplicate processing. */
     private boolean submitted = false;
+
+    /** Flag guarding against premature auto-submitting during component instantiation. */
     private boolean isQuizStarted = false; // Prevents auto-submit on load
 
+    /** Singleton REST client instance for transmitting quiz answers to backend. */
     private final ApiService api = ApiService.getInstance();
 
+    /**
+     * Called automatically by JavaFX framework after FXML loading is complete.
+     */
     @FXML
     public void initialize() { }
 
+    /**
+     * Populates controller fields with attempt data, calculates remaining duration,
+     * configures lockdown anti-cheat listeners, and starts the countdown timer.
+     *
+     * @param attempt The quiz attempt payload containing question details and timestamps
+     * @param onClose Callback runnable triggered upon quiz completion or dismissal
+     */
     public void setQuizData(QuizAttempt attempt, Runnable onClose) {
         this.attemptId = attempt.id;
         this.questions = attempt.quiz.questions;
@@ -105,6 +168,12 @@ public class QuizController {
         setupLockdown();
     }
     
+    /**
+     * Renders question elements, dynamic selection controls (Text, Single Choice, Multiple Choice),
+     * and updates progress bar and control button states based on question index.
+     *
+     * @param index Zero-based question array index to display
+     */
     private void showQuestion(int index) {
         if (index < 0 || index >= questions.size()) return;
 
@@ -197,9 +266,16 @@ public class QuizController {
         }
     }
 
+    /** Navigates back to the preceding question if not on the first question. */
     @FXML public void handlePrevious() { if (currentQuestion > 0) showQuestion(currentQuestion - 1); }
+
+    /** Navigates forward to the next question if not on the last question. */
     @FXML public void handleNext() { if (currentQuestion < questions.size() - 1) showQuestion(currentQuestion + 1); }
 
+    /**
+     * Initializes and starts the 1-second interval JavaFX Timeline timer.
+     * Automatically triggers autoSubmit when remaining time reaches zero.
+     */
     private void startTimer() {
         timer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
             remainingSeconds--;
@@ -213,6 +289,11 @@ public class QuizController {
         timer.play();
     }
 
+    /**
+     * Formats remaining seconds into MM:SS display format and applies warning color when time is short.
+     *
+     * @param seconds Integer count of remaining time
+     */
     private void updateTimerUI(int seconds) {
         int mins = seconds / 60;
         int secs = seconds % 60;
@@ -220,6 +301,10 @@ public class QuizController {
         timerText.setStyle(seconds <= 60 ? "-fx-fill: #ff6b6b;" : "-fx-fill: #000000;");
     }
 
+    /**
+     * Handles manual user submission request. Validates answered counts, asks for confirmation
+     * via modal alert dialogs, and dispatches API submission asynchronously on a background thread.
+     */
     @FXML
     public void handleSubmit() {
         if (submitted) return;
@@ -291,6 +376,12 @@ public class QuizController {
         new Thread(task).start();
     }
 
+    /**
+     * Handles forced automated quiz submission caused by timeout, lost window focus,
+     * or explicit server expiry responses.
+     *
+     * @param reason Description text displayed in the completion alert header
+     */
     private void autoSubmit(String reason) {
         if (submitted) return;
         submitted = true;
@@ -334,6 +425,12 @@ public class QuizController {
         new Thread(task).start();
     }
 
+    /**
+     * Renders a modal confirmation dialog displaying final score metrics upon submission completion.
+     *
+     * @param header Banner text header for the result window
+     * @param detail Submission response details containing correct response counts and percentages
+     */
     private void showResultAlert(String header, QuizAttemptDetail detail) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Quiz Complete");
@@ -343,6 +440,11 @@ public class QuizController {
         alert.showAndWait();
     }
 
+    /**
+     * Helper method to render simple informational message dialogs.
+     *
+     * @param message Text payload to present in the dialog content area
+     */
     private void showToast(String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Notification");
@@ -351,6 +453,10 @@ public class QuizController {
         alert.showAndWait();
     }
 
+    /**
+     * Configures window event listeners to prevent copy/paste keyboard shortcuts
+     * and track window defocus events (focus loss warning & auto-submit enforcement).
+     */
     private void setupLockdown() {
         quizTitleText.getScene().getRoot().setOnKeyPressed(e -> {
             if (e.isControlDown() && (e.getCode() == javafx.scene.input.KeyCode.C ||
@@ -377,6 +483,9 @@ public class QuizController {
         });
     }
 
+    /**
+     * Stops active countdown timers, unbinds window event handlers, and triggers the onClose callback.
+     */
     @FXML
     public void closeQuiz() {
         // Remove window close handler to prevent re-triggering
@@ -389,6 +498,9 @@ public class QuizController {
         }
     }
 
+    /**
+     * Performs stage resource teardown and halts active background timers.
+     */
     public void cleanup() {
         if (timer != null) timer.stop();
         Stage stage = (Stage) quizTitleText.getScene().getWindow();

@@ -55,97 +55,256 @@ import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.awt.Desktop;
 
+/**
+ * MainController is the central hub for the primary user interface of the Smart Discussion Forum application.
+ * 
+ * <p><b>Architectural Role:</b>
+ * This class acts as the Controller in the MVC (Model-View-Controller) pattern. It is responsible for:
+ * <ul>
+ *   <li>Managing the lifecycle and state of the main application view (Groups, Topics, Threads, Profile, Quizzes).</li>
+ *   <li>Orchestrating asynchronous network requests via {@link ApiService} using JavaFX {@link Task} to prevent UI freezing.</li>
+ *   <li>Maintaining an "offline-first" resilient architecture by falling back to {@link DatabaseHandler} when network requests fail.</li>
+ *   <li>Dynamically generating and updating the JavaFX scene graph (e.g., building nested reply trees, rendering group lists).</li>
+ *   <li>Enforcing application state constraints, such as the "Quiz Lockdown" mechanism which restricts navigation during active quizzes.</li>
+ * </ul>
+ * 
+ * <p><b>Concurrency Model:</b>
+ * All blocking operations (API calls, database reads) are executed on background threads via {@link Task}. 
+ * Any mutation of the JavaFX scene graph is strictly delegated to the JavaFX Application Thread using {@link Platform#runLater(Runnable)} 
+ * to ensure thread safety and prevent {@link IllegalStateException} crashes.
+ * 
+ * <p><b>State Management:</b>
+ * Relies on the Singleton {@link GlobalState} for current user context, authentication status, and network connectivity status.
+ * 
+ * @author Forum Development Team
+ * @version 2.0
+ * @see ApiService
+ * @see GlobalState
+ * @see DatabaseHandler
+ */
 public class MainController {
 
-    // ─── FXML INJECTIONS ──────────────────────────────────────────
+    // =========================================================================
+    // ─── FXML INJECTIONS ─────────────────────────────────────────────────────
+    // =========================================================================
+    // These fields are automatically populated by the FXMLLoader based on the 
+    // fx:id attributes defined in the corresponding MainView.fxml file.
+    // They represent the direct bridge between the Java logic and the UI layout.
+
+    /** Displays the name of the currently authenticated user in the top navigation bar. */
     @FXML private Text userNameText;
+    
+    /** Displays the current contextual title (e.g., "Groups", "Computer Science 101", "Profile"). */
     @FXML private Text contextTitle;
+    
+    /** 
+     * A dynamic action button whose purpose changes based on the current view. 
+     * For example, it becomes a "+" button to create a new topic when inside a group.
+     */
     @FXML private Button contextActionBtn;
+    
+    /** 
+     * The left-hand sidebar container. It dynamically renders lists of Groups, Topics, 
+     * or Quiz cards depending on the current navigation state.
+     */
     @FXML private VBox contextList;
+    
+    /** 
+     * The main content area on the right. It displays the active view's primary content, 
+     * such as the thread discussion tree, profile statistics, or the active quiz interface.
+     */
     @FXML private VBox threadArea;
+    
+    /** The container for the main reply form at the bottom of a thread view. */
     @FXML private VBox replyForm;
+    
+    /** The multi-line text input field where users type their main thread replies. */
     @FXML private TextArea replyText;
+    
+    /** Checkbox allowing the user to mark their post as private (visible only to selected users). */
     @FXML private CheckBox privateCheck;
+    
+    /** Button that opens the user selection dialog when a post is marked as private. */
     @FXML private Button selectUsersBtn;
+    
+    /** Visual indicator (green/red dot) showing the current network connectivity status. */
     @FXML private Circle statusDot;
+    
+    /** Text label accompanying the status dot, displaying "Online" or "Offline". */
     @FXML private Label statusLabel;
+    
+    /** Displays detailed synchronization status or error messages (e.g., "Offline - changes saved locally"). */
     @FXML private Text syncStatus;
+    
+    /** The search input field used to filter the displayed lists of groups or topics. */
     @FXML private TextField searchField;
 
+    /** Navigation button to switch the main view to the Groups list. */
     @FXML private Button navGroups;
+    
+    /** Navigation button to switch the main view to the User Profile and statistics. */
     @FXML private Button navProfile;
+    
+    /** Navigation button to switch the main view to the available Quizzes list. */
     @FXML private Button navQuizzes;
+    
+    /** Navigation button to switch the main view to the historical Quiz Results. */
     @FXML private Button navResults;
 
-    // ─── CONSTANTS ─────────────────────────────────────────────────
+    // =========================================================================
+    // ─── CONSTANTS ───────────────────────────────────────────────────────────
+    // =========================================================================
+
+    /** 
+     * The base URL for the backend REST API. 
+     * Used for constructing absolute URLs when generating shareable links for topics and posts.
+     */
     private static final String WEB_BASE_URL = "http://localhost:8000";
 
-    // ─── SERVICES & STATE ─────────────────────────────────────────
+    // =========================================================================
+    // ─── SERVICES & STATE ────────────────────────────────────────────────────
+    // =========================================================================
+
+    /** 
+     * Singleton instance managing global application state, including the current 
+     * authenticated user, network connectivity status, and event listeners.
+     */
     private final GlobalState state = GlobalState.getInstance();
+    
+    /** 
+     * Singleton instance responsible for all HTTP network communications with the backend server.
+     */
     private final ApiService api = ApiService.getInstance();
 
-    // Data from API
+    // --- Data Models (Cached from API) ---
+    
+    /** Complete list of all groups fetched from the server. */
     private List<Group> allGroups = new ArrayList<>();
+    
+    /** Observable list of groups the current user has already joined. Bound to the UI for reactive updates. */
     private ObservableList<Group> joinedGroups = FXCollections.observableArrayList();
+    
+    /** Observable list of groups the current user has not yet joined. Bound to the UI for reactive updates. */
     private ObservableList<Group> availableGroups = FXCollections.observableArrayList();
+    
+    /** 
+     * Filtered wrapper around {@link #joinedGroups}. Allows real-time search filtering 
+     * without mutating the underlying observable list.
+     */
     private FilteredList<Group> filteredJoined;
+    
+    /** 
+     * Filtered wrapper around {@link #availableGroups}. Allows real-time search filtering 
+     * without mutating the underlying observable list.
+     */
     private FilteredList<Group> filteredAvailable;
 
+    /** Cached list of topics for the currently selected group. */
     private List<Topic> topics = new ArrayList<>();
+    
+    /** Cached list of posts for the currently selected topic. Represents the flattened or nested tree of posts. */
     private List<Post> currentPosts = new ArrayList<>();
 
-    // Current selections
+    // --- Current Context Selections ---
+    
+    /** Tracks the current high-level view mode (e.g., "groups", "profile", "quizzes", "results"). */
     private String currentView = "groups";
+    
+    /** Reference to the group currently being viewed. Null if no group is selected. */
     private Group currentGroup;
+    
+    /** Reference to the topic currently being viewed. Null if no topic is selected. */
     private Topic currentTopic;
 
-    // Inline reply tracking
+    // --- Inline Reply State Tracking ---
+    
+    /** Holds the reference to the specific post that the user is currently replying to inline. */
     private Post currentReplyTarget = null;
+    
+    /** Holds the UI node (VBox) of the currently active inline reply form to manage its visibility and focus. */
     private VBox currentInlineForm = null;
 
-    // UI helper
+    // --- UI Helpers ---
+    
+    /** Label used in the main reply form to indicate who/what the user is replying to. */
     private Label replyToLabel;
 
-    // Quiz lockdown flag
+    // --- Application State Flags ---
+    
+    /** 
+     * Security/UX flag. When true, navigation and most interactions are disabled to prevent 
+     * the user from leaving the quiz interface or interfering with quiz state.
+     */
     private boolean isQuizActive = false;
 
-    // Private post exclusions
+    /** 
+     * Stores the IDs of users to exclude from viewing a post when the "Private" checkbox is selected.
+     * This is sent to the API to enforce server-side access control.
+     */
     private List<Integer> excludedUserIds = new ArrayList<>();
 
-    // ─── INITIALIZATION ────────────────────────────────────────────
+    // =========================================================================
+    // ─── INITIALIZATION ──────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Called automatically by the FXMLLoader after the FXML file has been loaded and 
+     * all @FXML annotated fields have been injected.
+     * 
+     * <p><b>Responsibilities:</b>
+     * <ul>
+     *   <li>Initialize default UI states (e.g., reply labels).</li>
+     *   <li>Fetch and display the current user's name from {@link GlobalState}.</li>
+     *   <li>Setup event listeners for connection status, authentication changes, and search input.</li>
+     *   <li>Configure the visibility logic for the "Private Post" user selection button.</li>
+     *   <li>Setup a global click listener on the thread area to dismiss inline reply forms when clicking outside of them.</li>
+     *   <li>Trigger the initial data load for groups.</li>
+     * </ul>
+     * 
+     * @throws RuntimeException if a critical initialization failure occurs, preventing the app from functioning.
+     */
     @FXML
     public void initialize() {
         try {
             System.out.println("MainController.initialize: start");
 
+            // Initialize the main reply form's target label if the form exists in the FXML
             if (replyForm != null && replyForm.getChildren().size() > 0) {
                 replyToLabel = new Label("Replying to: Thread");
                 replyToLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #666666; -fx-padding: 0 0 4 0;");
+                // Insert at the top of the reply form
                 replyForm.getChildren().add(0, replyToLabel);
             }
 
+            // Safely retrieve the current user. Fallback to "Guest" if session is somehow uninitialized.
             User user = state.getCurrentUser();
             userNameText.setText(user != null ? user.name : "Guest");
 
+            // Wire up core system listeners
             setupConnectionStatus();
             setupAuthListeners();
             setupSearchListener();
 
+            // Bind the visibility of the "Select Users" button to the state of the "Private" checkbox.
+            // If the user unchecks "Private", we must also clear the exclusion list to prevent stale data.
             privateCheck.selectedProperty().addListener((obs, oldVal, newVal) -> {
                 selectUsersBtn.setVisible(newVal);
-                selectUsersBtn.setManaged(newVal);
+                selectUsersBtn.setManaged(newVal); // setManaged ensures it takes up layout space only when visible
                 if (!newVal) {
                     excludedUserIds.clear();
                     updateSelectedUsersLabel();
                 }
             });
 
+            // Global click listener to dismiss inline reply forms when the user clicks elsewhere in the thread area.
+            // This prevents multiple inline forms from being open simultaneously and improves UX.
             if (threadArea != null) {
                 threadArea.setOnMouseClicked(e -> {
                     if (currentInlineForm != null) {
                         boolean clickedInside = false;
                         javafx.scene.Node target = (javafx.scene.Node) e.getTarget();
+                        
+                        // Traverse the node hierarchy upwards to check if the click originated inside the inline form
                         while (target != null) {
                             if (target.equals(currentInlineForm)) {
                                 clickedInside = true;
@@ -153,6 +312,8 @@ public class MainController {
                             }
                             target = target.getParent();
                         }
+                        
+                        // If the click was outside the form, hide and un-manage it
                         if (!clickedInside) {
                             currentInlineForm.setVisible(false);
                             currentInlineForm.setManaged(false);
@@ -162,40 +323,74 @@ public class MainController {
                 });
             }
 
+            // Kick off the initial asynchronous data fetch for groups
             loadGroups();
 
             System.out.println("MainController.initialize: done");
         } catch (Exception e) {
             System.err.println("Exception in MainController.initialize:");
             e.printStackTrace();
+            // Re-throw to ensure the application fails fast and visibly if initialization is broken
             throw e;
         }
     }
 
-    // ─── SEARCH LISTENER ──────────────────────────────────────────
+    // =========================================================================
+    // ─── SEARCH LISTENER ─────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Configures the reactive search functionality for the Groups view.
+     * 
+     * <p><b>Implementation Detail:</b>
+     * Instead of manually filtering and rebuilding the UI list on every keystroke, this method 
+     * attaches a listener to the {@link #searchField}'s text property. It updates the predicate 
+     * of the {@link FilteredList} wrappers ({@link #filteredJoined} and {@link #filteredAvailable}). 
+     * JavaFX automatically handles the efficient re-rendering of the {@link #contextList} based on 
+     * the filtered observable lists.
+     */
     private void setupSearchListener() {
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
+            // Normalize the query for case-insensitive matching
             String query = newVal.toLowerCase().trim();
+            
+            // Update the predicate for joined groups
             filteredJoined.setPredicate(group ->
                 group.name.toLowerCase().contains(query)
             );
+            
+            // Update the predicate for available groups
             filteredAvailable.setPredicate(group ->
                 group.name.toLowerCase().contains(query)
             );
+            
+            // Trigger a UI refresh of the group lists
             renderGroups();
         });
     }
 
-    // ─── CONNECTION & AUTH ────────────────────────────────────────
+    // =========================================================================
+    // ─── CONNECTION & AUTH ───────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Initializes listeners to monitor the application's network connectivity status.
+     * 
+     * <p><b>Thread Safety Note:</b>
+     * The {@link GlobalState.ConnectionListener} callbacks may be triggered from a background 
+     * network monitoring thread. Therefore, all UI updates within the callback are strictly 
+     * wrapped in {@link Platform#runLater(Runnable)} to ensure they execute on the JavaFX Application Thread.
+     */
     private void setupConnectionStatus() {
+        // Set initial UI state based on current known connectivity
         updateConnectionUI(state.isOnline());
+        
         state.addConnectionListener(new GlobalState.ConnectionListener() {
             @Override
             public void onConnectionChange(boolean isOnline) {
                 Platform.runLater(() -> updateConnectionUI(isOnline));
             }
+            
             @Override
             public void onError(String error) {
                 Platform.runLater(() -> {
@@ -207,8 +402,14 @@ public class MainController {
         });
     }
 
+    /**
+     * Updates the visual indicators (status dot, label, sync text) to reflect the current network state.
+     * 
+     * @param isOnline {@code true} if the application has an active internet connection, {@code false} otherwise.
+     */
     private void updateConnectionUI(boolean isOnline) {
         if (statusDot != null) {
+            // Green (#16a34a) for online, Red (#dc2626) for offline
             statusDot.setStyle(isOnline ? "-fx-fill: #16a34a;" : "-fx-fill: #dc2626;");
         }
         if (statusLabel != null) {
@@ -220,6 +421,14 @@ public class MainController {
         }
     }
 
+    /**
+     * Initializes listeners to monitor the user's authentication state.
+     * 
+     * <p><b>Security Note:</b>
+     * If the user is de-authenticated (e.g., logged out from another device) or the JWT token expires, 
+     * this listener immediately forces a navigation back to the login screen to prevent unauthorized 
+     * access to protected routes.
+     */
     private void setupAuthListeners() {
         state.addAuthListener(new GlobalState.AuthListener() {
             @Override
@@ -234,6 +443,7 @@ public class MainController {
                     });
                 }
             }
+            
             @Override
             public void onTokenExpired() {
                 Platform.runLater(() -> {
@@ -248,8 +458,18 @@ public class MainController {
         });
     }
 
-    // ─── REAL API DATA LOADING ────────────────────────────────────
+    // =========================================================================
+    // ─── REAL API DATA LOADING ───────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Asynchronously fetches the list of all groups from the backend API.
+     * 
+     * <p><b>Concurrency Pattern:</b>
+     * Uses {@link Task} to execute the blocking {@link ApiService#getGroups()} call on a background thread.
+     * Upon success, it splits the data into joined/available lists and updates the UI on the JavaFX thread.
+     * Upon failure, it gracefully degrades by showing an error state in the UI.
+     */
     private void loadGroups() {
         Task<List<Group>> task = new Task<>() {
             @Override
@@ -257,6 +477,7 @@ public class MainController {
                 return api.getGroups();
             }
         };
+        
         task.setOnSucceeded(e -> {
             allGroups = task.getValue();
             Platform.runLater(() -> {
@@ -269,15 +490,25 @@ public class MainController {
                 }
             });
         });
+        
         task.setOnFailed(e -> {
             Platform.runLater(() -> {
                 showEmptyState("Failed to load groups. Check your connection.");
                 task.getException().printStackTrace();
             });
         });
+        
+        // Execute the task on a new background thread
         new Thread(task).start();
     }
 
+    /**
+     * Partitions the flat list of {@link #allGroups} into two distinct observable lists:
+     * {@link #joinedGroups} and {@link #availableGroups}.
+     * 
+     * <p>This separation is required for the UI to render "My Groups" and "Discover Groups" 
+     * as two visually distinct sections in the sidebar.
+     */
     private void splitGroupsByMembership() {
         joinedGroups.clear();
         availableGroups.clear();
@@ -291,11 +522,21 @@ public class MainController {
         }
     }
 
+    /**
+     * Initializes the {@link FilteredList} wrappers for the joined and available groups.
+     * The initial predicate is set to {@code group -> true}, meaning all items are visible 
+     * until the user types into the search field.
+     */
     private void setupFilteredLists() {
         filteredJoined = new FilteredList<>(joinedGroups, group -> true);
         filteredAvailable = new FilteredList<>(availableGroups, group -> true);
     }
 
+    /**
+     * Asynchronously fetches the list of topics for a specific group.
+     * 
+     * @param group The {@link Group} object for which to fetch topics.
+     */
     private void loadTopicsForGroup(Group group) {
         Task<List<Topic>> task = new Task<>() {
             @Override
@@ -303,26 +544,43 @@ public class MainController {
                 return api.getTopicsForGroup(group.id);
             }
         };
+        
         task.setOnSucceeded(e -> {
             topics = task.getValue();
             Platform.runLater(() -> {
                 renderTopics(topics);
+                // Clear the main thread area and hide the reply form, as no specific topic is selected yet
                 threadArea.getChildren().clear();
                 replyForm.setVisible(false);
                 replyForm.setManaged(false);
             });
         });
+        
         task.setOnFailed(e -> {
             Platform.runLater(() -> {
                 showEmptyState("Failed to load topics.");
                 task.getException().printStackTrace();
             });
         });
+        
         new Thread(task).start();
     }
 
-    // ─── FIXED: POST LOADING WITH TREE BUILDING FOR BOTH PATHS ───
+    // =========================================================================
+    // ─── FIXED: POST LOADING WITH TREE BUILDING FOR BOTH PATHS ───────────────
+    // =========================================================================
 
+    /**
+     * Orchestrates the loading of posts for a given topic.
+     * 
+     * <p><b>Resilience Strategy:</b>
+     * If the application is online, it attempts to fetch posts from the API. If the API call fails, 
+     * it automatically falls back to {@link #loadLocalPosts(Topic)} to retrieve locally cached drafts 
+     * or previously synced data, ensuring the user can still view content offline.
+     * If the application is already offline, it bypasses the API and goes straight to the local database.
+     * 
+     * @param topic The {@link Topic} for which to load posts.
+     */
     private void loadPostsForTopic(Topic topic) {
         if (state.isOnline()) {
             Task<List<Post>> task = new Task<>() {
@@ -331,44 +589,66 @@ public class MainController {
                     return api.getPostsForTopic(topic.id);
                 }
             };
+            
             task.setOnSucceeded(e -> {
                 List<Post> flatPosts = task.getValue();
-                // ✅ BUILD TREE – same as offline
+                // ✅ BUILD TREE – Converts the flat list of posts into a hierarchical nested structure 
+                // for proper UI rendering of threaded replies.
                 List<Post> nestedPosts = buildReplyTree(flatPosts);
                 displayPosts(nestedPosts, topic);
             });
+            
             task.setOnFailed(e -> {
                 Throwable ex = task.getException();
                 if (ex != null) {
                     ex.printStackTrace();
                     System.err.println("Load posts error: " + ex.getMessage());
                 }
-                // Fallback to local
+                // Fallback to local storage on network failure
                 loadLocalPosts(topic);
             });
+            
             new Thread(task).start();
         } else {
+            // Offline path: load directly from local SQLite/database cache
             loadLocalPosts(topic);
         }
     }
 
+    /**
+     * Retrieves posts for a topic from the local database cache.
+     * 
+     * @param topic The {@link Topic} for which to load local posts.
+     */
     private void loadLocalPosts(Topic topic) {
         List<Post> localPosts = DatabaseHandler.getLocalPostsForTopic(topic.id);
         System.out.println("📂 Local posts loaded: " + localPosts.size());
         for (Post p : localPosts) {
             System.out.println("  Local post ID: " + p.id + ", parentId: " + p.parentId);
         }
+        
+        // Even local posts must be structured as a tree for the UI renderer
         List<Post> nestedPosts = buildReplyTree(localPosts);
         displayPosts(nestedPosts, topic);
     }
 
+    /**
+     * Prepares the UI for displaying posts.
+     * 
+     * @param posts The hierarchical list of posts to display.
+     * @param topic The topic context.
+     */
     private void displayPosts(List<Post> posts, Topic topic) {
         System.out.println("📊 displayPosts: " + posts.size() + " top-level posts");
         Platform.runLater(() -> {
             currentPosts = posts;
             renderThread(topic, posts);
+            
+            // Ensure the main reply form is visible and takes up layout space
             replyForm.setVisible(true);
             replyForm.setManaged(true);
+            
+            // Reset inline reply state
             currentReplyTarget = null;
             if (replyToLabel != null) {
                 replyToLabel.setText("Replying to: Thread");
@@ -376,11 +656,29 @@ public class MainController {
         });
     }
 
-    // ─── BUILD REPLY TREE (NESTED REPLIES) ────────────────────────
+    // =========================================================================
+    // ─── BUILD REPLY TREE (NESTED REPLIES) ───────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Converts a flat list of {@link Post} objects into a hierarchical tree structure.
+     * 
+     * <p><b>Algorithm:</b>
+     * <ol>
+     *   <li>First pass: Populate a HashMap mapping {@code postId} to {@code Post} object for O(1) lookups. Initialize empty reply lists.</li>
+     *   <li>Second pass: Iterate through all posts. If a post has a valid {@code parentId} (> 0), find the parent in the map and add the current post to the parent's {@code replies} list.</li>
+     *   <li>Orphan Handling: If a parent is not found (e.g., due to pagination limits or deleted parents), the post is gracefully promoted to a top-level post to prevent data loss in the UI.</li>
+     *   <li>Sorting: Sort both the top-level posts and all nested reply lists chronologically by {@code created_at}.</li>
+     * </ol>
+     * 
+     * @param flatPosts The unstructured list of posts fetched from the API or database.
+     * @return A list of top-level posts, with child posts nested inside their respective {@code replies} collections.
+     */
     private List<Post> buildReplyTree(List<Post> flatPosts) {
         System.out.println("🌳 buildReplyTree: flatPosts size = " + flatPosts.size());
         Map<Integer, Post> postMap = new HashMap<>();
+        
+        // Pass 1: Index posts and initialize reply containers
         for (Post p : flatPosts) {
             postMap.put(p.id, p);
             p.replies = new ArrayList<>();
@@ -388,24 +686,28 @@ public class MainController {
         }
 
         List<Post> topLevelPosts = new ArrayList<>();
+        
+        // Pass 2: Build the hierarchy
         for (Post p : flatPosts) {
-            // Treat parentId as valid if > 0 (local_id or server_id)
+            // Treat parentId as valid if > 0 (handles both local_id and server_id)
             if (p.parentId != null && p.parentId > 0) {
                 Post parent = postMap.get(p.parentId);
                 if (parent != null) {
                     parent.replies.add(p);
                     System.out.println("  ➜ Added reply " + p.id + " to parent " + p.parentId);
                 } else {
+                    // Orphan handling: Promote to top-level if parent is missing
                     topLevelPosts.add(p);
                     System.out.println("  ⚠️ Orphan post " + p.id + " with parent " + p.parentId + " (parent not found)");
                 }
             } else {
+                // Naturally a top-level post
                 topLevelPosts.add(p);
                 System.out.println("  ✓ Top-level post " + p.id);
             }
         }
 
-        // sort replies by creation time
+        // Pass 3: Chronological sorting
         for (Post p : postMap.values()) {
             if (p.replies != null) {
                 p.replies.sort(Comparator.comparing(p2 -> p2.created_at));
@@ -417,8 +719,16 @@ public class MainController {
         return topLevelPosts;
     }
 
-    // ─── UI HELPERS ──────────────────────────────────────────────
+    // =========================================================================
+    // ─── UI HELPERS ──────────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Clears the left sidebar ({@link #contextList}) and displays a centered, muted message.
+     * Used for empty states (e.g., no groups, no search results).
+     * 
+     * @param message The user-friendly message to display.
+     */
     private void showEmptyState(String message) {
         contextList.getChildren().clear();
         Label label = new Label(message);
@@ -426,6 +736,12 @@ public class MainController {
         contextList.getChildren().add(label);
     }
 
+    /**
+     * Clears the main content area ({@link #threadArea}) and displays a centered, red error message.
+     * Used for critical failures in loading thread data.
+     * 
+     * @param message The error message to display.
+     */
     private void showErrorInThread(String message) {
         threadArea.getChildren().clear();
         Label label = new Label("❌ " + message);
@@ -433,14 +749,25 @@ public class MainController {
         threadArea.getChildren().add(label);
     }
 
+    /**
+     * Displays a standard JavaFX Information Alert to the user.
+     * 
+     * @param message The content text of the toast/notification.
+     */
     private void showToast(String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Notification");
-        alert.setHeaderText(null);
+        alert.setHeaderText(null); // Remove default bold header for a cleaner "toast" look
         alert.setContentText(message);
         alert.showAndWait();
     }
 
+    /**
+     * Manages the visual "active" state of the left navigation buttons.
+     * Removes the "active" CSS class from all nav buttons and applies it only to the specified button.
+     * 
+     * @param active The {@link Button} that should appear highlighted/active.
+     */
     private void setActiveNav(Button active) {
         navGroups.getStyleClass().remove("active");
         navProfile.getStyleClass().remove("active");
@@ -449,22 +776,37 @@ public class MainController {
         active.getStyleClass().add("active");
     }
 
-    // ─── NAVIGATION ───────────────────────────────────────────────
+    // =========================================================================
+    // ─── NAVIGATION ──────────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Action handler for the "Groups" navigation button.
+     * Resets the UI to the default Groups view, clears thread data, and re-renders the group lists.
+     * 
+     * <p><b>Security Check:</b> Prevents navigation if a quiz is currently active ({@link #isQuizActive}).
+     */
     @FXML
     public void showGroups() {
         if (isQuizActive) {
             showToast("🔒 Cannot navigate while quiz is in progress.");
             return;
         }
+        
         currentView = "groups";
         setActiveNav(navGroups);
         contextTitle.setText("Groups");
+        
+        // Hide the context action button (e.g., the "+" button) as it's not applicable at the root groups level
         contextActionBtn.setVisible(false);
         contextActionBtn.setManaged(false);
+        
         replyForm.setVisible(false);
         replyForm.setManaged(false);
+        
         renderGroups();
+        
+        // Clear the main thread area and show a placeholder prompt
         threadArea.getChildren().clear();
         VBox placeholder = new VBox(12);
         placeholder.setAlignment(Pos.CENTER);
@@ -475,14 +817,23 @@ public class MainController {
         msg.setStyle("-fx-text-fill: #999999; -fx-font-size: 14px;");
         placeholder.getChildren().addAll(icon, msg);
         threadArea.getChildren().add(placeholder);
+        
         searchField.clear();
     }
 
-    // ─── RENDER GROUPS ─────────────────────────────────────────────
+    // =========================================================================
+    // ─── RENDER GROUPS ───────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Dynamically generates the UI nodes for the groups sidebar.
+     * It renders two distinct sections: "My Groups" (joined) and "Discover Groups" (available),
+     * respecting the current search filter predicates.
+     */
     private void renderGroups() {
         contextList.getChildren().clear();
 
+        // Render Joined Groups Section
         if (!filteredJoined.isEmpty()) {
             Label header = new Label("📚 My Groups");
             header.setStyle("-fx-font-size: 13px; -fx-font-weight: 700; -fx-text-fill: #1A7A64; -fx-padding: 8px 16px 4px 16px; -fx-background-color: #f5f5f5;");
@@ -492,6 +843,7 @@ public class MainController {
             }
         }
 
+        // Render Available Groups Section
         if (!filteredAvailable.isEmpty()) {
             Label header = new Label("🔍 Discover Groups");
             header.setStyle("-fx-font-size: 13px; -fx-font-weight: 700; -fx-text-fill: #1A7A64; -fx-padding: 12px 16px 4px 16px; -fx-background-color: #f5f5f5; -fx-border-color: #e5e7eb; -fx-border-width: 1px 0 0 0;");
@@ -501,6 +853,7 @@ public class MainController {
             }
         }
 
+        // Handle the case where the search filter yields no results
         if (filteredJoined.isEmpty() && filteredAvailable.isEmpty()) {
             Label empty = new Label("No groups match your search.");
             empty.setStyle("-fx-padding: 40px; -fx-text-fill: #999; -fx-alignment: center;");
@@ -508,10 +861,18 @@ public class MainController {
         }
     }
 
+    /**
+     * Factory method to create a single, styled UI card for a {@link Group}.
+     * 
+     * @param group The data model for the group.
+     * @param isJoined {@code true} if the user is already a member (changes button text/color and click behavior).
+     * @return A {@link VBox} representing the group card.
+     */
     private VBox createGroupItem(Group group, boolean isJoined) {
         VBox item = new VBox(4);
         item.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-width: 0 0 1px 0; " +
                 "-fx-padding: 12px 16px; -fx-cursor: hand;");
+        // Attach click handler for the entire card
         item.setOnMouseClicked(new GroupClickHandler(group));
 
         Label title = new Label(group.name);
@@ -529,6 +890,7 @@ public class MainController {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        // Join/Leave button with dynamic styling based on membership status
         Button joinBtn = new Button(isJoined ? "Leave" : "Join");
         joinBtn.setStyle("-fx-background-color: " + (isJoined ? "#dc3545" : "#1A7A64") + "; " +
                 "-fx-text-fill: #ffffff; -fx-font-size: 11px; -fx-font-weight: 600; -fx-padding: 2px 14px; " +
@@ -540,26 +902,47 @@ public class MainController {
         return item;
     }
 
-    // ─── HANDLER CLASSES FOR GROUP CLICKS AND JOIN/LEAVE ────────
+    // =========================================================================
+    // ─── HANDLER CLASSES FOR GROUP CLICKS AND JOIN/LEAVE ─────────────────────
+    // =========================================================================
 
+    /**
+     * Inner class handler for group card click events.
+     * Encapsulates the {@link Group} reference to avoid lambda capture issues and provides a clean separation of concerns.
+     */
     private class GroupClickHandler implements EventHandler<MouseEvent> {
         private final Group group;
-        GroupClickHandler(Group group) { this.group = group; }
+        
+        GroupClickHandler(Group group) { 
+            this.group = group; 
+        }
+        
         @Override
         public void handle(MouseEvent event) {
-            if (!isQuizActive) handleGroupClick(group);
+            // Respect quiz lockdown state
+            if (!isQuizActive) {
+                handleGroupClick(group);
+            }
         }
     }
 
+    /**
+     * Inner class handler for the Join/Leave button within a group card.
+     * Prevents event bubbling conflicts with the main card click handler.
+     */
     private class JoinButtonHandler implements EventHandler<ActionEvent> {
         private final Group group;
         private final boolean isJoined;
+        
         JoinButtonHandler(Group group, boolean isJoined) {
             this.group = group;
             this.isJoined = isJoined;
         }
+        
         @Override
         public void handle(ActionEvent event) {
+            // Consume event to prevent it from triggering the parent VBox's click handler
+            event.consume();
             if (isJoined) {
                 handleLeaveGroup(group);
             } else {
@@ -568,33 +951,52 @@ public class MainController {
         }
     }
 
-    // ─── JOIN / LEAVE ─────────────────────────────────────────────
+    // =========================================================================
+    // ─── JOIN / LEAVE ────────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Asynchronously processes a request to join a group and automatically accept its community rules.
+     * 
+     * @param group The {@link Group} to join.
+     */
     private void handleJoinGroup(Group group) {
         Task<Void> task = new Task<>() {
             @Override
             protected Void call() throws Exception {
                 api.joinGroup(group.id);
-                api.acceptRules(group.id);
+                api.acceptRules(group.id); // Auto-accept rules upon joining
                 return null;
             }
         };
+        
         task.setOnSucceeded(e -> {
+            // Update local state immediately for a responsive UI (Optimistic UI update)
             group.isMember = true;
             availableGroups.remove(group);
             joinedGroups.add(group);
+            
+            // Re-sort alphabetically to maintain a clean UI
             FXCollections.sort(joinedGroups, Comparator.comparing(g -> g.name));
             FXCollections.sort(availableGroups, Comparator.comparing(g -> g.name));
+            
             renderGroups();
             showToast("✅ Joined group: " + group.name);
         });
+        
         task.setOnFailed(e -> {
             showToast("❌ Failed to join group: " + task.getException().getMessage());
             task.getException().printStackTrace();
         });
+        
         new Thread(task).start();
     }
 
+    /**
+     * Asynchronously processes a request to leave a group.
+     * 
+     * @param group The {@link Group} to leave.
+     */
     private void handleLeaveGroup(Group group) {
         Task<Void> task = new Task<>() {
             @Override
@@ -603,22 +1005,35 @@ public class MainController {
                 return null;
             }
         };
+        
         task.setOnSucceeded(e -> {
+            // Update local state immediately
             group.isMember = false;
             joinedGroups.remove(group);
             availableGroups.add(group);
+            
             FXCollections.sort(joinedGroups, Comparator.comparing(g -> g.name));
             FXCollections.sort(availableGroups, Comparator.comparing(g -> g.name));
+            
             renderGroups();
             showToast("✅ Left group: " + group.name);
         });
+        
         task.setOnFailed(e -> {
             showToast("❌ Failed to leave group: " + task.getException().getMessage());
             task.getException().printStackTrace();
         });
+        
         new Thread(task).start();
     }
 
+    /**
+     * Core logic for handling a user clicking on a group card.
+     * If the user is not a member, it intercepts the click to show the Community Rules modal.
+     * If they are a member, it proceeds to open the group's topics.
+     * 
+     * @param group The clicked {@link Group}.
+     */
     private void handleGroupClick(Group group) {
         if (!group.isMember) {
             showCommunityRules(group);
@@ -627,13 +1042,22 @@ public class MainController {
         openGroupTopics(group);
     }
 
-    // ─── COMMUNITY RULES ─────────────────────────────────────────
+    // =========================================================================
+    // ─── COMMUNITY RULES ─────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Displays a modal dialog outlining the community rules for a specific group.
+     * The user must explicitly click "Accept to Continue" to join the group, ensuring 
+     * informed consent and adherence to platform guidelines.
+     * 
+     * @param group The {@link Group} whose rules are being displayed.
+     */
     private void showCommunityRules(Group group) {
         try {
             Stage rulesStage = new Stage();
-            rulesStage.initModality(Modality.APPLICATION_MODAL);
-            rulesStage.initStyle(StageStyle.UNDECORATED);
+            rulesStage.initModality(Modality.APPLICATION_MODAL); // Block interaction with parent windows
+            rulesStage.initStyle(StageStyle.UNDECORATED); // Custom chrome-less window for modern UI
             rulesStage.setTitle("Community Rules");
 
             VBox root = new VBox(16);
@@ -652,6 +1076,7 @@ public class MainController {
             VBox body = new VBox(12);
             body.setPadding(new Insets(20));
 
+            // Structured rule definitions for easy maintenance and consistent UI
             String[][] rules = {
                     {"📜", "Be respectful — Maintain professional discourse at all times."},
                     {"🚫", "No spam — Keep the environment clean and relevant."},
@@ -666,7 +1091,7 @@ public class MainController {
                 icon.setStyle("-fx-font-size: 14px;");
                 Label text = new Label(rule[1]);
                 text.setStyle("-fx-font-size: 13px; -fx-text-fill: #1e293b; -fx-wrap-text: true;");
-                text.setMaxWidth(420);
+                text.setMaxWidth(420); // Enforce text wrapping for readability
                 ruleBox.getChildren().addAll(icon, text);
                 body.getChildren().add(ruleBox);
             }
@@ -695,24 +1120,36 @@ public class MainController {
             root.getChildren().addAll(header, body, footer);
 
             Scene scene = new Scene(root);
+            // Inject global stylesheet for consistent typography and component styling
             scene.getStylesheets().add(getClass().getResource("/com/forum/css/style.css").toExternalForm());
             rulesStage.setScene(scene);
-            rulesStage.showAndWait();
+            rulesStage.showAndWait(); // Block execution until the dialog is closed
 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    // ─── OPEN GROUP & TOPICS ──────────────────────────────────────
+    // =========================================================================
+    // ─── OPEN GROUP & TOPICS ─────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Transitions the UI to display the topics within a specific group.
+     * Updates the context title, reveals the "Create Topic" action button, and triggers the async load of topics.
+     * 
+     * @param group The {@link Group} to open.
+     */
     private void openGroupTopics(Group group) {
         if (isQuizActive) {
             showToast("🔒 Cannot navigate while quiz is in progress.");
             return;
         }
+        
         currentGroup = group;
         contextTitle.setText(group.name);
+        
+        // Reveal and configure the context action button for creating a new topic
         contextActionBtn.setVisible(true);
         contextActionBtn.setManaged(true);
         contextActionBtn.setText("+");
@@ -723,6 +1160,7 @@ public class MainController {
 
         loadTopicsForGroup(group);
 
+        // Clear the main thread area and show a placeholder prompt
         threadArea.getChildren().clear();
         VBox placeholder = new VBox(12);
         placeholder.setAlignment(Pos.CENTER);
@@ -735,18 +1173,33 @@ public class MainController {
         threadArea.getChildren().add(placeholder);
     }
 
+    /**
+     * Inner class handler for the "Create Topic" button.
+     * Captures the current {@link Group} context to pass to the dialog.
+     */
     private class CreateTopicHandler implements EventHandler<ActionEvent> {
         private final Group group;
-        CreateTopicHandler(Group group) { this.group = group; }
+        
+        CreateTopicHandler(Group group) { 
+            this.group = group; 
+        }
+        
         @Override
         public void handle(ActionEvent event) {
             showCreateTopicDialog(group);
         }
     }
 
+    /**
+     * Dynamically renders the list of topics for the currently selected group in the left sidebar.
+     * Includes a "Back to Groups" navigation button at the top.
+     * 
+     * @param topicList The list of {@link Topic} objects to render.
+     */
     private void renderTopics(List<Topic> topicList) {
         contextList.getChildren().clear();
 
+        // Navigation breadcrumb
         HBox backRow = new HBox(8);
         backRow.setAlignment(Pos.CENTER_LEFT);
         backRow.setStyle("-fx-padding: 8px 16px; -fx-background-color: #f5f5f5; -fx-border-color: #e5e7eb; -fx-border-width: 0 0 1px 0;");
@@ -773,6 +1226,7 @@ public class MainController {
             Label title = new Label(topic.title);
             title.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: #000000;");
 
+            // Safely extract creator name from JSON node, with fallback
             String creatorName = "Unknown";
             if (topic.creator != null && topic.creator.has("name")) {
                 creatorName = topic.creator.path("name").asText("Unknown");
@@ -785,6 +1239,7 @@ public class MainController {
             Label repliesLabel = new Label("💬 " + topic.postsCount + " replies");
             repliesLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #999999;");
 
+            // Fallback for ML category if the backend hasn't classified it yet
             String category = (topic.mlCategory != null && !topic.mlCategory.isEmpty())
                     ? topic.mlCategory
                     : "General";
@@ -798,6 +1253,9 @@ public class MainController {
         }
     }
 
+    /**
+     * Handler for the "Back to Groups" button in the topics view.
+     */
     private class BackToGroupsHandler implements EventHandler<ActionEvent> {
         @Override
         public void handle(ActionEvent event) {
@@ -805,36 +1263,68 @@ public class MainController {
         }
     }
 
-    // ─── TOPIC CLICK HANDLER ──────────────────────────────────────
+    // =========================================================================
+    // ─── TOPIC CLICK HANDLER ─────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Inner class handler for topic card click events.
+     */
     private class TopicClickHandler implements EventHandler<MouseEvent> {
         private final Topic topic;
-        TopicClickHandler(Topic topic) { this.topic = topic; }
+        
+        TopicClickHandler(Topic topic) { 
+            this.topic = topic; 
+        }
+        
         @Override
         public void handle(MouseEvent event) {
-            if (!isQuizActive) openTopic(topic);
+            if (!isQuizActive) {
+                openTopic(topic);
+            }
         }
     }
 
+    /**
+     * Transitions the UI to display the posts/replies for a specific topic.
+     * 
+     * @param topic The {@link Topic} to open.
+     */
     private void openTopic(Topic topic) {
         if (isQuizActive) {
             showToast("🔒 Cannot navigate while quiz is in progress.");
             return;
         }
+        
         currentTopic = topic;
         contextTitle.setText(currentGroup != null ? currentGroup.name : "Topic");
+        
+        // Keep the "+" button visible to allow creating new topics even while viewing one
         contextActionBtn.setVisible(true);
         contextActionBtn.setManaged(true);
         contextActionBtn.setText("+");
         contextActionBtn.setOnAction(new CreateTopicHandler(currentGroup));
+        
+        // Trigger the async load of posts for this topic
         loadPostsForTopic(topic);
     }
 
-    // ─── RENDER THREAD ────────────────────────────────────────────
+    // =========================================================================
+    // ─── RENDER THREAD ───────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Renders the complete discussion thread UI for a given topic.
+     * This includes the top navigation bar (Back, Share, Export), the topic title, 
+     * and a scrollable container of nested post views.
+     * 
+     * @param topic The {@link Topic} being rendered.
+     * @param posts The hierarchical list of {@link Post} objects to render.
+     */
     private void renderThread(Topic topic, List<Post> posts) {
         threadArea.getChildren().clear();
 
+        // Top action bar
         HBox topBar = new HBox(12);
         topBar.setAlignment(Pos.CENTER_LEFT);
         topBar.setStyle("-fx-padding: 0 0 12 0;");
@@ -858,9 +1348,11 @@ public class MainController {
 
         topBar.getChildren().addAll(backBtn, spacer, shareBtn, exportBtn);
 
+        // Topic Title
         Label title = new Label(topic.title);
         title.setStyle("-fx-font-size: 20px; -fx-font-weight: 700; -fx-text-fill: #000000;");
 
+        // Scrollable posts container
         VBox postsContainer = new VBox(10);
         postsContainer.setPadding(new Insets(0, 0, 16, 0));
 
@@ -875,58 +1367,94 @@ public class MainController {
             emptyBox.getChildren().addAll(emptyIcon, emptyMsg);
             postsContainer.getChildren().add(emptyBox);
         } else {
+            // Recursively build the UI tree for each top-level post
             for (Post post : posts) {
                 VBox postView = createPostView(post, 0);
                 postsContainer.getChildren().add(postView);
             }
         }
 
+        // Wrap in ScrollPane for long threads
         ScrollPane scrollPane = new ScrollPane(postsContainer);
         scrollPane.setFitToWidth(true);
         scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
         scrollPane.getStyleClass().add("thread-scroll");
 
         threadArea.getChildren().addAll(topBar, title, scrollPane);
-        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+        VBox.setVgrow(scrollPane, Priority.ALWAYS); // Allow scroll pane to consume all available vertical space
     }
 
+    /**
+     * Handler for the "Back" button in the thread view.
+     * Returns the user to the topics list of the current group.
+     */
     private class BackToTopicsHandler implements EventHandler<ActionEvent> {
         @Override
         public void handle(ActionEvent event) {
-            if (currentGroup != null && !isQuizActive) openGroupTopics(currentGroup);
+            if (currentGroup != null && !isQuizActive) {
+                openGroupTopics(currentGroup);
+            }
         }
     }
 
+    /**
+     * Handler for the "Share" button in the thread view.
+     */
     private class ShareTopicHandler implements EventHandler<ActionEvent> {
         private final Topic topic;
-        ShareTopicHandler(Topic topic) { this.topic = topic; }
+        
+        ShareTopicHandler(Topic topic) { 
+            this.topic = topic; 
+        }
+        
         @Override
         public void handle(ActionEvent event) {
             shareTopic(topic);
         }
     }
 
+    /**
+     * Handler for the "Export PDF" button in the thread view.
+     */
     private class ExportPdfHandler implements EventHandler<ActionEvent> {
         private final Topic topic;
-        ExportPdfHandler(Topic topic) { this.topic = topic; }
+        
+        ExportPdfHandler(Topic topic) { 
+            this.topic = topic; 
+        }
+        
         @Override
         public void handle(ActionEvent event) {
             exportToPDF(topic);
         }
     }
 
-    // ─── CREATE POST VIEW ─────────────────────────────────────────
+    // =========================================================================
+    // ─── CREATE POST VIEW ────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Factory method to recursively generate the UI node for a single {@link Post} and its nested replies.
+     * 
+     * @param post The {@link Post} data model to render.
+     * @param depth The current nesting level (0 for top-level, >0 for replies). Used to apply visual indentation.
+     * @return A {@link VBox} containing the fully rendered post and its recursive children.
+     */
     private VBox createPostView(Post post, int depth) {
         VBox postBox = new VBox(6);
         String style = "-fx-background-color: #ffffff; -fx-border-color: #1A7A64; -fx-border-radius: 8px; " +
                 "-fx-background-radius: 8px; -fx-padding: 14px 18px;";
+        
+        // Apply distinct styling for nested replies (left border only, rounded right corners)
         if (depth > 0) {
             style += " -fx-border-width: 0 0 0 2px; -fx-border-radius: 0 8px 8px 0; -fx-background-radius: 0 8px 8px 0;";
         }
         postBox.setStyle(style);
+        
+        // Assign a unique ID to allow for programmatic lookup (e.g., scrolling to a specific post)
         postBox.setId("post-" + post.id);
 
+        // Post Header (Avatar, Name, Time, Actions)
         HBox header = new HBox(10);
         header.setAlignment(Pos.CENTER_LEFT);
 
@@ -934,6 +1462,8 @@ public class MainController {
         if (post.author != null && post.author.has("name")) {
             authorName = post.author.path("name").asText("Unknown");
         }
+        
+        // Generate initials for the avatar fallback
         String initials = authorName.length() >= 2 ?
                 authorName.substring(0, 1) + authorName.substring(authorName.indexOf(" ") + 1, authorName.indexOf(" ") + 2) :
                 "??";
@@ -971,6 +1501,7 @@ public class MainController {
 
         header.getChildren().addAll(avatar, name, time, spacer, likeBtn, replyBtn, sharePostBtn);
 
+        // Append "Private" badge if applicable
         if (post.is_private) {
             Label privateTag = new Label("🔒 Private");
             privateTag.setStyle("-fx-font-size: 9px; -fx-font-weight: 700; -fx-padding: 2px 10px; " +
@@ -978,6 +1509,7 @@ public class MainController {
             header.getChildren().add(privateTag);
         }
 
+        // Post Body Content
         Label body = new Label(post.content != null ? post.content : "");
         body.setStyle("-fx-font-size: 14px; -fx-text-fill: #1e293b; -fx-wrap-text: true;");
         body.setMaxWidth(Double.MAX_VALUE);
@@ -985,9 +1517,12 @@ public class MainController {
         postBox.getChildren().add(header);
         postBox.getChildren().add(body);
 
+        // Inline Reply Form (Hidden by default)
         VBox inlineForm = createInlineReplyForm(post);
         inlineForm.setVisible(false);
         inlineForm.setManaged(false);
+        
+        // Attach the form to the button via UserData for easy retrieval during the click event
         replyBtn.setUserData(inlineForm);
         final Post replyPost = post;
         final String replyAuthor = authorName;
@@ -998,6 +1533,7 @@ public class MainController {
         });
         postBox.getChildren().add(inlineForm);
 
+        // Recursive rendering of child replies
         if (post.replies != null && !post.replies.isEmpty()) {
             VBox repliesContainer = new VBox(8);
             repliesContainer.setStyle("-fx-padding: 8px 0 0 16px; -fx-border-color: #1A7A64; -fx-border-width: 0 0 0 2px;");
@@ -1011,32 +1547,54 @@ public class MainController {
         return postBox;
     }
 
-    // ─── HANDLER CLASSES FOR POST ACTIONS ────────────────────────
+    // =========================================================================
+    // ─── HANDLER CLASSES FOR POST ACTIONS ────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Inner class handler for the "Like" button on a post.
+     */
     private class LikeButtonHandler implements EventHandler<ActionEvent> {
         private final Post post;
         private final Button button;
+        
         LikeButtonHandler(Post post, Button button) {
             this.post = post;
             this.button = button;
         }
+        
         @Override
         public void handle(ActionEvent event) {
             handleLike(post, button);
         }
     }
 
+    /**
+     * Inner class handler for the "Share" button on an individual post.
+     */
     private class SharePostHandler implements EventHandler<ActionEvent> {
         private final Post post;
-        SharePostHandler(Post post) { this.post = post; }
+        
+        SharePostHandler(Post post) { 
+            this.post = post; 
+        }
+        
         @Override
         public void handle(ActionEvent event) {
             sharePost(post);
         }
     }
 
-    // ─── INLINE REPLY ─────────────────────────────────────────────
+    // =========================================================================
+    // ─── INLINE REPLY ────────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Factory method to generate the UI components for an inline reply form.
+     * 
+     * @param parentPost The {@link Post} being replied to.
+     * @return A {@link VBox} containing the text area, private checkbox, and action buttons.
+     */
     private VBox createInlineReplyForm(Post parentPost) {
         VBox form = new VBox(6);
         form.setPadding(new Insets(8, 0, 0, 0));
@@ -1073,34 +1631,51 @@ public class MainController {
         return form;
     }
 
+    /**
+     * Inner class handler for the "Post Reply" button within an inline form.
+     */
     private class InlineReplyHandler implements EventHandler<ActionEvent> {
         private final Post parentPost;
         private final TextArea textArea;
         private final CheckBox privateCheckBox;
         private final VBox form;
+        
         InlineReplyHandler(Post parentPost, TextArea textArea, CheckBox privateCheckBox, VBox form) {
             this.parentPost = parentPost;
             this.textArea = textArea;
             this.privateCheckBox = privateCheckBox;
             this.form = form;
         }
+        
         @Override
         public void handle(ActionEvent event) {
             handleInlineReply(parentPost, textArea, privateCheckBox, form);
         }
     }
 
+    /**
+     * Toggles the visibility of an inline reply form.
+     * Ensures that only one inline form is open at a time by closing any previously opened form.
+     * 
+     * @param post The post being replied to.
+     * @param author The author's name (for the "Replying to:" label).
+     * @param form The {@link VBox} form to toggle.
+     */
     private void toggleInlineReply(Post post, String author, VBox form) {
+        // Close any currently open inline form
         if (currentInlineForm != null) {
             currentInlineForm.setVisible(false);
             currentInlineForm.setManaged(false);
             currentInlineForm = null;
         }
 
+        // Open the new form
         if (form != null) {
             form.setVisible(true);
             form.setManaged(true);
             currentInlineForm = form;
+            
+            // Auto-focus the text area for immediate typing
             for (var node : form.getChildren()) {
                 if (node instanceof TextArea) {
                     ((TextArea) node).requestFocus();
@@ -1109,15 +1684,29 @@ public class MainController {
             }
         }
 
+        // Update the main reply label to reflect the inline context
         if (replyToLabel != null) {
             replyToLabel.setText("Replying to: " + author);
         }
     }
 
+    /**
+     * Recursively searches the scene graph for a specific post's UI container by its ID.
+     * 
+     * @param postId The ID of the post to find.
+     * @return The {@link VBox} representing the post, or {@code null} if not found.
+     */
     private VBox findPostBox(int postId) {
         return findPostBoxRecursive(threadArea, postId);
     }
 
+    /**
+     * Helper for {@link #findPostBox(int)} that performs a depth-first search of the node tree.
+     * 
+     * @param parent The current {@link Parent} node being inspected.
+     * @param postId The target post ID.
+     * @return The matching {@link VBox}, or {@code null}.
+     */
     private VBox findPostBoxRecursive(Parent parent, int postId) {
         for (var node : parent.getChildrenUnmodifiable()) {
             if (node instanceof VBox && node.getId() != null && node.getId().equals("post-" + postId)) {
@@ -1131,14 +1720,30 @@ public class MainController {
         return null;
     }
 
-    // ─── HANDLE INLINE REPLY ──────────────────────────────────────
+    // =========================================================================
+    // ─── HANDLE INLINE REPLY ─────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Processes the submission of an inline reply.
+     * 
+     * <p><b>Offline-First Architecture:</b>
+     * If online, it sends the data to the API. If offline, it generates a temporary local ID, 
+     * saves the draft to the local database, and immediately updates the UI to reflect the new post, 
+     * marking it for future synchronization.
+     * 
+     * @param parentPost The post being replied to.
+     * @param ta The {@link TextArea} containing the reply content.
+     * @param privateCb The {@link CheckBox} indicating if the reply is private.
+     * @param form The {@link VBox} form to hide upon successful submission.
+     */
     private void handleInlineReply(Post parentPost, TextArea ta, CheckBox privateCb, VBox form) {
         String content = ta.getText().trim();
         if (content.isEmpty()) {
             showToast("Please write a reply.");
             return;
         }
+        
         boolean isPrivate = privateCb.isSelected();
         int userId = state.getCurrentUserId();
         if (userId == -1) {
@@ -1150,14 +1755,15 @@ public class MainController {
         if (isPrivate) {
             excludedIds = showUserSelectionDialog();
             if (excludedIds == null) {
-                return;
+                return; // User canceled the selection dialog
             }
             excludedUserIds = excludedIds;
         } else {
             excludedUserIds.clear();
         }
 
-        final Integer parentId = parentPost.id; // may be -1 if parent is not yet saved offline
+        // Capture parent ID. May be a temporary negative local ID if the parent post is an unsaved offline draft.
+        final Integer parentId = parentPost.id; 
         final String timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
 
         if (state.isOnline()) {
@@ -1168,6 +1774,7 @@ public class MainController {
                     return api.createPost(currentTopic.id, userId, content, isPrivate, finalExcludedIds, parentId);
                 }
             };
+            
             task.setOnSucceeded(e -> {
                 ta.clear();
                 privateCb.setSelected(false);
@@ -1176,15 +1783,18 @@ public class MainController {
                 form.setManaged(false);
                 currentInlineForm = null;
                 showToast("Reply posted!");
+                // Reload the entire topic to ensure UI is perfectly synced with server state
                 loadPostsForTopic(currentTopic);
             });
+            
             task.setOnFailed(e -> {
                 showToast("Failed to post reply: " + task.getException().getMessage());
                 task.getException().printStackTrace();
             });
+            
             new Thread(task).start();
         } else {
-            // Offline: save with local_id if parentId > 0, else null
+            // Offline path: save with local_id if parentId > 0, else null
             Integer finalParentId = (parentId != null && parentId > 0) ? parentId : null;
             int newLocalId = DatabaseHandler.saveOfflinePostDraftAndGetId(
                     currentTopic.id, userId, content, isPrivate, timestamp, finalParentId
@@ -1199,18 +1809,21 @@ public class MainController {
                 currentInlineForm = null;
                 showToast("📶 Saved offline – will sync when online.");
 
+                // Construct a mock Post object to immediately inject into the UI tree
                 Post newPost = new Post();
                 newPost.id = newLocalId;
                 newPost.content = content;
                 newPost.is_private = isPrivate;
                 newPost.created_at = timestamp;
-                newPost.author = null;
+                newPost.author = null; // Will be resolved upon sync
                 newPost.likes_count = 0;
                 newPost.is_liked = false;
                 newPost.parentId = finalParentId;
 
                 if (parentPost.replies == null) parentPost.replies = new ArrayList<>();
                 parentPost.replies.add(newPost);
+                
+                // Refresh the view to render the newly added offline post
                 loadPostsForTopic(currentTopic);
             } else {
                 showToast("Failed to save offline reply.");
@@ -1218,19 +1831,28 @@ public class MainController {
         }
     }
 
-    // ─── MAIN REPLY FORM ──────────────────────────────────────────
+    // =========================================================================
+    // ─── MAIN REPLY FORM ─────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Action handler for the main reply form at the bottom of the thread view.
+     * Functions identically to {@link #handleInlineReply} but targets the root of the thread 
+     * (or a specifically selected {@link #currentReplyTarget}) rather than an inline nested form.
+     */
     @FXML
     public void handlePostReply() {
         if (currentTopic == null || currentGroup == null) {
             showToast("Please select a topic first.");
             return;
         }
+        
         String content = replyText.getText().trim();
         if (content.isEmpty()) {
             showToast("Please write a reply.");
             return;
         }
+        
         boolean isPrivate = privateCheck.isSelected();
         int userId = state.getCurrentUserId();
         if (userId == -1) {
@@ -1260,6 +1882,7 @@ public class MainController {
                     return api.createPost(currentTopic.id, userId, content, isPrivate, finalExcludedIds, parentId);
                 }
             };
+            
             task.setOnSucceeded(e -> {
                 replyText.clear();
                 privateCheck.setSelected(false);
@@ -1270,13 +1893,15 @@ public class MainController {
                 showToast("Reply posted!");
                 loadPostsForTopic(currentTopic);
             });
+            
             task.setOnFailed(e -> {
                 showToast("Failed to post reply: " + task.getException().getMessage());
                 task.getException().printStackTrace();
             });
+            
             new Thread(task).start();
         } else {
-            // Offline: save with local_id if parentId > 0, else null
+            // Offline path
             Integer finalParentId = (parentId != null && parentId > 0) ? parentId : null;
             int newLocalId = DatabaseHandler.saveOfflinePostDraftAndGetId(
                     currentTopic.id, userId, content, isPrivate, timestamp, finalParentId
@@ -1309,10 +1934,23 @@ public class MainController {
         }
     }
 
-    // ─── LIKE ─────────────────────────────────────────────────────
+    // =========================================================================
+    // ─── LIKE ────────────────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Handles the toggling of a "Like" on a post.
+     * 
+     * <p><b>Optimistic UI Update:</b>
+     * If offline, the UI is updated immediately, and the action is queued in the local database 
+     * via {@link DatabaseHandler#saveOfflineLike} to be synced when connectivity is restored.
+     * 
+     * @param post The {@link Post} to like/unlike.
+     * @param likeBtn The UI button to update visually.
+     */
     private void handleLike(Post post, Button likeBtn) {
         System.out.println("❤️ handleLike called for post " + post.id + ", current is_liked: " + post.is_liked);
+        
         if (state.isOnline()) {
             Task<Post> task = new Task<>() {
                 @Override
@@ -1320,6 +1958,7 @@ public class MainController {
                     return api.toggleLike(post.id);
                 }
             };
+            
             task.setOnSucceeded(e -> {
                 Post updated = task.getValue();
                 post.is_liked = updated.is_liked;
@@ -1327,22 +1966,31 @@ public class MainController {
                 System.out.println("  ✅ API success: is_liked = " + post.is_liked + ", likes = " + post.likes_count);
                 Platform.runLater(() -> updateLikeUI(post, likeBtn));
             });
+            
             task.setOnFailed(e -> {
                 System.out.println("  ⚠️ API failed, storing offline");
                 storeLikeOffline(post, likeBtn);
             });
+            
             new Thread(task).start();
         } else {
             storeLikeOffline(post, likeBtn);
         }
     }
 
+    /**
+     * Handles the local storage and immediate UI update of a like action when the application is offline.
+     * 
+     * @param post The {@link Post} being liked.
+     * @param likeBtn The UI button to update.
+     */
     private void storeLikeOffline(Post post, Button likeBtn) {
         boolean newLikeState = !post.is_liked;
         post.is_liked = newLikeState;
         if (post.likes_count == null) post.likes_count = 0;
         post.likes_count += newLikeState ? 1 : -1;
         System.out.println("  💾 Offline toggle: is_liked = " + post.is_liked + ", likes = " + post.likes_count);
+        
         updateLikeUI(post, likeBtn);
 
         int userId = state.getCurrentUserId();
@@ -1358,24 +2006,44 @@ public class MainController {
         }
     }
 
+    /**
+     * Updates the visual state (text and CSS style) of a like button based on the post's current like data.
+     * 
+     * @param post The {@link Post} containing the like data.
+     * @param likeBtn The {@link Button} to update.
+     */
     private void updateLikeUI(Post post, Button likeBtn) {
         int newCount = (post.likes_count != null) ? post.likes_count : 0;
         likeBtn.setText("❤️ " + newCount);
 
-        // Force style update with explicit colors
+        // Force style update with explicit colors to ensure JavaFX CSS engine applies the change
         if (post.is_liked != null && post.is_liked) {
             likeBtn.setStyle("-fx-text-fill: #dc2626; -fx-background-color: transparent; -fx-font-size: 13px; -fx-cursor: hand;");
         } else {
             likeBtn.setStyle("-fx-text-fill: #666666; -fx-background-color: transparent; -fx-font-size: 13px; -fx-cursor: hand;");
         }
 
-        // Force immediate CSS application
+        // Force immediate CSS application to prevent visual lag
         likeBtn.applyCss();
         System.out.println("  🎨 Updated like button: text = " + likeBtn.getText() + ", style = " + likeBtn.getStyle());
     }
 
-    // ─── USER SELECTION FOR PRIVATE POSTS ────────────────────────
+    // =========================================================================
+    // ─── USER SELECTION FOR PRIVATE POSTS ────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Displays a modal dialog allowing the user to select specific users to exclude from a private post.
+     * 
+     * <p><b>Concurrency Note:</b>
+     * Because the user list must be fetched asynchronously from the API, but the dialog must block 
+     * the execution flow to return a synchronous {@code List<Integer>} result, this method utilizes 
+     * a {@link CountDownLatch}. The background thread fetches the data, then uses {@link Platform#runLater} 
+     * to show the UI. The main thread waits on {@code latch.await()} until the dialog is closed and 
+     * {@code latch.countDown()} is called.
+     * 
+     * @return A list of user IDs to exclude, or an empty list if canceled.
+     */
     private List<Integer> showUserSelectionDialog() {
         List<Integer> selectedIds = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(1);
@@ -1392,13 +2060,17 @@ public class MainController {
                 return api.getUsers();
             }
         };
+        
         task.setOnSucceeded(e -> {
             loadingAlert.close();
             List<User> users = task.getValue();
             User currentUser = state.getCurrentUser();
+            
+            // Filter out the current user, as they are implicitly the author and don't need to be excluded
             if (currentUser != null) {
                 users.removeIf(u -> u.id == currentUser.id);
             }
+            
             Platform.runLater(() -> {
                 try {
                     FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/fxmlfiles/user_selection_dialog.fxml"));
@@ -1414,12 +2086,15 @@ public class MainController {
                     scene.getStylesheets().add(getClass().getResource("/com/forum/css/style.css").toExternalForm());
                     stage.setScene(scene);
 
-                    stage.showAndWait();
+                    stage.showAndWait(); // Blocks until the user closes the dialog
+                    
                     selectedIds.addAll(controller.getSelectedUserIds());
                     if (!selectedIds.isEmpty()) {
                         excludedUserIds = selectedIds;
                         updateSelectedUsersLabel();
                     }
+                    
+                    // Signal the waiting thread that the operation is complete
                     latch.countDown();
                 } catch (Exception ex) {
                     ex.printStackTrace();
@@ -1428,6 +2103,7 @@ public class MainController {
                 }
             });
         });
+        
         task.setOnFailed(e -> {
             loadingAlert.close();
             Throwable ex = task.getException();
@@ -1439,13 +2115,18 @@ public class MainController {
         new Thread(task).start();
 
         try {
+            // Block the current thread until the background task and UI interaction are fully resolved
             latch.await();
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
+        
         return selectedIds;
     }
 
+    /**
+     * Updates the text of the {@link #selectUsersBtn} to reflect the number of currently excluded users.
+     */
     private void updateSelectedUsersLabel() {
         if (excludedUserIds.isEmpty()) {
             if (selectUsersBtn != null) {
@@ -1458,13 +2139,21 @@ public class MainController {
         }
     }
 
-    // ─── CREATE TOPIC DIALOG ──────────────────────────────────────
+    // =========================================================================
+    // ─── CREATE TOPIC DIALOG ─────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Displays a modal dialog for creating a new topic within a specific group.
+     * 
+     * @param group The {@link Group} in which the topic will be created.
+     */
     private void showCreateTopicDialog(Group group) {
         if (group == null) {
             showToast("Please select a group first.");
             return;
         }
+        
         try {
             Stage createStage = new Stage();
             createStage.initModality(Modality.APPLICATION_MODAL);
@@ -1534,16 +2223,19 @@ public class MainController {
                             return api.createTopic(group.id, topicTitle, descInput.getText().trim());
                         }
                     };
+                    
                     createTask.setOnSucceeded(ev -> {
                         createStage.close();
                         showToast("Topic created successfully!");
-                        openGroupTopics(group);
+                        openGroupTopics(group); // Refresh the view to show the new topic
                     });
+                    
                     createTask.setOnFailed(ev -> {
                         createStage.close();
                         showToast("Failed to create topic: " + createTask.getException().getMessage());
                         createTask.getException().printStackTrace();
                     });
+                    
                     new Thread(createTask).start();
                 }
             });
@@ -1562,8 +2254,15 @@ public class MainController {
         }
     }
 
-    // ─── SHARE & EXPORT ───────────────────────────────────────────
+    // =========================================================================
+    // ─── SHARE & EXPORT ──────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Generates a shareable text snippet containing the topic's URL and copies it to the system clipboard.
+     * 
+     * @param topic The {@link Topic} to share.
+     */
     private void shareTopic(Topic topic) {
         try {
             String url = WEB_BASE_URL + "/groups/" + currentGroup.id + "/topics/" + topic.id;
@@ -1578,11 +2277,19 @@ public class MainController {
         }
     }
 
+    /**
+     * Generates a shareable text snippet containing a specific post's content preview and URL, 
+     * and copies it to the system clipboard.
+     * 
+     * @param post The {@link Post} to share.
+     */
     private void sharePost(Post post) {
         try {
             String url = WEB_BASE_URL + "/groups/" + currentGroup.id + "/topics/" + currentTopic.id + "?post=" + post.id;
             String authorName = post.author != null && post.author.has("name") ?
                                 post.author.path("name").asText("Unknown") : "Unknown";
+            
+            // Truncate long posts for a cleaner share preview
             String shareText = "💬 " + authorName + " said:\n" +
                                "\"" + (post.content.length() > 100 ? post.content.substring(0, 100) + "..." : post.content) + "\"\n" +
                                "🔗 " + url + "\n\n" +
@@ -1595,6 +2302,11 @@ public class MainController {
         }
     }
 
+    /**
+     * Utility method to write a string to the system clipboard.
+     * 
+     * @param text The text to copy.
+     */
     private void copyToClipboard(String text) {
         Clipboard clipboard = Clipboard.getSystemClipboard();
         ClipboardContent content = new ClipboardContent();
@@ -1602,17 +2314,29 @@ public class MainController {
         clipboard.setContent(content);
     }
 
+    /**
+     * Exports the current topic and its entire nested post tree to a PDF file.
+     * 
+     * <p><b>Implementation Detail:</b>
+     * Uses the iText library ({@link com.lowagie.text}) to construct the document. 
+     * It recursively traverses the {@link #currentPosts} tree via {@link #appendPostToPdf}, 
+     * applying indentation based on the nesting depth to visually represent the thread structure.
+     * 
+     * @param topic The {@link Topic} to export.
+     */
     private void exportToPDF(Topic topic) {
         try {
+            // Generate a unique, timestamped filename to prevent overwriting
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             String filename = "chat_export_" + topic.title.replaceAll(" ", "_") + "_" + timestamp + ".pdf";
             File file = new File(System.getProperty("user.home") + "/Downloads/" + filename);
-            file.getParentFile().mkdirs();
+            file.getParentFile().mkdirs(); // Ensure the Downloads directory exists
 
             Document document = new Document(PageSize.A4);
             PdfWriter.getInstance(document, new FileOutputStream(file));
             document.open();
 
+            // Define typography styles for the PDF
             Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, Color.BLACK);
             Font headingFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, Color.DARK_GRAY);
             Font authorFont = FontFactory.getFont(FontFactory.HELVETICA, 12, Color.GRAY);
@@ -1620,6 +2344,7 @@ public class MainController {
             Font privateFont = FontFactory.getFont(FontFactory.HELVETICA, 10, Color.RED);
             Font replyFont = FontFactory.getFont(FontFactory.HELVETICA, 11, Color.DARK_GRAY);
 
+            // Document Header
             Paragraph titlePara = new Paragraph("Topic: " + topic.title, titleFont);
             titlePara.setAlignment(Element.ALIGN_CENTER);
             document.add(titlePara);
@@ -1635,6 +2360,7 @@ public class MainController {
             document.add(new Paragraph("=".repeat(60), headingFont));
             document.add(new Paragraph(" "));
 
+            // Document Body
             if (currentPosts.isEmpty()) {
                 document.add(new Paragraph("No posts in this topic.", bodyFont));
             } else {
@@ -1645,6 +2371,7 @@ public class MainController {
 
             document.close();
 
+            // Attempt to automatically open the generated PDF in the system's default viewer
             if (Desktop.isDesktopSupported()) {
                 Desktop.getDesktop().open(file);
             }
@@ -1657,7 +2384,20 @@ public class MainController {
         }
     }
 
+    /**
+     * Recursive helper method for {@link #exportToPDF} that appends a post and its children to the PDF document.
+     * 
+     * @param document The iText {@link Document} being written to.
+     * @param post The {@link Post} to append.
+     * @param depth The current nesting level, used to calculate left indentation.
+     * @param bodyFont Font for the post content.
+     * @param authorFont Font for the author name and timestamp.
+     * @param privateFont Font for the "[PRIVATE]" indicator.
+     * @param replyFont Font reserved for future reply-specific styling (currently unused but available).
+     * @throws DocumentException If an error occurs during PDF writing.
+     */
     private void appendPostToPdf(Document document, Post post, int depth, Font bodyFont, Font authorFont, Font privateFont, Font replyFont) throws DocumentException {
+        // 4 spaces per depth level for visual hierarchy
         String indent = "    ".repeat(depth);
         String authorName = post.author != null && post.author.has("name") ? post.author.path("name").asText("Unknown") : "Unknown";
 
@@ -1675,23 +2415,32 @@ public class MainController {
             document.add(privatePara);
         }
 
+        // Recursively process child replies
         if (post.replies != null) {
             for (Post reply : post.replies) {
                 appendPostToPdf(document, reply, depth + 1, bodyFont, authorFont, privateFont, replyFont);
             }
         }
 
+        // Add vertical spacing between posts
         document.add(new Paragraph(" "));
     }
 
-    // ─── PROFILE ──────────────────────────────────────────────────
+    // =========================================================================
+    // ─── PROFILE ─────────────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Action handler for the "Profile" navigation button.
+     * Fetches and displays the current user's statistics and account details.
+     */
     @FXML
     public void showProfile() {
         if (isQuizActive) {
             showToast("🔒 Cannot navigate while quiz is in progress.");
             return;
         }
+        
         currentView = "profile";
         setActiveNav(navProfile);
         contextTitle.setText("Profile");
@@ -1740,10 +2489,11 @@ public class MainController {
         infoBox.getChildren().addAll(
                 new Label(name) {{ setStyle("-fx-font-size: 20px; -fx-font-weight: 700;"); }},
                 new Label(email) {{ setStyle("-fx-text-fill: #666666;"); }},
-                new Label(role) {{ setStyle("-fx-background-color: #dbeafe; -fx-text-fill: #1d4ed8; -fx-font-size: 11px; -fx-font-weight: 600; -fx-padding: 2px 12px; -fx-background-radius: 12px;"); }}
+                new Label(role) {{ setStyle("-fx-background-color: #dbeafe; -fx-text-fill: #1d4ed8; -fx-font-size: 11px; -fx-font-weight: 600; -fx-padding: 2px 12px; -fx-background-radius: 12px"); }}
         );
         avatarRow.getChildren().addAll(avatar, infoBox);
 
+        // Grid layout for statistics
         GridPane statsGrid = new GridPane();
         statsGrid.setHgap(20);
         statsGrid.setVgap(12);
@@ -1796,23 +2546,27 @@ public class MainController {
         outerWrapper.getChildren().add(profileBox);
         threadArea.getChildren().add(outerWrapper);
 
+        // Asynchronously fetch user statistics
         Task<UserStats> statsTask = new Task<>() {
             @Override
             protected UserStats call() throws Exception {
                 return api.getUserStats();
             }
         };
+        
         statsTask.setOnSucceeded(e -> {
             UserStats stats = statsTask.getValue();
             Platform.runLater(() -> {
                 statsBox.getChildren().clear();
                 statsBox.getChildren().add(statsTitle);
+                
                 String[][] statRows = {
                         {"📝", "Total Posts", String.valueOf(stats.totalPosts)},
                         {"💬", "Total Replies", String.valueOf(stats.totalReplies)},
                         {"📈", "Topics Created", String.valueOf(stats.totalTopics)},
                         {"📊", "Quizzes Taken", String.valueOf(stats.totalQuizzes)}
                 };
+                
                 for (String[] row : statRows) {
                     HBox rowBox = new HBox(12);
                     rowBox.setAlignment(Pos.CENTER_LEFT);
@@ -1826,12 +2580,14 @@ public class MainController {
                     statsBox.getChildren().add(rowBox);
                 }
 
+                // Update the large grid numbers
                 topicsValue.setText(String.valueOf(stats.totalTopics));
                 postsValue.setText(String.valueOf(stats.totalPosts));
                 repliesValue.setText(String.valueOf(stats.totalReplies));
                 quizzesValue.setText(String.valueOf(stats.totalQuizzes));
             });
         });
+        
         statsTask.setOnFailed(e -> {
             Platform.runLater(() -> {
                 statsBox.getChildren().clear();
@@ -1842,17 +2598,25 @@ public class MainController {
             });
             statsTask.getException().printStackTrace();
         });
+        
         new Thread(statsTask).start();
     }
 
-    // ─── QUIZZES ──────────────────────────────────────────────────
+    // =========================================================================
+    // ─── QUIZZES ─────────────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Action handler for the "Quizzes" navigation button.
+     * Fetches and displays the list of available quizzes for the user's groups.
+     */
     @FXML
     public void showQuizzes() {
         if (isQuizActive) {
             showToast("🔒 Cannot navigate while quiz is in progress.");
             return;
         }
+        
         currentView = "quizzes";
         setActiveNav(navQuizzes);
         contextTitle.setText("Quizzes");
@@ -1886,6 +2650,7 @@ public class MainController {
                 return api.getQuizzes();
             }
         };
+        
         task.setOnSucceeded(e -> {
             List<Quiz> quizzes = task.getValue();
             System.out.println("Quizzes received: " + quizzes.size() + " quizzes");
@@ -1896,6 +2661,7 @@ public class MainController {
                 renderQuizList(quizzes);
             });
         });
+        
         task.setOnFailed(e -> {
             Platform.runLater(() -> {
                 contextList.getChildren().clear();
@@ -1905,9 +2671,15 @@ public class MainController {
                 task.getException().printStackTrace();
             });
         });
+        
         new Thread(task).start();
     }
 
+    /**
+     * Renders the list of fetched quizzes into the left sidebar.
+     * 
+     * @param quizzes The list of {@link Quiz} objects to render.
+     */
     private void renderQuizList(List<Quiz> quizzes) {
         contextList.getChildren().clear();
         if (quizzes.isEmpty()) {
@@ -1928,87 +2700,114 @@ public class MainController {
         contextList.getChildren().add(quizzesBox);
     }
 
-        private VBox createQuizCard(Quiz quiz) {
-            VBox card = new VBox(6);
-            card.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-radius: 8px; -fx-background-radius: 8px; -fx-padding: 12px 14px;");
-            card.setPrefWidth(240);
+    /**
+     * Factory method to create a single, styled UI card for a {@link Quiz}.
+     * 
+     * @param quiz The {@link Quiz} data model.
+     * @return A {@link VBox} representing the quiz card.
+     */
+    private VBox createQuizCard(Quiz quiz) {
+        VBox card = new VBox(6);
+        card.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e5e5e5; -fx-border-radius: 8px; -fx-background-radius: 8px; -fx-padding: 12px 14px;");
+        card.setPrefWidth(240);
 
-            HBox headerRow = new HBox();
-            headerRow.setAlignment(Pos.CENTER_LEFT);
-            Label titleLabel = new Label(quiz.title);
-            titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 600;");
-            Region spacer = new Region();
-            HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox headerRow = new HBox();
+        headerRow.setAlignment(Pos.CENTER_LEFT);
+        Label titleLabel = new Label(quiz.title);
+        titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 600;");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
-            String statusText;
-            String statusColor;
-            String bgColor;
-            switch (quiz.status) {
-                case "started":
-                    statusText = "🔵 Started";
-                    statusColor = "#1d4ed8";
-                    bgColor = "#dbeafe";
-                    break;
-                case "ended":
-                    statusText = "🔴 Ended";
-                    statusColor = "#dc2626";
-                    bgColor = "#fef2f2";
-                    break;
-                case "upcoming":
-                default:
-                    statusText = "🟡 Upcoming";
-                    statusColor = "#b45309";
-                    bgColor = "#fef3c7";
-                    break;
-            }
-            Label statusLabel = new Label(statusText);
-            statusLabel.setStyle("-fx-background-color: " + bgColor + "; -fx-text-fill: " + statusColor + "; " +
-                    "-fx-font-size: 9px; -fx-font-weight: 600; -fx-padding: 2px 10px; -fx-background-radius: 12px;");
-            headerRow.getChildren().addAll(titleLabel, spacer, statusLabel);
+        // Dynamic status badge styling
+        String statusText;
+        String statusColor;
+        String bgColor;
+        switch (quiz.status) {
+            case "started":
+                statusText = "🔵 Started";
+                statusColor = "#1d4ed8";
+                bgColor = "#dbeafe";
+                break;
+            case "ended":
+                statusText = "🔴 Ended";
+                statusColor = "#dc2626";
+                bgColor = "#fef2f2";
+                break;
+            case "upcoming":
+            default:
+                statusText = "🟡 Upcoming";
+                statusColor = "#b45309";
+                bgColor = "#fef3c7";
+                break;
+        }
+        Label statusLabel = new Label(statusText);
+        statusLabel.setStyle("-fx-background-color: " + bgColor + "; -fx-text-fill: " + statusColor + "; " +
+                "-fx-font-size: 9px; -fx-font-weight: 600; -fx-padding: 2px 10px; -fx-background-radius: 12px;");
+        headerRow.getChildren().addAll(titleLabel, spacer, statusLabel);
 
-            Label infoLabel = new Label(quiz.totalQuestions + " questions · " + quiz.durationMinutes + " min");
-            infoLabel.setStyle("-fx-text-fill: #666666; -fx-font-size: 12px;");
+        Label infoLabel = new Label(quiz.totalQuestions + " questions · " + quiz.durationMinutes + " min");
+        infoLabel.setStyle("-fx-text-fill: #666666; -fx-font-size: 12px;");
 
-            Button startBtn = new Button("▶ Start Quiz");
-            startBtn.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-padding: 4px; " +
+        Button startBtn = new Button("▶ Start Quiz");
+        startBtn.setStyle("-fx-background-color: #1A7A64; -fx-text-fill: #ffffff; -fx-padding: 4px; " +
+                "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
+
+        // Button state logic based on quiz status and user history
+        if ("started".equals(quiz.status) && !quiz.hasTaken) {
+            startBtn.setDisable(false);
+            startBtn.setOnAction(new QuizStartHandler(quiz));
+        } else if (quiz.hasTaken) {
+            startBtn.setDisable(true);
+            startBtn.setText("✅ Done");
+            startBtn.setStyle("-fx-background-color: #e5e5e5; -fx-text-fill: #16a34a; -fx-padding: 4px; " +
                     "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
-
-            if ("started".equals(quiz.status) && !quiz.hasTaken) {
-                startBtn.setDisable(false);
-                startBtn.setOnAction(new QuizStartHandler(quiz));
-            } else if (quiz.hasTaken) {
-                startBtn.setDisable(true);
-                startBtn.setText("✅ Done");
-                startBtn.setStyle("-fx-background-color: #e5e5e5; -fx-text-fill: #16a34a; -fx-padding: 4px; " +
-                        "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
-            } else if ("ended".equals(quiz.status)) {
-                startBtn.setDisable(true);
-                startBtn.setText("🔒 Ended");
-                startBtn.setStyle("-fx-background-color: #e5e5e5; -fx-text-fill: #999999; -fx-padding: 4px; " +
-                        "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
-            } else {
-                // upcoming
-                startBtn.setDisable(true);
-                startBtn.setText("⏳ Coming Soon");
-                startBtn.setStyle("-fx-background-color: #e5e5e5; -fx-text-fill: #999999; -fx-padding: 4px; " +
-                        "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
-            }
-
-            card.getChildren().addAll(headerRow, infoLabel, startBtn);
-            return card;
+        } else if ("ended".equals(quiz.status)) {
+            startBtn.setDisable(true);
+            startBtn.setText("🔒 Ended");
+            startBtn.setStyle("-fx-background-color: #e5e5e5; -fx-text-fill: #999999; -fx-padding: 4px; " +
+                    "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
+        } else {
+            // upcoming
+            startBtn.setDisable(true);
+            startBtn.setText("⏳ Coming Soon");
+            startBtn.setStyle("-fx-background-color: #e5e5e5; -fx-text-fill: #999999; -fx-padding: 4px; " +
+                    "-fx-border-radius: 6px; -fx-background-radius: 6px; -fx-font-size: 12px;");
         }
 
-    // ─── QUIZ START HANDLER ──────────────────────────────────────
+        card.getChildren().addAll(headerRow, infoLabel, startBtn);
+        return card;
+    }
 
+    // =========================================================================
+    // ─── QUIZ START HANDLER ──────────────────────────────────────────────────
+    // =========================================================================
+
+    /**
+     * Inner class handler for the "Start Quiz" button.
+     */
     private class QuizStartHandler implements EventHandler<ActionEvent> {
         private final Quiz quiz;
-        QuizStartHandler(Quiz quiz) { this.quiz = quiz; }
+        
+        QuizStartHandler(Quiz quiz) { 
+            this.quiz = quiz; 
+        }
+        
         @Override
         public void handle(ActionEvent event) {
             startQuiz(quiz);
         }
     }
 
+    /**
+     * Initiates a quiz session.
+     * 
+     * <p><b>Lockdown Protocol:</b>
+     * Upon successful retrieval of the {@link QuizAttempt}, this method sets {@link #isQuizActive} to true 
+     * and calls {@link #setLockdown(boolean)} to disable all navigation and interaction outside the quiz view. 
+     * This prevents cheating or accidental data loss during the timed assessment.
+     * 
+     * @param quiz The {@link Quiz} to start.
+     */
     private void startQuiz(Quiz quiz) {
         if (!state.isOnline()) {
             showToast("🌐 Quizzes require an internet connection. Please connect and try again.");
@@ -2022,6 +2821,7 @@ public class MainController {
                     return api.startQuiz(quiz.id);
                 }
             };
+            
             task.setOnSucceeded(e -> {
                 QuizAttempt attempt = task.getValue();
                 System.out.println("QuizAttempt received:");
@@ -2035,12 +2835,14 @@ public class MainController {
                 } else {
                     System.out.println("  attempt.quiz is NULL!");
                 }
+                
                 Platform.runLater(() -> {
                     try {
                         FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/forum/fxmlfiles/Quiz.fxml"));
                         Parent quizView = loader.load();
                         QuizController controller = loader.getController();
 
+                        // Engage lockdown
                         setLockdown(true);
                         isQuizActive = true;
 
@@ -2048,10 +2850,12 @@ public class MainController {
                         threadArea.getChildren().add(quizView);
                         VBox.setVgrow(quizView, Priority.ALWAYS);
 
+                        // Pass the attempt data and a completion callback to the QuizController
                         controller.setQuizData(attempt, () -> {
+                            // Disengage lockdown upon quiz completion
                             setLockdown(false);
                             isQuizActive = false;
-                            showQuizzes();
+                            showQuizzes(); // Return to quiz list
                         });
 
                     } catch (Exception ex) {
@@ -2062,6 +2866,7 @@ public class MainController {
                     }
                 });
             });
+            
             task.setOnFailed(e -> {
                 Throwable ex = task.getException();
                 ex.printStackTrace();
@@ -2069,6 +2874,7 @@ public class MainController {
                     showToast("Failed to start quiz: " + ex.getMessage());
                 });
             });
+            
             new Thread(task).start();
 
         } catch (Exception e) {
@@ -2077,14 +2883,21 @@ public class MainController {
         }
     }
 
-    // ─── RESULTS ──────────────────────────────────────────────────
+    // =========================================================================
+    // ─── RESULTS ─────────────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Action handler for the "Results" navigation button.
+     * Fetches and displays the user's historical quiz attempts.
+     */
     @FXML
     public void showResults() {
         if (isQuizActive) {
             showToast("🔒 Cannot navigate while quiz is in progress.");
             return;
         }
+        
         currentView = "results";
         setActiveNav(navResults);
         contextTitle.setText("Quiz Results");
@@ -2110,6 +2923,7 @@ public class MainController {
                     return api.getQuizAttempts();
                 }
             };
+            
             task.setOnSucceeded(e -> {
                 List<QuizAttempt> attempts = task.getValue();
                 System.out.println("Attempts count: " + attempts.size());
@@ -2120,12 +2934,14 @@ public class MainController {
                     controller.setAttempts(attempts);
                 });
             });
+            
             task.setOnFailed(e -> {
                 Platform.runLater(() -> {
                     controller.showError("Failed to load attempts: " + task.getException().getMessage());
                     task.getException().printStackTrace();
                 });
             });
+            
             new Thread(task).start();
 
         } catch (Exception e) {
@@ -2146,8 +2962,21 @@ public class MainController {
         threadArea.getChildren().add(placeholder);
     }
 
-    // ─── LOCKDOWN ──────────────────────────────────────────────────
+    // =========================================================================
+    // ─── LOCKDOWN ────────────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Toggles the "Quiz Lockdown" state across the entire UI.
+     * 
+     * <p><b>Security Rationale:</b>
+     * When {@code enabled} is true, this method disables all navigation buttons, action buttons, 
+     * and input fields. It also makes the main content areas {@code mouseTransparent} to prevent 
+     * any click events from being registered. This ensures the user cannot navigate away from the 
+     * quiz or interact with the forum while a timed assessment is active.
+     * 
+     * @param enabled {@code true} to engage lockdown, {@code false} to release it.
+     */
     private void setLockdown(boolean enabled) {
         navGroups.setDisable(enabled);
         navProfile.setDisable(enabled);
@@ -2159,6 +2988,7 @@ public class MainController {
         privateCheck.setDisable(enabled);
         selectUsersBtn.setDisable(enabled);
 
+        // Mouse transparency prevents any hidden click handlers from firing
         contextList.setMouseTransparent(enabled);
         contextList.setDisable(enabled);
 
@@ -2182,14 +3012,23 @@ public class MainController {
         }
     }
 
-    // ─── LOGOUT ────────────────────────────────────────────────────
+    // =========================================================================
+    // ─── LOGOUT ──────────────────────────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * Action handler for the Logout button.
+     * 
+     * <p><b>Safety Check:</b> Prevents logout if a quiz is currently active to avoid invalidating 
+     * the session mid-assessment and losing the user's progress.
+     */
     @FXML
     public void handleLogout() {
         if (isQuizActive) {
             showToast("🔒 Cannot logout while quiz is in progress. Please complete or close the quiz first.");
             return;
         }
+        
         Task<Void> logoutTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
@@ -2197,6 +3036,7 @@ public class MainController {
                 return null;
             }
         };
+        
         logoutTask.setOnSucceeded(e -> {
             state.clearSession();
             try {
@@ -2205,7 +3045,9 @@ public class MainController {
                 ex.printStackTrace();
             }
         });
+        
         logoutTask.setOnFailed(e -> {
+            // Even if the API logout fails, clear the local session and force login for security
             state.clearSession();
             try {
                 MainApp.switchToLogin();
@@ -2213,11 +3055,18 @@ public class MainController {
                 ex.printStackTrace();
             }
         });
+        
         new Thread(logoutTask).start();
     }
 
-    // ─── CREATE TOPIC (FXML action) ──────────────────────────────
+    // =========================================================================
+    // ─── CREATE TOPIC (FXML action) ──────────────────────────────────────────
+    // =========================================================================
 
+    /**
+     * FXML-bound action handler for creating a new topic.
+     * Acts as a wrapper around {@link #showCreateTopicDialog(Group)}.
+     */
     @FXML
     public void handleCreateTopic() {
         if (isQuizActive) {
@@ -2231,6 +3080,9 @@ public class MainController {
         }
     }
 
+    /**
+     * FXML-bound action handler for opening the user selection dialog for private posts.
+     */
     @FXML
     public void onSelectUsers() {
         if (privateCheck.isSelected()) {
